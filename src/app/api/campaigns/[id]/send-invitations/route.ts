@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { generateToken } from '@/lib/crypto';
 
@@ -19,13 +19,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id, status')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true, status: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -49,30 +46,29 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     let createdCount = 0;
 
     for (const employeeId of employee_ids) {
       const tokenPublic = generateToken();
 
-      const { error } = await supabase
-        .from('core.survey_invitations')
-        .insert({
-          campaign_id: id,
-          employee_id: employeeId,
-          token_public: tokenPublic,
-          token_used: false,
-          status: 'sent',
-          sent_at: now.toISOString(),
-          expires_at: expiresAt,
+      try {
+        await prisma.surveyInvitation.create({
+          data: {
+            campaign_id: id,
+            employee_id: employeeId,
+            token_public: tokenPublic,
+            token_used: false,
+            status: 'sent',
+            sent_at: now,
+            expires_at: expiresAt,
+          },
         });
-
-      if (error) {
+        createdCount++;
+      } catch (error) {
         console.error('Create invitation error:', error);
         continue;
       }
-
-      createdCount++;
     }
 
     return NextResponse.json({

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser, hashPassword } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { userSchema } from '@/lib/validations';
@@ -24,36 +24,43 @@ export async function GET(request: Request) {
     const pageLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * pageLimit;
 
-    const supabase = createServerClient();
-
-    let query = supabase
-      .from('core.users')
-      .select('id, name, email, role, company_id, sector_id, active, created_at', { count: 'exact' })
-      .eq('active', true);
+    const where: Record<string, unknown> = { active: true };
 
     // RH sees only users from their company
     if (user.role === 'RH') {
-      query = query.eq('company_id', user.company_id);
+      where.company_id = user.company_id;
     } else if (user.role === 'LIDERANCA') {
-      query = query.eq('company_id', user.company_id);
+      where.company_id = user.company_id;
     }
     // ADM sees all users
 
-    const { data: users, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageLimit - 1);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const [users, count] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          company_id: true,
+          sector_id: true,
+          active: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'desc' },
+        skip: offset,
+        take: pageLimit,
+      }),
+      prisma.user.count({ where }),
+    ]);
 
     return NextResponse.json({
       data: users,
       pagination: {
         page,
         limit: pageLimit,
-        total: count ?? 0,
-        totalPages: Math.ceil((count ?? 0) / pageLimit),
+        total: count,
+        totalPages: Math.ceil(count / pageLimit),
       },
     });
   } catch (err) {
@@ -104,14 +111,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createServerClient();
-
     // Check email uniqueness
-    const { data: existing } = await supabase
-      .from('core.users')
-      .select('id')
-      .eq('email', email)
-      .single();
+    const existing = await prisma.user.findFirst({
+      where: { email },
+      select: { id: true },
+    });
 
     if (existing) {
       return NextResponse.json(
@@ -122,22 +126,25 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
-    const { data: newUser, error } = await supabase
-      .from('core.users')
-      .insert({
+    const newUser = await prisma.user.create({
+      data: {
         name,
         email,
         password_hash: passwordHash,
         role,
         company_id,
         active: true,
-      })
-      .select('id, name, email, role, company_id, active, created_at')
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        company_id: true,
+        active: true,
+        created_at: true,
+      },
+    });
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (err) {

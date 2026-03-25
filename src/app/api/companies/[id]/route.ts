@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -29,16 +29,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
+    const company = await prisma.company.findUnique({
+      where: { id, active: true },
+    });
 
-    const { data: company, error } = await supabase
-      .from('core.companies')
-      .select('*')
-      .eq('id', id)
-      .eq('active', true)
-      .single();
-
-    if (error || !company) {
+    if (!company) {
       return NextResponse.json(
         { error: 'Empresa não encontrada' },
         { status: 404 }
@@ -68,28 +63,30 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const { id } = await params;
     const body = await request.json();
-    const supabase = createServerClient();
 
     const updateData: Record<string, unknown> = {};
     if (body.name) updateData.name = body.name;
     if (body.cnpj) updateData.cnpj = body.cnpj;
     if (body.cnae !== undefined) updateData.cnae = body.cnae;
-    updateData.updated_at = new Date().toISOString();
+    updateData.updated_at = new Date();
 
-    const { data: company, error } = await supabase
-      .from('core.companies')
-      .update(updateData)
-      .eq('id', id)
-      .eq('active', true)
-      .select()
-      .single();
+    // Verify company exists and is active before updating
+    const existing = await prisma.company.findUnique({
+      where: { id, active: true },
+      select: { id: true },
+    });
 
-    if (error || !company) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Empresa não encontrada' },
         { status: 404 }
       );
     }
+
+    const company = await prisma.company.update({
+      where: { id },
+      data: updateData,
+    });
 
     return NextResponse.json(company);
   } catch (err) {
@@ -113,22 +110,24 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
-    const { data: company, error } = await supabase
-      .from('core.companies')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('active', true)
-      .select()
-      .single();
+    // Verify company exists and is active before soft-deleting
+    const existing = await prisma.company.findUnique({
+      where: { id, active: true },
+      select: { id: true },
+    });
 
-    if (error || !company) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Empresa não encontrada' },
         { status: 404 }
       );
     }
+
+    await prisma.company.update({
+      where: { id },
+      data: { active: false, updated_at: new Date() },
+    });
 
     return NextResponse.json({ message: 'Empresa desativada com sucesso' });
   } catch (err) {

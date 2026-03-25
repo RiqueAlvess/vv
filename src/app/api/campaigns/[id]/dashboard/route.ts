@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import {
@@ -48,13 +48,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id, status')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true, status: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -75,28 +72,53 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Try pre-calculated metrics first
-    const { data: cachedMetrics } = await supabase
-      .from('analytics.campaign_metrics')
-      .select('*')
-      .eq('campaign_id', id)
-      .single();
+    const cachedMetrics = await prisma.campaignMetrics.findUnique({
+      where: { campaign_id: id },
+    });
 
     if (cachedMetrics) {
+      const dimensionScores = cachedMetrics.dimension_scores as Record<string, number>;
+      const riskDistribution = cachedMetrics.risk_distribution as Record<string, number>;
+      const demographicData = cachedMetrics.demographic_data as Record<string, Record<string, number>>;
+      const topCriticalSectors = (cachedMetrics as Record<string, unknown>).top_critical_sectors as unknown[] ?? [];
+      const heatmapData = (cachedMetrics as Record<string, unknown>).heatmap_data as Record<string, unknown>;
+      const scoresByGender = (cachedMetrics as Record<string, unknown>).scores_by_gender as Record<string, unknown>;
+      const scoresByAge = (cachedMetrics as Record<string, unknown>).scores_by_age as Record<string, unknown>;
+      const topCriticalGroups = (cachedMetrics as Record<string, unknown>).top_critical_groups as unknown[] ?? [];
+
+      const serializedMetrics = {
+        id: cachedMetrics.id,
+        campaign_id: cachedMetrics.campaign_id,
+        total_invited: cachedMetrics.total_invited,
+        total_responded: cachedMetrics.total_responded,
+        response_rate: Number(cachedMetrics.response_rate),
+        igrp: cachedMetrics.igrp ? Number(cachedMetrics.igrp) : 0,
+        risk_distribution: (cachedMetrics.risk_distribution ?? {}) as Record<string, number>,
+        dimension_scores: (cachedMetrics.dimension_scores ?? {}) as Record<string, number>,
+        demographic_data: (cachedMetrics.demographic_data ?? {}) as Record<string, unknown>,
+        heatmap_data: (cachedMetrics.heatmap_data ?? {}) as Record<string, unknown>,
+        top_critical_sectors: ((cachedMetrics.top_critical_sectors as unknown) ?? []) as Record<string, unknown>[],
+        scores_by_gender: (cachedMetrics.scores_by_gender ?? {}) as Record<string, unknown>,
+        scores_by_age: (cachedMetrics.scores_by_age ?? {}) as Record<string, unknown>,
+        top_critical_groups: ((cachedMetrics.top_critical_groups as unknown) ?? []) as Record<string, unknown>[],
+        calculated_at: cachedMetrics.calculated_at?.toISOString() ?? new Date().toISOString(),
+      };
+
       const dashboardData: DashboardData = {
-        metrics: cachedMetrics,
-        dimension_scores: cachedMetrics.dimension_scores,
+        metrics: serializedMetrics,
+        dimension_scores: dimensionScores,
         radar_data: HSE_DIMENSIONS.map((dim) => ({
           dimension: dim.name,
-          score: cachedMetrics.dimension_scores[dim.key] ?? 0,
+          score: dimensionScores[dim.key] ?? 0,
         })),
-        top_sectors: cachedMetrics.top_critical_sectors ?? [],
-        risk_distribution: cachedMetrics.risk_distribution,
-        gender_distribution: (cachedMetrics.demographic_data as Record<string, Record<string, number>>)?.gender ?? {},
-        age_distribution: (cachedMetrics.demographic_data as Record<string, Record<string, number>>)?.age ?? {},
-        heatmap: cachedMetrics.heatmap_data,
-        scores_by_gender: cachedMetrics.scores_by_gender,
-        scores_by_age: cachedMetrics.scores_by_age,
-        top_critical_groups: cachedMetrics.top_critical_groups ?? [],
+        top_sectors: topCriticalSectors as Record<string, unknown>[],
+        risk_distribution: riskDistribution,
+        gender_distribution: demographicData?.gender ?? {},
+        age_distribution: demographicData?.age ?? {},
+        heatmap: heatmapData,
+        scores_by_gender: scoresByGender,
+        scores_by_age: scoresByAge,
+        top_critical_groups: topCriticalGroups as Record<string, unknown>[],
       };
 
       // LIDERANCA: filter to their sector only
@@ -112,10 +134,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Calculate on the fly
-    const { data: responses } = await supabase
-      .from('core.survey_responses')
-      .select('*')
-      .eq('campaign_id', id);
+    const responses = await prisma.surveyResponse.findMany({
+      where: { campaign_id: id },
+    });
 
     if (!responses || responses.length === 0) {
       return NextResponse.json(
@@ -124,10 +145,9 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { count: totalInvited } = await supabase
-      .from('core.survey_invitations')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', id);
+    const totalInvited = await prisma.surveyInvitation.count({
+      where: { campaign_id: id },
+    });
 
     const totalResponded = responses.length;
     const responseRate = totalInvited ? (totalResponded / totalInvited) * 100 : 0;
@@ -191,7 +211,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       metrics: {
         id: '',
         campaign_id: id,
-        total_invited: totalInvited ?? 0,
+        total_invited: totalInvited,
         total_responded: totalResponded,
         response_rate: Math.round(responseRate * 100) / 100,
         igrp,

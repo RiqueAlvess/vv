@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { campaignSchema } from '@/lib/validations';
@@ -25,32 +25,25 @@ export async function GET(request: Request) {
     const pageLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * pageLimit;
 
-    const supabase = createServerClient();
+    const where = user.role !== 'ADM' ? { company_id: user.company_id } : {};
 
-    let query = supabase
-      .from('core.campaigns')
-      .select('*', { count: 'exact' });
-
-    // Non-ADM users see only their company's campaigns
-    if (user.role !== 'ADM') {
-      query = query.eq('company_id', user.company_id);
-    }
-
-    const { data: campaigns, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageLimit - 1);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const [campaigns, count] = await Promise.all([
+      prisma.campaign.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: offset,
+        take: pageLimit,
+      }),
+      prisma.campaign.count({ where }),
+    ]);
 
     return NextResponse.json({
       data: campaigns,
       pagination: {
         page,
         limit: pageLimit,
-        total: count ?? 0,
-        totalPages: Math.ceil((count ?? 0) / pageLimit),
+        total: count,
+        totalPages: Math.ceil(count / pageLimit),
       },
     });
   } catch (err) {
@@ -92,12 +85,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createServerClient();
     const campaignSalt = generateSalt();
 
-    const { data: campaign, error } = await supabase
-      .from('core.campaigns')
-      .insert({
+    const campaign = await prisma.campaign.create({
+      data: {
         company_id,
         name,
         description: description ?? null,
@@ -106,13 +97,8 @@ export async function POST(request: Request) {
         status: 'draft',
         campaign_salt: campaignSalt,
         created_by: user.user_id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+      },
+    });
 
     return NextResponse.json(campaign, { status: 201 });
   } catch (err) {

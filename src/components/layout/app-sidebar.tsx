@@ -42,8 +42,8 @@ export function AppSidebar() {
             <Shield className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">Vivamente 360º</span>
-            <span className="text-xs text-muted-foreground">Análise de Riscos NR-1</span>
+            <span className="text-sm font-semibold">Asta</span>
+            <span className="text-xs text-muted-foreground">Riscos Psicossociais NR-1</span>
           </div>
         </div>
       </SidebarHeader>

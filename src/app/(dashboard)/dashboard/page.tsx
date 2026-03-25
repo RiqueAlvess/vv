@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { RISK_COLORS } from '@/lib/constants';
+import { RISK_COLORS, HSE_DIMENSIONS } from '@/lib/constants';
+import { HeatmapChart } from '@/components/dashboard/heatmap-chart';
 import type { Campaign, DashboardData, RiskLevel } from '@/types';
 import { Activity, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 
@@ -228,6 +229,18 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {/* Heatmap: Sector x Dimension */}
+          {dashboardData.heatmap && (
+            <HeatmapChart
+              data={
+                Array.isArray(dashboardData.heatmap)
+                  ? (dashboardData.heatmap as { sector: string; dimensions: Record<string, { score: number; riskLevel: RiskLevel }> }[])
+                  : []
+              }
+              dimensions={HSE_DIMENSIONS.map((d) => ({ key: d.key, name: d.name }))}
+            />
+          )}
 
           {/* Top Critical Groups */}
           {dashboardData.top_critical_groups?.length > 0 && (

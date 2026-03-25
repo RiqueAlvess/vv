@@ -22,7 +22,7 @@ export function Header() {
     for (const [path, title] of Object.entries(pageTitles)) {
       if (pathname === path || pathname.startsWith(path + '/')) return title;
     }
-    return 'Vivamente 360º';
+    return 'Asta';
   };
 
   return (

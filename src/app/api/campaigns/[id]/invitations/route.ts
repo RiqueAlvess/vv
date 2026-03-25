@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -24,13 +24,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -48,30 +45,32 @@ export async function GET(request: Request, { params }: RouteParams) {
     const limit_ = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * limit_;
 
-    const { count } = await supabase
-      .from('core.survey_invitations')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', id);
+    const where = { campaign_id: id };
 
-    const { data: invitations, error } = await supabase
-      .from('core.survey_invitations')
-      .select('id, campaign_id, employee_id, token_public, token_used, status, sent_at, expires_at')
-      .eq('campaign_id', id)
-      .order('sent_at', { ascending: false })
-      .range(offset, offset + limit_ - 1);
-
-    if (error) {
-      console.error('List invitations error:', error);
-      return NextResponse.json(
-        { error: 'Erro ao listar convites' },
-        { status: 500 }
-      );
-    }
+    const [count, invitations] = await Promise.all([
+      prisma.surveyInvitation.count({ where }),
+      prisma.surveyInvitation.findMany({
+        where,
+        select: {
+          id: true,
+          campaign_id: true,
+          employee_id: true,
+          token_public: true,
+          token_used: true,
+          status: true,
+          sent_at: true,
+          expires_at: true,
+        },
+        orderBy: { sent_at: 'desc' },
+        skip: offset,
+        take: limit_,
+      }),
+    ]);
 
     // For RH users, show only aggregated status counts instead of individual statuses
     // to protect anonymity
     if (user.role === 'RH') {
-      const sanitized = invitations?.map((inv) => ({
+      const sanitized = invitations.map((inv) => ({
         id: inv.id,
         campaign_id: inv.campaign_id,
         employee_id: inv.employee_id,
@@ -80,23 +79,24 @@ export async function GET(request: Request, { params }: RouteParams) {
         expires_at: inv.expires_at,
       }));
 
-      const { count: respondedCount } = await supabase
-        .from('core.survey_invitations')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', id)
-        .eq('token_used', true);
+      const respondedCount = await prisma.surveyInvitation.count({
+        where: {
+          campaign_id: id,
+          token_used: true,
+        },
+      });
 
       return NextResponse.json({
         data: sanitized,
         aggregated: {
-          total: count ?? 0,
-          responded: respondedCount ?? 0,
+          total: count,
+          responded: respondedCount,
         },
         pagination: {
           page,
           limit: limit_,
-          total: count ?? 0,
-          totalPages: Math.ceil((count ?? 0) / limit_),
+          total: count,
+          totalPages: Math.ceil(count / limit_),
         },
       });
     }
@@ -106,8 +106,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       pagination: {
         page,
         limit: limit_,
-        total: count ?? 0,
-        totalPages: Math.ceil((count ?? 0) / limit_),
+        total: count,
+        totalPages: Math.ceil(count / limit_),
       },
     });
   } catch (err) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { companySchema } from '@/lib/validations';
@@ -28,31 +28,25 @@ export async function GET(request: Request) {
     const pageLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * pageLimit;
 
-    const supabase = createServerClient();
+    const where = { active: true };
 
-    const { count } = await supabase
-      .from('core.companies')
-      .select('*', { count: 'exact', head: true })
-      .eq('active', true);
-
-    const { data: companies, error } = await supabase
-      .from('core.companies')
-      .select('*')
-      .eq('active', true)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageLimit - 1);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const [companies, count] = await Promise.all([
+      prisma.company.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: offset,
+        take: pageLimit,
+      }),
+      prisma.company.count({ where }),
+    ]);
 
     return NextResponse.json({
       data: companies,
       pagination: {
         page,
         limit: pageLimit,
-        total: count ?? 0,
-        totalPages: Math.ceil((count ?? 0) / pageLimit),
+        total: count,
+        totalPages: Math.ceil(count / pageLimit),
       },
     });
   } catch (err) {
@@ -85,14 +79,12 @@ export async function POST(request: Request) {
     }
 
     const { name, cnpj, cnae } = parsed.data;
-    const supabase = createServerClient();
 
     // Check CNPJ uniqueness
-    const { data: existing } = await supabase
-      .from('core.companies')
-      .select('id')
-      .eq('cnpj', cnpj)
-      .single();
+    const existing = await prisma.company.findFirst({
+      where: { cnpj },
+      select: { id: true },
+    });
 
     if (existing) {
       return NextResponse.json(
@@ -101,15 +93,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: company, error } = await supabase
-      .from('core.companies')
-      .insert({ name, cnpj, cnae: cnae ?? null, active: true })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const company = await prisma.company.create({
+      data: { name, cnpj, cnae: cnae ?? null, active: true },
+    });
 
     return NextResponse.json(company, { status: 201 });
   } catch (err) {

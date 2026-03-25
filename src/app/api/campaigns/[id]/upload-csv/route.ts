@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { hashEmail } from '@/lib/crypto';
 
@@ -53,13 +53,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id, status, campaign_salt')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true, status: true, campaign_salt: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -119,29 +116,21 @@ export async function POST(request: Request, { params }: RouteParams) {
       let unitId = unitCache.get(unitKey);
 
       if (!unitId) {
-        const { data: existingUnit } = await supabase
-          .from('core.campaign_units')
-          .select('id')
-          .eq('campaign_id', id)
-          .eq('name', row.unidade)
-          .single();
+        const existingUnit = await prisma.campaignUnit.findFirst({
+          where: { campaign_id: id, name: row.unidade },
+          select: { id: true },
+        });
 
         if (existingUnit) {
           unitId = existingUnit.id;
         } else {
-          const { data: newUnit, error: unitError } = await supabase
-            .from('core.campaign_units')
-            .insert({ campaign_id: id, name: row.unidade })
-            .select('id')
-            .single();
-
-          if (unitError || !newUnit) {
-            console.error('Create unit error:', unitError);
-            continue;
-          }
+          const newUnit = await prisma.campaignUnit.create({
+            data: { campaign_id: id, name: row.unidade },
+            select: { id: true },
+          });
           unitId = newUnit.id;
         }
-        unitCache.set(unitKey, unitId!);
+        unitCache.set(unitKey, unitId);
       }
 
       // Find or create sector
@@ -149,29 +138,21 @@ export async function POST(request: Request, { params }: RouteParams) {
       let sectorId = sectorCache.get(sectorKey);
 
       if (!sectorId) {
-        const { data: existingSector } = await supabase
-          .from('core.campaign_sectors')
-          .select('id')
-          .eq('unit_id', unitId)
-          .eq('name', row.setor)
-          .single();
+        const existingSector = await prisma.campaignSector.findFirst({
+          where: { unit_id: unitId, name: row.setor },
+          select: { id: true },
+        });
 
         if (existingSector) {
           sectorId = existingSector.id;
         } else {
-          const { data: newSector, error: sectorError } = await supabase
-            .from('core.campaign_sectors')
-            .insert({ unit_id: unitId, name: row.setor })
-            .select('id')
-            .single();
-
-          if (sectorError || !newSector) {
-            console.error('Create sector error:', sectorError);
-            continue;
-          }
+          const newSector = await prisma.campaignSector.create({
+            data: { unit_id: unitId, name: row.setor },
+            select: { id: true },
+          });
           sectorId = newSector.id;
         }
-        sectorCache.set(sectorKey, sectorId!);
+        sectorCache.set(sectorKey, sectorId);
       }
 
       // Find or create position
@@ -179,50 +160,40 @@ export async function POST(request: Request, { params }: RouteParams) {
       let positionId = positionCache.get(positionKey);
 
       if (!positionId) {
-        const { data: existingPosition } = await supabase
-          .from('core.campaign_positions')
-          .select('id')
-          .eq('sector_id', sectorId)
-          .eq('name', row.cargo)
-          .single();
+        const existingPosition = await prisma.campaignPosition.findFirst({
+          where: { sector_id: sectorId, name: row.cargo },
+          select: { id: true },
+        });
 
         if (existingPosition) {
           positionId = existingPosition.id;
         } else {
-          const { data: newPosition, error: positionError } = await supabase
-            .from('core.campaign_positions')
-            .insert({ sector_id: sectorId, name: row.cargo })
-            .select('id')
-            .single();
-
-          if (positionError || !newPosition) {
-            console.error('Create position error:', positionError);
-            continue;
-          }
+          const newPosition = await prisma.campaignPosition.create({
+            data: { sector_id: sectorId, name: row.cargo },
+            select: { id: true },
+          });
           positionId = newPosition.id;
         }
-        positionCache.set(positionKey, positionId!);
+        positionCache.set(positionKey, positionId);
       }
 
-      // Hash email and create employee
+      // Hash email and create employee if not exists
       const emailHash = hashEmail(row.email, campaign.campaign_salt);
 
-      const { data: existingEmployee } = await supabase
-        .from('core.campaign_employees')
-        .select('id')
-        .eq('position_id', positionId)
-        .eq('email_hash', emailHash)
-        .single();
+      const existingEmployee = await prisma.campaignEmployee.findUnique({
+        where: {
+          position_id_email_hash: {
+            position_id: positionId,
+            email_hash: emailHash,
+          },
+        },
+        select: { id: true },
+      });
 
       if (!existingEmployee) {
-        const { error: employeeError } = await supabase
-          .from('core.campaign_employees')
-          .insert({ position_id: positionId, email_hash: emailHash });
-
-        if (employeeError) {
-          console.error('Create employee error:', employeeError);
-          continue;
-        }
+        await prisma.campaignEmployee.create({
+          data: { position_id: positionId, email_hash: emailHash },
+        });
         employeesCreated++;
       }
     }

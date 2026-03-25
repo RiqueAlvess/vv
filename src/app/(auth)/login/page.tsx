@@ -51,8 +51,8 @@ export default function LoginPage() {
             <Shield className="h-6 w-6" />
           </div>
         </div>
-        <CardTitle className="text-2xl">Vivamente 360º</CardTitle>
-        <CardDescription>Análise de Riscos Psicossociais NR-1</CardDescription>
+        <CardTitle className="text-2xl">Asta</CardTitle>
+        <CardDescription>Plataforma de Riscos Psicossociais NR-1</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">

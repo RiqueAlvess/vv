@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { signToken, signRefreshToken, comparePassword } from '@/lib/auth';
 import { loginLimiter } from '@/lib/rate-limit';
 import { loginSchema } from '@/lib/validations';
@@ -28,16 +28,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createServerClient();
+    const user = await prisma.user.findFirst({
+      where: { email, active: true },
+      select: { id: true, name: true, email: true, password_hash: true, role: true, company_id: true },
+    });
 
-    const { data: user, error } = await supabase
-      .from('core.users')
-      .select('id, name, email, password_hash, role, company_id, active')
-      .eq('email', email)
-      .eq('active', true)
-      .single();
-
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
@@ -55,7 +51,7 @@ export async function POST(request: Request) {
     const token = await signToken({
       user_id: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
       company_id: user.company_id,
     });
 
@@ -64,10 +60,12 @@ export async function POST(request: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await supabase.from('core.refresh_tokens').insert({
-      user_id: user.id,
-      token: refreshToken,
-      expires_at: expiresAt.toISOString(),
+    await prisma.refreshToken.create({
+      data: {
+        user_id: user.id,
+        token: refreshToken,
+        expires_at: expiresAt,
+      },
     });
 
     const response = NextResponse.json({

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { signToken, signRefreshToken, verifyRefreshToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
@@ -22,16 +22,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createServerClient();
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: { token: refreshToken, user_id: payload.user_id },
+    });
 
-    const { data: storedToken, error: tokenError } = await supabase
-      .from('core.refresh_tokens')
-      .select('*')
-      .eq('token', refreshToken)
-      .eq('user_id', payload.user_id)
-      .single();
-
-    if (tokenError || !storedToken) {
+    if (!storedToken) {
       return NextResponse.json(
         { error: 'Refresh token não encontrado' },
         { status: 401 }
@@ -39,10 +34,7 @@ export async function POST(request: Request) {
     }
 
     if (new Date(storedToken.expires_at) < new Date()) {
-      await supabase
-        .from('core.refresh_tokens')
-        .delete()
-        .eq('id', storedToken.id);
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
 
       return NextResponse.json(
         { error: 'Refresh token expirado' },
@@ -51,20 +43,15 @@ export async function POST(request: Request) {
     }
 
     // Delete old refresh token
-    await supabase
-      .from('core.refresh_tokens')
-      .delete()
-      .eq('id', storedToken.id);
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } });
 
     // Get user data for new access token
-    const { data: user, error: userError } = await supabase
-      .from('core.users')
-      .select('id, email, role, company_id')
-      .eq('id', payload.user_id)
-      .eq('active', true)
-      .single();
+    const user = await prisma.user.findFirst({
+      where: { id: payload.user_id, active: true },
+      select: { id: true, email: true, role: true, company_id: true },
+    });
 
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 401 }
@@ -74,7 +61,7 @@ export async function POST(request: Request) {
     const newToken = await signToken({
       user_id: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
       company_id: user.company_id,
     });
 
@@ -83,10 +70,12 @@ export async function POST(request: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await supabase.from('core.refresh_tokens').insert({
-      user_id: user.id,
-      token: newRefreshToken,
-      expires_at: expiresAt.toISOString(),
+    await prisma.refreshToken.create({
+      data: {
+        user_id: user.id,
+        token: newRefreshToken,
+        expires_at: expiresAt,
+      },
     });
 
     return NextResponse.json({

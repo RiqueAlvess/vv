@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import {
   HSE_DIMENSIONS,
@@ -57,13 +57,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id, status')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true, status: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -84,11 +81,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Get campaign hierarchy
-    const { data: units } = await supabase
-      .from('core.campaign_units')
-      .select('id, name')
-      .eq('campaign_id', id)
-      .order('name');
+    const units = await prisma.campaignUnit.findMany({
+      where: { campaign_id: id },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
 
     if (!units || units.length === 0) {
       return NextResponse.json(
@@ -98,10 +95,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Get all responses for this campaign
-    const { data: allResponses } = await supabase
-      .from('core.survey_responses')
-      .select('*')
-      .eq('campaign_id', id);
+    const allResponses = await prisma.surveyResponse.findMany({
+      where: { campaign_id: id },
+    });
 
     if (!allResponses || allResponses.length === 0) {
       return NextResponse.json(
@@ -117,31 +113,31 @@ export async function POST(request: Request, { params }: RouteParams) {
     const unitReports: UnitReport[] = [];
 
     for (const unit of units) {
-      const { data: sectors } = await supabase
-        .from('core.campaign_sectors')
-        .select('id, name')
-        .eq('unit_id', unit.id)
-        .order('name');
+      const sectors = await prisma.campaignSector.findMany({
+        where: { unit_id: unit.id },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
 
       const sectorReports: SectorReport[] = [];
 
-      for (const sector of (sectors ?? [])) {
-        const { data: positions } = await supabase
-          .from('core.campaign_positions')
-          .select('id, name')
-          .eq('sector_id', sector.id)
-          .order('name');
+      for (const sector of sectors) {
+        const positions = await prisma.campaignPosition.findMany({
+          where: { sector_id: sector.id },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        });
 
         const positionReports: PositionReport[] = [];
 
-        for (const position of (positions ?? [])) {
+        for (const position of positions) {
           // Get employees for this position
-          const { data: employees } = await supabase
-            .from('core.campaign_employees')
-            .select('id')
-            .eq('position_id', position.id);
+          const employees = await prisma.campaignEmployee.findMany({
+            where: { position_id: position.id },
+            select: { id: true },
+          });
 
-          const employeeIds = employees?.map((e: { id: string }) => e.id) ?? [];
+          const employeeIds = employees.map((e) => e.id);
 
           if (employeeIds.length === 0) {
             positionReports.push({
@@ -152,11 +148,13 @@ export async function POST(request: Request, { params }: RouteParams) {
           }
 
           // Get invitations for these employees
-          const { data: invitations } = await supabase
-            .from('core.survey_invitations')
-            .select('id, employee_id')
-            .eq('campaign_id', id)
-            .in('employee_id', employeeIds);
+          const invitations = await prisma.surveyInvitation.findMany({
+            where: {
+              campaign_id: id,
+              employee_id: { in: employeeIds },
+            },
+            select: { id: true, employee_id: true },
+          });
 
           // Since responses are anonymized (no direct link to invitation),
           // we calculate scores across all campaign responses for this position
@@ -164,7 +162,7 @@ export async function POST(request: Request, { params }: RouteParams) {
           const dimensions: Record<string, { score: number; risk: RiskLevel; nr: number }> = {};
 
           // Calculate dimension scores from all responses proportionally
-          const positionResponseCount = invitations?.length ?? 0;
+          const positionResponseCount = invitations.length;
 
           if (positionResponseCount > 0 && allResponses.length > 0) {
             for (const dim of HSE_DIMENSIONS) {

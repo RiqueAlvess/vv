@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { surveyResponseSchema } from '@/lib/validations';
-import { generateToken } from '@/lib/crypto';
+import { AnonymityService } from '@/services/anonymity.service';
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -10,15 +10,13 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
-    const supabase = createServerClient();
 
-    const { data: invitation, error } = await supabase
-      .from('core.survey_invitations')
-      .select('id, campaign_id, token_used_internally, expires_at')
-      .eq('token_public', token)
-      .single();
+    const invitation = await prisma.surveyInvitation.findUnique({
+      where: { token_public: token },
+      select: { id: true, campaign_id: true, token_used_internally: true, expires_at: true },
+    });
 
-    if (error || !invitation) {
+    if (!invitation) {
       return NextResponse.json(
         { valid: false, error: 'Token inválido' },
         { status: 404 }
@@ -32,7 +30,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    if (new Date(invitation.expires_at) < new Date()) {
+    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
       return NextResponse.json(
         { valid: false, error: 'Este convite expirou' },
         { status: 410 }
@@ -55,32 +53,13 @@ export async function GET(request: Request, { params }: RouteParams) {
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
-    const supabase = createServerClient();
 
-    // Validate token
-    const { data: invitation, error: invError } = await supabase
-      .from('core.survey_invitations')
-      .select('id, campaign_id, token_used_internally, expires_at')
-      .eq('token_public', token)
-      .single();
+    // Blind Drop Protocol Step 3: Validate token, create anonymous session, DESTROY token
+    const session = await AnonymityService.validateAndDestroyToken(token);
 
-    if (invError || !invitation) {
+    if (!session) {
       return NextResponse.json(
-        { error: 'Token inválido' },
-        { status: 404 }
-      );
-    }
-
-    if (invitation.token_used_internally) {
-      return NextResponse.json(
-        { error: 'Este convite já foi utilizado' },
-        { status: 410 }
-      );
-    }
-
-    if (new Date(invitation.expires_at) < new Date()) {
-      return NextResponse.json(
-        { error: 'Este convite expirou' },
+        { error: 'Token inválido, expirado ou já utilizado' },
         { status: 410 }
       );
     }
@@ -97,48 +76,20 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const { responses, gender, age_range, consent_accepted } = parsed.data;
 
-    const sessionUuid = generateToken();
-    const now = new Date();
+    // Blind Drop Protocol Step 4: Build anonymous response (NO identifiers)
+    const anonymousData = AnonymityService.buildAnonymousResponse(
+      session.campaignId,
+      session.sessionUuid,
+      responses,
+      { gender, ageRange: age_range },
+      consent_accepted
+    );
 
-    // Create survey response
-    const { error: responseError } = await supabase
-      .from('core.survey_responses')
-      .insert({
-        campaign_id: invitation.campaign_id,
-        session_uuid: sessionUuid,
-        gender: gender ?? null,
-        age_range: age_range ?? null,
-        consent_accepted,
-        consent_accepted_at: now.toISOString(),
-        responses,
-      });
+    await prisma.surveyResponse.create({ data: anonymousData });
 
-    if (responseError) {
-      console.error('Create survey response error:', responseError);
-      return NextResponse.json(
-        { error: 'Erro ao registrar resposta' },
-        { status: 500 }
-      );
-    }
-
-    // Mark token as used internally immediately
-    await supabase
-      .from('core.survey_invitations')
-      .update({
-        token_used_internally: true,
-      })
-      .eq('id', invitation.id);
-
-    // Schedule delayed status update: random 1-12 hours from now
-    const delayMs = Math.floor(Math.random() * 11 * 60 * 60 * 1000) + 60 * 60 * 1000;
-    const scheduledAt = new Date(now.getTime() + delayMs).toISOString();
-
-    await supabase
-      .from('core.survey_invitations')
-      .update({
-        status_update_scheduled_at: scheduledAt,
-      })
-      .eq('id', invitation.id);
+    // Blind Drop Protocol Step 5: Schedule delayed status update
+    const delayMs = AnonymityService.calculateRandomDelay();
+    await AnonymityService.scheduleStatusUpdate(session.invitationId, delayMs);
 
     return NextResponse.json({
       success: true,

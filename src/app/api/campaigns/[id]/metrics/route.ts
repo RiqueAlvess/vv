@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -24,13 +24,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createServerClient();
-
-    const { data: campaign } = await supabase
-      .from('core.campaigns')
-      .select('id, company_id, status')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true, company_id: true, status: true },
+    });
 
     if (!campaign) {
       return NextResponse.json(
@@ -43,27 +40,24 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { count: totalInvited } = await supabase
-      .from('core.survey_invitations')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', id);
+    const [totalInvited, totalResponded] = await Promise.all([
+      prisma.surveyInvitation.count({
+        where: { campaign_id: id },
+      }),
+      prisma.surveyResponse.count({
+        where: { campaign_id: id },
+      }),
+    ]);
 
-    const { count: totalResponded } = await supabase
-      .from('core.survey_responses')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', id);
-
-    const invited = totalInvited ?? 0;
-    const responded = totalResponded ?? 0;
-    const responseRate = invited > 0 ? Math.round((responded / invited) * 10000) / 100 : 0;
+    const responseRate = totalInvited > 0 ? Math.round((totalResponded / totalInvited) * 10000) / 100 : 0;
 
     // For active campaigns, only show aggregated totals
     // Don't expose individual invitation statuses to RH
     return NextResponse.json({
       campaign_id: id,
       status: campaign.status,
-      total_invited: invited,
-      total_responded: responded,
+      total_invited: totalInvited,
+      total_responded: totalResponded,
       response_rate: responseRate,
     });
   } catch (err) {

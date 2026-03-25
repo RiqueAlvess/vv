@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -23,15 +23,12 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
-    const { data: campaign, error } = await supabase
-      .from('core.campaigns')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+    });
 
-    if (error || !campaign) {
+    if (!campaign) {
       return NextResponse.json(
         { error: 'Campanha não encontrada' },
         { status: 404 }
@@ -44,27 +41,24 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Get hierarchy counts
-    const { count: unitsCount } = await supabase
-      .from('core.campaign_units')
-      .select('*', { count: 'exact', head: true })
-      .eq('campaign_id', id);
-
-    const { count: sectorsCount } = await supabase
-      .from('core.campaign_sectors')
-      .select('id, unit_id!inner(*)', { count: 'exact', head: true })
-      .eq('unit_id.campaign_id', id);
-
-    const { count: positionsCount } = await supabase
-      .from('core.campaign_positions')
-      .select('id, sector_id!inner(unit_id!inner(*))', { count: 'exact', head: true })
-      .eq('sector_id.unit_id.campaign_id', id);
+    const [unitsCount, sectorsCount, positionsCount] = await Promise.all([
+      prisma.campaignUnit.count({
+        where: { campaign_id: id },
+      }),
+      prisma.campaignSector.count({
+        where: { unit: { campaign_id: id } },
+      }),
+      prisma.campaignPosition.count({
+        where: { sector: { unit: { campaign_id: id } } },
+      }),
+    ]);
 
     return NextResponse.json({
       ...campaign,
       counts: {
-        units: unitsCount ?? 0,
-        sectors: sectorsCount ?? 0,
-        positions: positionsCount ?? 0,
+        units: unitsCount,
+        sectors: sectorsCount,
+        positions: positionsCount,
       },
     });
   } catch (err) {
@@ -84,16 +78,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
     // Get existing campaign
-    const { data: existing, error: fetchError } = await supabase
-      .from('core.campaigns')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const existing = await prisma.campaign.findUnique({
+      where: { id },
+    });
 
-    if (fetchError || !existing) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Campanha não encontrada' },
         { status: 404 }
@@ -117,18 +108,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (body.description !== undefined) updateData.description = body.description;
     if (body.start_date) updateData.start_date = body.start_date;
     if (body.end_date) updateData.end_date = body.end_date;
-    updateData.updated_at = new Date().toISOString();
+    updateData.updated_at = new Date();
 
-    const { data: campaign, error } = await supabase
-      .from('core.campaigns')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const campaign = await prisma.campaign.update({
+      where: { id },
+      data: updateData,
+    });
 
     return NextResponse.json(campaign);
   } catch (err) {

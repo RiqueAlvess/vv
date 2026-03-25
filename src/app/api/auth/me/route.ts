@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -18,31 +18,31 @@ export async function GET(request: Request) {
       );
     }
 
-    const supabase = createServerClient();
+    const userData = await prisma.user.findUnique({
+      where: { id: user.user_id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        company_id: true,
+        sector_id: true,
+        active: true,
+        created_at: true,
+        company: {
+          select: { id: true, name: true, cnpj: true, cnae: true },
+        },
+      },
+    });
 
-    const { data: userData, error } = await supabase
-      .from('core.users')
-      .select('id, name, email, role, company_id, sector_id, active, created_at')
-      .eq('id', user.user_id)
-      .single();
-
-    if (error || !userData) {
+    if (!userData) {
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 404 }
       );
     }
 
-    const { data: company } = await supabase
-      .from('core.companies')
-      .select('id, name, cnpj, cnae')
-      .eq('id', userData.company_id)
-      .single();
-
-    return NextResponse.json({
-      ...userData,
-      company: company ?? null,
-    });
+    return NextResponse.json(userData);
   } catch (err) {
     console.error('Get me error:', err);
     return NextResponse.json(

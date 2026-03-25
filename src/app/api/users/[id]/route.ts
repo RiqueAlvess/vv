@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser, hashPassword } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -23,16 +23,22 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
-    const { data: targetUser, error } = await supabase
-      .from('core.users')
-      .select('id, name, email, role, company_id, sector_id, active, created_at')
-      .eq('id', id)
-      .eq('active', true)
-      .single();
+    const targetUser = await prisma.user.findUnique({
+      where: { id, active: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        company_id: true,
+        sector_id: true,
+        active: true,
+        created_at: true,
+      },
+    });
 
-    if (error || !targetUser) {
+    if (!targetUser) {
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 404 }
@@ -63,7 +69,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const { id } = await params;
     const body = await request.json();
-    const supabase = createServerClient();
 
     // Users can update themselves (limited fields) or ADM can update anyone
     const isSelf = user.user_id === id;
@@ -94,20 +99,33 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { data: updatedUser, error } = await supabase
-      .from('core.users')
-      .update(updateData)
-      .eq('id', id)
-      .eq('active', true)
-      .select('id, name, email, role, company_id, sector_id, active, created_at')
-      .single();
+    // Verify user exists and is active before updating
+    const existing = await prisma.user.findUnique({
+      where: { id, active: true },
+      select: { id: true },
+    });
 
-    if (error || !updatedUser) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 404 }
       );
     }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        company_id: true,
+        sector_id: true,
+        active: true,
+        created_at: true,
+      },
+    });
 
     return NextResponse.json(updatedUser);
   } catch (err) {
@@ -131,22 +149,24 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
-    const { data: deletedUser, error } = await supabase
-      .from('core.users')
-      .update({ active: false })
-      .eq('id', id)
-      .eq('active', true)
-      .select()
-      .single();
+    // Verify user exists and is active before soft-deleting
+    const existing = await prisma.user.findUnique({
+      where: { id, active: true },
+      select: { id: true },
+    });
 
-    if (error || !deletedUser) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 404 }
       );
     }
+
+    await prisma.user.update({
+      where: { id },
+      data: { active: false },
+    });
 
     return NextResponse.json({ message: 'Usuário desativado com sucesso' });
   } catch (err) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
@@ -23,15 +23,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const supabase = createServerClient();
 
-    const { data: campaign, error: fetchError } = await supabase
-      .from('core.campaigns')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const campaign = await prisma.campaign.findUnique({
+      where: { id },
+    });
 
-    if (fetchError || !campaign) {
+    if (!campaign) {
       return NextResponse.json(
         { error: 'Campanha não encontrada' },
         { status: 404 }
@@ -49,19 +46,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { data: updated, error } = await supabase
-      .from('core.campaigns')
-      .update({
+    const updated = await prisma.campaign.update({
+      where: { id },
+      data: {
         status: 'closed',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+        updated_at: new Date(),
+      },
+    });
 
     return NextResponse.json(updated);
   } catch (err) {
