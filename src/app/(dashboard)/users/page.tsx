@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,41 +28,87 @@ export default function UsersPage() {
   const { get, post, put, del } = useApi();
   const { user: authUser } = useAuth();
   const { success, error: notifyError } = useNotifications();
-  const [users, setUsers] = useState<User[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'RH', company_id: '' });
 
-  const fetchUsers = useCallback(async () => {
-    try {
+  const { data: users = [], isLoading: loadingUsers } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: async () => {
       const res = await get('/api/users');
+      if (res.status === 429) {
+        notifyError('Muitas requisições', 'Aguarde alguns segundos e tente novamente.');
+        throw new Error('429');
+      }
+      if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
-      setUsers(data.data || []);
-    } catch {
-      notifyError('Erro ao carregar usuários');
-    } finally {
-      setLoading(false);
-    }
-  }, [get, notifyError]);
+      return data.data || [];
+    },
+  });
 
-  const fetchCompanies = useCallback(async () => {
-    try {
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ['companies'],
+    queryFn: async () => {
       const res = await get('/api/companies');
+      if (res.status === 429) throw new Error('429');
+      if (!res.ok) throw new Error('Failed to fetch companies');
       const data = await res.json();
-      setCompanies(data.data || []);
-    } catch {
-      // ignore
-    }
-  }, [get]);
+      return data.data || [];
+    },
+    enabled: authUser?.role === 'ADM',
+  });
 
-  useEffect(() => {
-    fetchUsers();
-    if (authUser?.role === 'ADM') fetchCompanies();
-  }, [fetchUsers, fetchCompanies, authUser?.role]);
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = { ...form };
+      if (selectedUser && !payload.password) {
+        const { password: _, ...rest } = payload;
+        const res = await put(`/api/users/${selectedUser.id}`, rest);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao atualizar usuário');
+        }
+        return 'updated';
+      } else {
+        const endpoint = selectedUser ? `/api/users/${selectedUser.id}` : '/api/users';
+        const method = selectedUser ? put : post;
+        const res = await method(endpoint, payload);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao salvar usuário');
+        }
+        return selectedUser ? 'updated' : 'created';
+      }
+    },
+    onSuccess: (result) => {
+      success(result === 'updated' ? 'Usuário atualizado' : 'Usuário criado');
+      setModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: Error) => {
+      notifyError(err.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (user: User) => {
+      const res = await del(`/api/users/${user.id}`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir usuário');
+      }
+    },
+    onSuccess: () => {
+      success('Usuário excluído');
+      setDeleteModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: Error) => {
+      notifyError(err.message);
+    },
+  });
 
   if (authUser?.role !== 'ADM') {
     return <p className="text-muted-foreground">Acesso restrito a administradores.</p>;
@@ -84,58 +131,8 @@ export default function UsersPage() {
     setDeleteModalOpen(true);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const payload = { ...form };
-      if (selectedUser && !payload.password) {
-        const { password: _, ...rest } = payload;
-        const res = await put(`/api/users/${selectedUser.id}`, rest);
-        if (!res.ok) {
-          const data = await res.json();
-          notifyError(data.error || 'Erro ao atualizar usuário');
-          return;
-        }
-        success('Usuário atualizado');
-      } else {
-        const endpoint = selectedUser ? `/api/users/${selectedUser.id}` : '/api/users';
-        const method = selectedUser ? put : post;
-        const res = await method(endpoint, payload);
-        if (!res.ok) {
-          const data = await res.json();
-          notifyError(data.error || 'Erro ao salvar usuário');
-          return;
-        }
-        success(selectedUser ? 'Usuário atualizado' : 'Usuário criado');
-      }
-      setModalOpen(false);
-      fetchUsers();
-    } catch {
-      notifyError('Erro ao salvar usuário');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedUser) return;
-    setSaving(true);
-    try {
-      const res = await del(`/api/users/${selectedUser.id}`);
-      if (!res.ok) {
-        const data = await res.json();
-        notifyError(data.error || 'Erro ao excluir usuário');
-        return;
-      }
-      success('Usuário excluído');
-      setDeleteModalOpen(false);
-      fetchUsers();
-    } catch {
-      notifyError('Erro ao excluir usuário');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const saving = saveMutation.isPending || deleteMutation.isPending;
+  const loading = loadingUsers;
 
   return (
     <div className="space-y-6">
@@ -250,7 +247,7 @@ export default function UsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.name || !form.email || !form.company_id || (!selectedUser && !form.password)}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saving || !form.name || !form.email || !form.company_id || (!selectedUser && !form.password)}>
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -265,7 +262,7 @@ export default function UsersPage() {
         confirmText="Excluir"
         variant="destructive"
         loading={saving}
-        onConfirm={handleDelete}
+        onConfirm={() => selectedUser && deleteMutation.mutate(selectedUser)}
       />
     </div>
   );

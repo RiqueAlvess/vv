@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,27 +21,71 @@ export default function CompaniesPage() {
   const { get, post, put, del } = useApi();
   const { user } = useAuth();
   const { success, error: notifyError } = useNotifications();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', cnpj: '', cnae: '' });
 
-  const fetchCompanies = useCallback(async () => {
-    try {
+  const { data: companies = [], isLoading: loading } = useQuery<Company[]>({
+    queryKey: ['companies'],
+    queryFn: async () => {
       const res = await get('/api/companies');
+      if (res.status === 429) {
+        notifyError('Muitas requisições', 'Aguarde alguns segundos e tente novamente.');
+        throw new Error('429');
+      }
+      if (!res.ok) throw new Error('Failed to fetch companies');
       const data = await res.json();
-      setCompanies(data.data || []);
-    } catch {
-      notifyError('Erro ao carregar empresas');
-    } finally {
-      setLoading(false);
-    }
-  }, [get, notifyError]);
+      return data.data || [];
+    },
+  });
 
-  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (selectedCompany) {
+        const res = await put(`/api/companies/${selectedCompany.id}`, form);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao atualizar empresa');
+        }
+        return 'updated';
+      } else {
+        const res = await post('/api/companies', form);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao criar empresa');
+        }
+        return 'created';
+      }
+    },
+    onSuccess: (result) => {
+      success(result === 'updated' ? 'Empresa atualizada' : 'Empresa criada');
+      setModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+    },
+    onError: (err: Error) => {
+      notifyError(err.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (company: Company) => {
+      const res = await del(`/api/companies/${company.id}`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao excluir empresa');
+      }
+    },
+    onSuccess: () => {
+      success('Empresa excluída');
+      setDeleteModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+    },
+    onError: (err: Error) => {
+      notifyError(err.message);
+    },
+  });
 
   if (user?.role !== 'ADM') {
     return <p className="text-muted-foreground">Acesso restrito a administradores.</p>;
@@ -63,54 +108,7 @@ export default function CompaniesPage() {
     setDeleteModalOpen(true);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (selectedCompany) {
-        const res = await put(`/api/companies/${selectedCompany.id}`, form);
-        if (!res.ok) {
-          const data = await res.json();
-          notifyError(data.error || 'Erro ao atualizar empresa');
-          return;
-        }
-        success('Empresa atualizada');
-      } else {
-        const res = await post('/api/companies', form);
-        if (!res.ok) {
-          const data = await res.json();
-          notifyError(data.error || 'Erro ao criar empresa');
-          return;
-        }
-        success('Empresa criada');
-      }
-      setModalOpen(false);
-      fetchCompanies();
-    } catch {
-      notifyError('Erro ao salvar empresa');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedCompany) return;
-    setSaving(true);
-    try {
-      const res = await del(`/api/companies/${selectedCompany.id}`);
-      if (!res.ok) {
-        const data = await res.json();
-        notifyError(data.error || 'Erro ao excluir empresa');
-        return;
-      }
-      success('Empresa excluída');
-      setDeleteModalOpen(false);
-      fetchCompanies();
-    } catch {
-      notifyError('Erro ao excluir empresa');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const saving = saveMutation.isPending || deleteMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -201,7 +199,7 @@ export default function CompaniesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.name || !form.cnpj}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saving || !form.name || !form.cnpj}>
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -217,7 +215,7 @@ export default function CompaniesPage() {
         confirmText="Excluir"
         variant="destructive"
         loading={saving}
-        onConfirm={handleDelete}
+        onConfirm={() => selectedCompany && deleteMutation.mutate(selectedCompany)}
       />
     </div>
   );

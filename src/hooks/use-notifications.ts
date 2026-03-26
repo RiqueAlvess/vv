@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
@@ -11,7 +12,7 @@ interface NotifyOptions {
 }
 
 export function useNotifications() {
-  const notify = (type: NotificationType, options: NotifyOptions) => {
+  const notify = useCallback((type: NotificationType, options: NotifyOptions) => {
     const { title, description, duration = 4000 } = options;
 
     switch (type) {
@@ -28,13 +29,27 @@ export function useNotifications() {
         toast.info(title, { description, duration });
         break;
     }
-  };
+  }, []);
 
-  return {
-    notify,
-    success: (title: string, description?: string) => notify('success', { title, description }),
-    error: (title: string, description?: string) => notify('error', { title, description }),
-    warning: (title: string, description?: string) => notify('warning', { title, description }),
-    info: (title: string, description?: string) => notify('info', { title, description }),
-  };
+  const success = useCallback(
+    (title: string, description?: string) => notify('success', { title, description }),
+    [notify]
+  );
+
+  const error = useCallback(
+    (title: string, description?: string) => notify('error', { title, description }),
+    [notify]
+  );
+
+  const warning = useCallback(
+    (title: string, description?: string) => notify('warning', { title, description }),
+    [notify]
+  );
+
+  const info = useCallback(
+    (title: string, description?: string) => notify('info', { title, description }),
+    [notify]
+  );
+
+  return { notify, success, error, warning, info };
 }

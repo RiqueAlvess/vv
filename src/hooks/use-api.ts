@@ -43,6 +43,10 @@ export function useApi() {
       throw new Error('Session expired');
     }
 
+    if (res.status === 429) {
+      console.warn(`[API] Rate limited: ${url}`);
+    }
+
     return res;
   }, []);
 
