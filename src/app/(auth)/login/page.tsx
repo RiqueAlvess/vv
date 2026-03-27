@@ -35,7 +35,12 @@ export default function LoginPage() {
       }
 
       // Cookies are set by the API response (httpOnly)
-      router.push('/dashboard');
+      // Redirect based on role
+      if (data.user?.role === 'ADM') {
+        router.push('/companies');
+      } else {
+        router.push('/dashboard');
+      }
     } catch {
       setError('Erro de conexão. Tente novamente.');
     } finally {

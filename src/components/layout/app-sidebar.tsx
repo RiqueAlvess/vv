@@ -18,10 +18,8 @@ import { useAuth } from '@/hooks/use-auth';
 
 const navItems = {
   ADM: [
-    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Empresas', url: '/companies', icon: Building2 },
     { title: 'Usuários', url: '/users', icon: Users },
-    { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
   ],
   RH: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
