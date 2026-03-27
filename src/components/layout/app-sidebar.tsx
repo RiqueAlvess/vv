@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Building2, Users, FileBarChart2, Shield, LogOut, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, Shield, LogOut, ChevronUp, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 const navItems = {
@@ -21,6 +21,7 @@ const navItems = {
   RH: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
+    { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
   ],
   LIDERANCA: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
