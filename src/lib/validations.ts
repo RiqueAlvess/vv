@@ -25,8 +25,19 @@ export const userSchema = z.object({
 export const campaignSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
   description: z.string().optional(),
-  start_date: z.string(),
-  end_date: z.string(),
+  start_date: z
+    .string()
+    .transform((val) => {
+      // Accept both "YYYY-MM-DD" and full ISO strings
+      if (val.includes('T')) return val; // already ISO, pass through
+      return `${val}T00:00:00.000Z`;
+    }),
+  end_date: z
+    .string()
+    .transform((val) => {
+      if (val.includes('T')) return val;
+      return `${val}T23:59:59.000Z`; // end of day
+    }),
   company_id: z.string().uuid(),
 });
 
