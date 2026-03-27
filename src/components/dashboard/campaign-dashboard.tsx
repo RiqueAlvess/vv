@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useCampaignDashboard } from '@/hooks/use-campaign-dashboard';
 import { LockedState } from './locked-state';
 import { KpiCards } from './kpi-cards';
@@ -43,11 +45,34 @@ export function CampaignDashboard({
   campaignStatus,
   campaignName,
 }: CampaignDashboardProps) {
+  const [downloading, setDownloading] = useState(false);
+
   // ── Guardrail ─────────────────────────────────────────────────────────────
   // Check status BEFORE calling the hook so React's rules of hooks are
   // respected (hooks can't be called conditionally). The hook itself uses
   // `enabled: false` when status !== 'closed' so no network request fires.
   const isClosed = campaignStatus === 'closed';
+
+  const handleDownloadPGR = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/report/pdf`);
+      if (!res.ok) throw new Error('Erro ao gerar relatório');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PGR_${campaignName ?? campaignId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // error is surfaced via the button state; a toast hook can be added here
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const { data, isLoading, isError, error } = useCampaignDashboard(campaignId, {
     enabled: isClosed,
@@ -96,6 +121,14 @@ export function CampaignDashboard({
       <div className="grid gap-6 lg:grid-cols-2">
         <DimensionRadar dimensionScores={data.dimension_scores} />
         <CriticalSectorsTable sectors={topSectors} />
+      </div>
+
+      {/* PGR PDF export */}
+      <div className="flex justify-end">
+        <Button onClick={handleDownloadPGR} disabled={downloading} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          {downloading ? 'Gerando PDF...' : 'Exportar Relatório PGR'}
+        </Button>
       </div>
     </div>
   );
