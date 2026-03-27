@@ -44,9 +44,14 @@ export async function GET(request: Request, { params }: RouteParams) {
                   select: {
                     id: true,
                     email_hash: true,
-                    email_encrypted: true,
                     invitations: {
-                      select: { id: true, status: true, sent_at: true },
+                      select: {
+                        id: true,
+                        status: true,
+                        sent_at: true,
+                        token_used: true,
+                      },
+                      orderBy: { sent_at: 'desc' },
                       take: 1,
                     },
                   },
@@ -72,9 +77,12 @@ export async function GET(request: Request, { params }: RouteParams) {
           employees: position.employees.map((emp) => ({
             id: emp.id,
             email_hash: emp.email_hash,
-            has_email: !!emp.email_encrypted,
+            // has_email: true means the employee was already invited (email sent at upload time)
+            // has_email: false means this employee record exists but no invitation was ever created
+            has_email: emp.invitations.length > 0,
             invited: emp.invitations.length > 0,
             invitation_status: emp.invitations[0]?.status ?? null,
+            token_used: emp.invitations[0]?.token_used ?? false,
             invited_at: emp.invitations[0]?.sent_at ?? null,
           })),
         })),

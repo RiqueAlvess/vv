@@ -13,12 +13,18 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const invitation = await prisma.surveyInvitation.findUnique({
       where: { token_public: token },
-      select: { id: true, campaign_id: true, token_used_internally: true, expires_at: true },
+      select: {
+        id: true,
+        campaign_id: true,
+        token_used_internally: true,
+        expires_at: true,
+        campaign: { select: { status: true, name: true, company: { select: { name: true, cnpj: true } } } },
+      },
     });
 
     if (!invitation) {
       return NextResponse.json(
-        { valid: false, error: 'Token inválido' },
+        { valid: false, error: 'Link inválido ou já utilizado' },
         { status: 404 }
       );
     }
@@ -37,9 +43,19 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    if (invitation.campaign.status !== 'active') {
+      return NextResponse.json(
+        { valid: false, error: 'Esta campanha não está mais ativa' },
+        { status: 410 }
+      );
+    }
+
     return NextResponse.json({
       valid: true,
       campaign_id: invitation.campaign_id,
+      campaign_name: invitation.campaign.name,
+      company_name: invitation.campaign.company.name,
+      company_cnpj: invitation.campaign.company.cnpj,
     });
   } catch (err) {
     console.error('Validate survey token error:', err);
