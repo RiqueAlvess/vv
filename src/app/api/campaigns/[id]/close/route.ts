@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { enqueueJob } from '@/lib/jobs';
+import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -55,13 +55,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       },
     });
 
-    await enqueueJob('calculate_campaign_metrics', { campaign_id: id });
-    console.log(`[Close] Enqueued metrics calculation for campaign ${id}`);
-
-    // Fire-and-forget: trigger immediate processing without blocking the response
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process`, {
-      method: 'POST',
-    }).catch((e) => console.warn('[Jobs] Auto-trigger failed:', e));
+    try {
+      await calculateAndStoreCampaignMetrics(id);
+      console.log(`[Close] Metrics calculated for campaign ${id}`);
+    } catch (metricsErr) {
+      // Non-fatal: log but don't fail the close operation
+      // Dashboard will fall back to on-the-fly calculation
+      console.error(`[Close] Metrics calculation failed (non-fatal):`, metricsErr);
+    }
 
     return NextResponse.json(updated);
   } catch (err) {
