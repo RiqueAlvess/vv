@@ -78,19 +78,19 @@ export const RISK_THRESHOLDS_POSITIVE: { max: number; level: RiskLevel }[] = [
 // NR Matrix (Risk Assessment)
 // ============================================================
 
-export const NR_MATRIX: Record<RiskLevel, { probability: number }> & { default_severity: number } = {
-  critico: { probability: 4 },
-  importante: { probability: 3 },
-  moderado: { probability: 2 },
-  aceitavel: { probability: 1 },
-  default_severity: 2,
+export const NR_MATRIX: Record<RiskLevel, { probability: number; severity: number }> & { default_severity: number } = {
+  critico:    { probability: 4, severity: 4 },  // ALTO RISCO → P=4, S=4 → NR=16
+  importante: { probability: 3, severity: 3 },  // Risco Moderado → P=3, S=3 → NR=9
+  moderado:   { probability: 2, severity: 2 },  // Risco Médio → P=2, S=2 → NR=4
+  aceitavel:  { probability: 1, severity: 1 },  // Baixo Risco → P=1, S=1 → NR=1
+  default_severity: 3, // conservative default (Significativo) for dashboard use
 };
 
 export const NR_INTERPRETATION: { maxNR: number; label: string; color: string }[] = [
-  { maxNR: 4, label: 'Aceitável', color: '#22c55e' },
-  { maxNR: 8, label: 'Moderado', color: '#eab308' },
-  { maxNR: 12, label: 'Importante', color: '#f97316' },
-  { maxNR: 25, label: 'Crítico', color: '#ef4444' },
+  { maxNR: 4,  label: 'Aceitável',  color: '#22c55e' },  // green
+  { maxNR: 8,  label: 'Moderado',   color: '#eab308' },  // yellow
+  { maxNR: 12, label: 'Importante', color: '#f97316' },  // orange
+  { maxNR: 16, label: 'Crítico',    color: '#ef4444' },  // red
 ];
 
 // ============================================================

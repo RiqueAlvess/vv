@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { ScoreService } from './score.service';
 import { DashboardService } from './dashboard.service';
-import type { SurveyResponse } from '@/types';
+import { HSE_DIMENSIONS } from '@/lib/constants';
+import type { SurveyResponse, DimensionType } from '@/types';
 
 /**
  * Calculates all analytics for a closed campaign and upserts CampaignMetrics.
@@ -55,6 +56,21 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
   const riskDistribution = DashboardService.getRiskDistribution(responses);
   const genderDist = DashboardService.getGenderDistribution(responses);
   const ageDist = DashboardService.getAgeDistribution(responses);
+
+  let workersAtHighRisk = 0;
+  for (const resp of responses) {
+    const scores = ScoreService.calculateAllDimensionScores(resp.responses);
+    const hasHighRisk = HSE_DIMENSIONS.some((dim) => {
+      const risk = ScoreService.getRiskLevel(scores[dim.key as DimensionType], dim.type);
+      const nr = ScoreService.calculateNR(risk);
+      return ScoreService.isHighRisk(nr);
+    });
+    if (hasHighRisk) workersAtHighRisk++;
+  }
+  const workersAtHighRiskPct =
+    responses.length > 0
+      ? Math.round((workersAtHighRisk / responses.length) * 100 * 100) / 100
+      : 0;
   const scoresByGender = DashboardService.getScoresByGender(responses);
   const scoresByAge = DashboardService.getScoresByAge(responses);
   const topCriticalGroups = DashboardService.getTopCriticalGroups(responses);
@@ -73,7 +89,7 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
       igrp: Math.round(igrp * 100) / 100,
       dimension_scores: dimensionScores,
       risk_distribution: riskDistribution,
-      demographic_data: { gender: genderDist, age: ageDist },
+      demographic_data: { gender: genderDist, age: ageDist, workers_high_risk_pct: workersAtHighRiskPct },
       heatmap_data: heatmap,
       top_critical_sectors: topCriticalSectors,
       scores_by_gender: scoresByGender,
@@ -88,7 +104,7 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
       igrp: Math.round(igrp * 100) / 100,
       dimension_scores: dimensionScores,
       risk_distribution: riskDistribution,
-      demographic_data: { gender: genderDist, age: ageDist },
+      demographic_data: { gender: genderDist, age: ageDist, workers_high_risk_pct: workersAtHighRiskPct },
       heatmap_data: heatmap,
       top_critical_sectors: topCriticalSectors,
       scores_by_gender: scoresByGender,
