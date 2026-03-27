@@ -1,0 +1,168 @@
+'use client';
+
+import { useState, useCallback } from 'react';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface CSVRow {
+  unidade: string;
+  setor: string;
+  cargo: string;
+  email: string;
+}
+
+interface CSVUploadModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpload: (data: CSVRow[]) => void;
+  loading?: boolean;
+}
+
+export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUploadModalProps) {
+  const [rows, setRows] = useState<CSVRow[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [fileName, setFileName] = useState('');
+
+  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.split('\n').filter(l => l.trim());
+      const header = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+
+      const errs: string[] = [];
+      const required = ['unidade', 'setor', 'cargo', 'email'];
+      for (const col of required) {
+        if (!header.includes(col)) errs.push(`Coluna "${col}" não encontrada`);
+      }
+
+      if (errs.length) {
+        setErrors(errs);
+        setRows([]);
+        return;
+      }
+
+      const parsed: CSVRow[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(/[,;]/).map(c => c.trim());
+        const row: Record<string, string> = {};
+        header.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+
+        if (!row.email?.includes('@')) {
+          errs.push(`Linha ${i + 1}: email inválido "${row.email}"`);
+          continue;
+        }
+
+        parsed.push({
+          unidade: row.unidade,
+          setor: row.setor,
+          cargo: row.cargo,
+          email: row.email,
+        });
+      }
+
+      setErrors(errs);
+      setRows(parsed);
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleUpload = () => {
+    if (rows.length > 0) onUpload(rows);
+  };
+
+  const reset = () => {
+    setRows([]);
+    setErrors([]);
+    setFileName('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Upload de Colaboradores (CSV)</DialogTitle>
+          <DialogDescription>
+            O arquivo deve conter as colunas: unidade, setor, cargo, email (separado por vírgula ou ponto-e-vírgula)
+          </DialogDescription>
+        </DialogHeader>
+
+        {!rows.length && !errors.length ? (
+          <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+            <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+            <span className="text-sm text-muted-foreground">Clique ou arraste o arquivo CSV</span>
+            <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
+          </label>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span className="text-sm font-medium">{fileName}</span>
+              </div>
+              <div className="flex gap-2">
+                {rows.length > 0 && <Badge variant="secondary"><CheckCircle2 className="h-3 w-3 mr-1" />{rows.length} registros válidos</Badge>}
+                {errors.length > 0 && <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />{errors.length} erros</Badge>}
+              </div>
+            </div>
+
+            {errors.length > 0 && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                {errors.slice(0, 5).map((err, i) => (
+                  <p key={i} className="text-xs text-destructive">{err}</p>
+                ))}
+                {errors.length > 5 && <p className="text-xs text-destructive mt-1">...e mais {errors.length - 5} erros</p>}
+              </div>
+            )}
+
+            {rows.length > 0 && (
+              <ScrollArea className="h-64 rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead>Setor</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Email</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.slice(0, 50).map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-sm">{row.unidade}</TableCell>
+                        <TableCell className="text-sm">{row.setor}</TableCell>
+                        <TableCell className="text-sm">{row.cargo}</TableCell>
+                        <TableCell className="text-sm font-mono">{row.email}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {rows.length > 50 && <p className="p-2 text-xs text-muted-foreground text-center">Mostrando 50 de {rows.length} registros</p>}
+              </ScrollArea>
+            )}
+
+            <Button variant="outline" size="sm" onClick={reset}>Escolher outro arquivo</Button>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancelar</Button>
+          <Button onClick={handleUpload} disabled={rows.length === 0 || loading}>
+            {loading ? 'Enviando...' : `Importar ${rows.length} registros`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

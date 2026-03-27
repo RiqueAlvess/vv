@@ -1,0 +1,261 @@
+// ============================================================
+// Asta - Psychosocial Risk Analysis System
+// Prisma Schema (Multi-Schema: core, survey, analytics)
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["core", "survey", "analytics"]
+}
+
+// ============================================================
+// SCHEMA: core
+// ============================================================
+
+model Company {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  cnpj       String   @unique @db.VarChar(18)
+  cnae       String?  @db.VarChar(10)
+  active     Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  users     User[]
+  campaigns Campaign[]
+
+  @@map("companies")
+  @@schema("core")
+}
+
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id    String   @db.Uuid
+  name          String
+  email         String   @unique
+  password_hash String
+  role          String   @db.VarChar(20)
+  sector_id     String?  @db.Uuid
+  active        Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  company        Company        @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  refresh_tokens RefreshToken[]
+  campaigns      Campaign[]     @relation("CampaignCreator")
+
+  @@map("users")
+  @@schema("core")
+}
+
+model RefreshToken {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique
+  expires_at DateTime @db.Timestamptz()
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+  @@schema("core")
+}
+
+// ============================================================
+// SCHEMA: survey
+// ============================================================
+
+model Campaign {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id    String   @db.Uuid
+  name          String
+  description   String?
+  start_date    DateTime @db.Timestamptz()
+  end_date      DateTime @db.Timestamptz()
+  status        String   @default("draft") @db.VarChar(20)
+  campaign_salt String
+  created_by    String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  company     Company          @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  creator     User?            @relation("CampaignCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  units       CampaignUnit[]
+  invitations SurveyInvitation[]
+  responses   SurveyResponse[]
+  metrics     CampaignMetrics?
+  facts       FactResponse[]
+  dim_sectors DimSector[]
+
+  @@map("campaigns")
+  @@schema("survey")
+}
+
+model CampaignUnit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id String   @db.Uuid
+  name        String
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  campaign Campaign        @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  sectors  CampaignSector[]
+
+  @@map("campaign_units")
+  @@schema("survey")
+}
+
+model CampaignSector {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unit_id    String   @db.Uuid
+  name       String
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  unit      CampaignUnit       @relation(fields: [unit_id], references: [id], onDelete: Cascade)
+  positions CampaignPosition[]
+
+  @@map("campaign_sectors")
+  @@schema("survey")
+}
+
+model CampaignPosition {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sector_id  String   @db.Uuid
+  name       String
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  sector    CampaignSector     @relation(fields: [sector_id], references: [id], onDelete: Cascade)
+  employees CampaignEmployee[]
+
+  @@map("campaign_positions")
+  @@schema("survey")
+}
+
+model CampaignEmployee {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  position_id String   @db.Uuid
+  email_hash  String
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  position    CampaignPosition   @relation(fields: [position_id], references: [id], onDelete: Cascade)
+  invitations SurveyInvitation[]
+
+  @@unique([position_id, email_hash], map: "uq_employee_position_email")
+  @@map("campaign_employees")
+  @@schema("survey")
+}
+
+model SurveyInvitation {
+  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id                String    @db.Uuid
+  employee_id                String    @db.Uuid
+  token_public               String?   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token_used                 Boolean   @default(false)
+  token_used_internally      Boolean   @default(false)
+  status                     String    @default("pending") @db.VarChar(20)
+  status_update_scheduled_at DateTime? @db.Timestamptz()
+  sent_at                    DateTime? @db.Timestamptz()
+  expires_at                 DateTime? @db.Timestamptz()
+  created_at                 DateTime  @default(now()) @db.Timestamptz()
+
+  campaign Campaign         @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  employee CampaignEmployee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@map("survey_invitations")
+  @@schema("survey")
+}
+
+/// NO FK to invitations or employees — anonymity guarantee
+model SurveyResponse {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id         String    @db.Uuid
+  session_uuid        String    @db.Uuid
+  gender              String?   @db.VarChar(1)
+  age_range           String?   @db.VarChar(20)
+  consent_accepted    Boolean   @default(true)
+  consent_accepted_at DateTime? @db.Timestamptz()
+  responses           Json
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+
+  campaign Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  facts    FactResponse[]
+
+  @@map("survey_responses")
+  @@schema("survey")
+}
+
+model SurveyQuestion {
+  id              Int     @id @default(autoincrement())
+  question_number Int     @unique
+  dimension       String  @db.VarChar(30)
+  question_text   String
+  active          Boolean @default(true)
+
+  @@map("survey_questions")
+  @@schema("survey")
+}
+
+// ============================================================
+// SCHEMA: analytics (Star Schema)
+// ============================================================
+
+model FactResponse {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id String   @db.Uuid
+  response_id String   @db.Uuid
+  dimension   String   @db.VarChar(30)
+  score       Decimal  @db.Decimal(4, 2)
+  risk_level  String   @db.VarChar(20)
+  nr_value    Decimal? @db.Decimal(5, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  campaign Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  response SurveyResponse @relation(fields: [response_id], references: [id], onDelete: Cascade)
+
+  @@map("fact_responses")
+  @@schema("analytics")
+}
+
+model DimSector {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id   String   @db.Uuid
+  unit_name     String?
+  sector_name   String?
+  position_name String?
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@map("dim_sectors")
+  @@schema("analytics")
+}
+
+model CampaignMetrics {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id         String   @unique @db.Uuid
+  total_invited       Int      @default(0)
+  total_responded     Int      @default(0)
+  response_rate       Decimal  @default(0) @db.Decimal(5, 2)
+  igrp                Decimal? @db.Decimal(5, 2)
+  risk_distribution   Json?
+  dimension_scores    Json?
+  demographic_data    Json?
+  heatmap_data        Json?
+  top_critical_sectors Json?
+  scores_by_gender    Json?
+  scores_by_age       Json?
+  top_critical_groups Json?
+  calculated_at       DateTime? @db.Timestamptz()
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@map("campaign_metrics")
+  @@schema("analytics")
+}
