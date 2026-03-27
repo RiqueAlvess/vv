@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { hashEmail } from '@/lib/crypto';
+import { encryptEmail } from '@/lib/encryption';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -192,7 +193,11 @@ export async function POST(request: Request, { params }: RouteParams) {
 
       if (!existingEmployee) {
         await prisma.campaignEmployee.create({
-          data: { position_id: positionId, email_hash: emailHash },
+          data: {
+            position_id: positionId,
+            email_hash: emailHash,
+            email_encrypted: encryptEmail(row.email),
+          },
         });
         employeesCreated++;
       }
