@@ -265,51 +265,38 @@ ALTER TABLE analytics.campaign_metrics ENABLE ROW LEVEL SECURITY;
 -- HSE-IT QUESTIONS (35 items)
 -- ============================================================================
 INSERT INTO survey.survey_questions (question_number, dimension, question_text) VALUES
--- Demands (8 questions)
-(1,  'DEMANDAS',      'Diferentes grupos no trabalho exigem de mim coisas que sao dificeis de conciliar'),
-(2,  'DEMANDAS',      'Tenho prazos inatingiveis'),
-(3,  'DEMANDAS',      'Tenho que trabalhar muito intensamente'),
-(4,  'DEMANDAS',      'Tenho que negligenciar algumas tarefas porque tenho muito o que fazer'),
-(5,  'DEMANDAS',      'Nao consigo ter pausas suficientes'),
-(6,  'DEMANDAS',      'Sinto-me pressionado(a) a trabalhar alem do meu horario'),
-(7,  'DEMANDAS',      'Sinto-me pressionado(a) a trabalhar em ritmo acelerado'),
-(8,  'DEMANDAS',      'Tenho demandas de trabalho que considero desnecessarias'),
-
--- Control (6 questions)
-(9,  'CONTROLE',      'Posso decidir quando fazer uma pausa'),
-(10, 'CONTROLE',      'Tenho escolha para decidir o que faco no trabalho'),
-(11, 'CONTROLE',      'Tenho escolha para decidir como faco meu trabalho'),
-(12, 'CONTROLE',      'Tenho voz sobre meu ritmo de trabalho'),
-(13, 'CONTROLE',      'Meu horario de trabalho pode ser flexivel'),
-(14, 'CONTROLE',      'Posso opinar sobre como meu trabalho e organizado'),
-
--- Support from managers (5 questions)
-(15, 'APOIO_GESTAO',  'Recebo informacoes e apoio do(a) meu(minha) gestor(a) direto(a)'),
-(16, 'APOIO_GESTAO',  'Posso contar com meu(minha) gestor(a) direto(a) quando tenho problemas no trabalho'),
-(17, 'APOIO_GESTAO',  'Recebo o apoio de que necessito do(a) meu(minha) gestor(a) direto(a)'),
-(18, 'APOIO_GESTAO',  'Meu(minha) gestor(a) direto(a) esta disposto(a) a me ouvir sobre problemas no trabalho'),
-(19, 'APOIO_GESTAO',  'Sou incentivado(a) pelo(a) meu(minha) gestor(a) direto(a)'),
-
--- Support from peers (4 questions)
-(20, 'APOIO_PARES',   'Posso contar com a ajuda dos(as) meus(minhas) colegas de trabalho quando necessario'),
-(21, 'APOIO_PARES',   'Recebo o respeito que mereco dos(as) meus(minhas) colegas no trabalho'),
-(22, 'APOIO_PARES',   'Meus(minhas) colegas estao dispostos(as) a me ouvir sobre problemas no trabalho'),
-(23, 'APOIO_PARES',   'Meus(minhas) colegas de trabalho me ajudam e apoiam'),
-
--- Relationships (4 questions)
-(24, 'RELACIONAMENTOS','Estou sujeito(a) a assedio moral no trabalho'),
-(25, 'RELACIONAMENTOS','Ha atritos ou raiva entre colegas no trabalho'),
-(26, 'RELACIONAMENTOS','Sou alvo de comportamentos indesejados no trabalho'),
-(27, 'RELACIONAMENTOS','As relacoes no trabalho sao tensas'),
-
--- Role (5 questions)
-(28, 'PAPEL',         'Tenho clareza sobre o que se espera de mim no trabalho'),
-(29, 'PAPEL',         'Sei o que tenho que fazer para cumprir minhas responsabilidades'),
-(30, 'PAPEL',         'Tenho clareza sobre meus deveres e responsabilidades'),
-(31, 'PAPEL',         'Compreendo como meu trabalho se encaixa nos objetivos da organizacao'),
-(32, 'PAPEL',         'Recebo informacoes suficientes sobre os objetivos da organizacao'),
-
--- Change (3 questions)
-(33, 'MUDANCA',       'Tenho oportunidades suficientes de questionar gestores sobre mudancas no trabalho'),
-(34, 'MUDANCA',       'A equipe e consultada sobre mudancas no trabalho'),
-(35, 'MUDANCA',       'Quando ocorrem mudancas no trabalho, tenho clareza de como elas funcionarao na pratica');
+(1,  'cargo',                'Eu sei exatamente o que é esperado de mim no trabalho'),
+(2,  'controle',             'Posso decidir quando fazer uma pausa'),
+(3,  'demandas',             'Diferentes grupos no trabalho exigem coisas de mim que são difíceis de combinar'),
+(4,  'cargo',                'Eu sei como fazer meu trabalho'),
+(5,  'relacionamentos',      'Estou sujeito(a) a atenção pessoal ou assédio na forma de palavras ou comportamentos ofensivos'),
+(6,  'demandas',             'Tenho prazos inatingíveis'),
+(7,  'apoio_colegas',        'Se o trabalho fica difícil, meus colegas me ajudam'),
+(8,  'apoio_chefia',         'Sou apoiado(a) em uma crise emocional no trabalho'),
+(9,  'demandas',             'Tenho que trabalhar muito intensamente'),
+(10, 'controle',             'Tenho voz nas mudanças no modo como faço meu trabalho'),
+(11, 'cargo',                'Tenho tempo suficiente para completar meu trabalho'),
+(12, 'demandas',             'Tenho que desconsiderar regras ou procedimentos para fazer o trabalho'),
+(13, 'cargo',                'Sei qual é o meu papel e responsabilidades'),
+(14, 'relacionamentos',      'Tenho que trabalhar com pessoas que têm valores de trabalho diferentes'),
+(15, 'controle',             'Posso planejar quando fazer as pausas'),
+(16, 'demandas',             'Tenho volume de trabalho pesado'),
+(17, 'cargo',                'Existe uma boa combinação entre o que a organização espera de mim e as habilidades que tenho'),
+(18, 'demandas',             'Tenho que trabalhar muito rapidamente'),
+(19, 'controle',             'Tenho uma palavra a dizer sobre o ritmo em que trabalho'),
+(20, 'demandas',             'Tenho que negligenciar alguns aspectos do meu trabalho porque tenho muito a fazer'),
+(21, 'relacionamentos',      'Existe fricção ou raiva entre colegas'),
+(22, 'demandas',             'Não tenho tempo para fazer uma pausa'),
+(23, 'apoio_chefia',         'Minha chefia imediata me encoraja no trabalho'),
+(24, 'apoio_colegas',        'Recebo o respeito no trabalho que mereço de meus colegas'),
+(25, 'controle',             'Tenho controle sobre quando fazer uma pausa'),
+(26, 'comunicacao_mudancas', 'Os funcionários são sempre consultados sobre mudanças no trabalho'),
+(27, 'apoio_colegas',        'Posso contar com meus colegas para me ajudar quando as coisas ficam difíceis no trabalho'),
+(28, 'comunicacao_mudancas', 'Posso conversar com minha chefia sobre algo que me incomodou'),
+(29, 'apoio_chefia',         'Minha chefia me apoia para o trabalho'),
+(30, 'controle',             'Tenho alguma participação em decisões sobre o meu trabalho'),
+(31, 'apoio_colegas',        'Recebo ajuda e apoio de meus colegas'),
+(32, 'comunicacao_mudancas', 'Quando ocorrem mudanças no trabalho, tenho clareza sobre como funcionará na prática'),
+(33, 'apoio_chefia',         'Recebo feedback sobre o meu trabalho'),
+(34, 'relacionamentos',      'Existe tensão entre mim e colegas de trabalho'),
+(35, 'apoio_chefia',         'Minha chefia me incentiva nas minhas atividades');
