@@ -64,8 +64,13 @@ export default function SurveyPage() {
   const [ageRange, setAgeRange] = useState('');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
+  const [campaignInfo, setCampaignInfo] = useState<{
+    campaign_name: string;
+    company_name: string;
+    company_cnpj: string;
+  } | null>(null);
 
-  const questionsPerPage = 7;
+  const questionsPerPage = 5;
   const totalPages = Math.ceil(QUESTIONS.length / questionsPerPage);
   const currentQuestions = QUESTIONS.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
   const answeredCount = Object.keys(responses).length;
@@ -80,6 +85,11 @@ export default function SurveyPage() {
           setErrorMsg(data.error || 'Token inválido');
           setStep('invalid');
         } else {
+          setCampaignInfo({
+            campaign_name: data.campaign_name ?? '',
+            company_name: data.company_name ?? '',
+            company_cnpj: data.company_cnpj ?? '',
+          });
           setStep('consent');
         }
       } catch {
@@ -178,36 +188,169 @@ export default function SurveyPage() {
             </div>
           </div>
           <h1 className="text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
-          <p className="text-sm text-muted-foreground">Baseada no HSE Management Standards</p>
+          {campaignInfo && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {campaignInfo.company_name} — {campaignInfo.campaign_name}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">Instrumento HSE-IT · NR-1</p>
         </div>
 
         {/* Consent Step */}
         {step === 'consent' && (
           <Card>
             <CardHeader>
-              <CardTitle>Termo de Consentimento</CardTitle>
-              <CardDescription>Leia atentamente antes de prosseguir</CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>Termo de Consentimento Livre e Esclarecido</CardTitle>
+                  <CardDescription>
+                    Em conformidade com a LGPD (Lei nº 13.709/2018) e NR-1 (Portaria MTE nº 1.419/2024)
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-sm space-y-3 bg-muted/50 rounded-lg p-4">
-                <p>Esta pesquisa tem como objetivo identificar e avaliar fatores de risco psicossocial no ambiente de trabalho, em conformidade com a NR-1.</p>
-                <p>Suas respostas são <strong>completamente anônimas</strong>. Não é possível identificar individualmente os respondentes.</p>
-                <p>Os dados coletados serão utilizados exclusivamente para análise estatística e elaboração de planos de ação para melhoria do ambiente de trabalho.</p>
-                <p>A participação é voluntária e você pode interromper a pesquisa a qualquer momento.</p>
+              <div className="h-96 overflow-y-auto rounded-lg border bg-muted/30 p-4 text-sm space-y-4 leading-relaxed">
+                <p className="text-muted-foreground">
+                  Prezado(a) colaborador(a), antes de iniciar o questionário, pedimos que leia atentamente este termo.
+                </p>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">1. Quem está conduzindo esta pesquisa</h3>
+                  <p className="text-muted-foreground">
+                    Esta pesquisa é conduzida pela empresa{' '}
+                    <strong className="text-foreground">{campaignInfo?.company_name ?? '[EMPRESA]'}</strong>,
+                    inscrita sob CNPJ{' '}
+                    <strong className="text-foreground">{campaignInfo?.company_cnpj ?? '[CNPJ]'}</strong>,
+                    como parte do cumprimento das obrigações da NR-1, que exige a identificação e gestão de
+                    riscos psicossociais no ambiente de trabalho. A plataforma utilizada é o{' '}
+                    <strong className="text-foreground">Asta</strong>, que opera como operador de dados nos
+                    termos do artigo 5º, inciso VII da LGPD.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">2. Por que esta pesquisa está sendo realizada</h3>
+                  <p className="text-muted-foreground">
+                    A NR-1, com as alterações introduzidas pela Portaria MTE nº 1.419/2024, tornou obrigatório
+                    que as empresas identifiquem os riscos psicossociais presentes no ambiente de trabalho. Esta
+                    pesquisa utiliza o instrumento HSE-IT, composto por 35 questões organizadas em 7 dimensões:
+                    Demandas, Controle, Apoio da Chefia, Apoio dos Colegas, Relacionamentos, Cargo e Comunicação
+                    e Mudanças. Os resultados serão usados exclusivamente para elaborar relatórios de diagnóstico
+                    e planos de ação para compliance com a NR-1.{' '}
+                    <strong className="text-foreground">
+                      Não serão usados para avaliação de desempenho individual ou processos disciplinares.
+                    </strong>
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">3. Como sua anonimidade é garantida</h3>
+                  <p className="text-muted-foreground">
+                    Este sistema foi construído com uma arquitetura chamada{' '}
+                    <strong className="text-foreground">Blind-Drop</strong>, que torna sua participação
+                    estruturalmente anônima — não apenas por política, mas por{' '}
+                    <strong className="text-foreground">impossibilidade técnica de vinculação</strong>. O convite
+                    que você recebeu e a resposta que você vai enviar são armazenados em locais completamente
+                    separados no banco de dados, sem nenhum campo em comum entre eles. Nem o RH, nem a TI, nem
+                    os administradores da plataforma conseguem descobrir quem respondeu o quê. O link recebido é
+                    invalidado com atraso aleatório após a sua resposta, impedindo correlação temporal.
+                  </p>
+                  <p className="text-muted-foreground mt-2">
+                    <strong className="text-foreground">Seu cargo não é coletado</strong> junto com suas
+                    respostas — decisão arquitetural deliberada. Resultados de grupos com menos de 5 respondentes
+                    nunca são exibidos, mesmo de forma agregada.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">4. O que será coletado</h3>
+                  <ul className="text-muted-foreground space-y-1 list-disc list-inside">
+                    <li>Respostas às 35 perguntas do questionário HSE-IT</li>
+                    <li>Faixa etária e gênero (opcionais, para análise estatística agregada)</li>
+                    <li>Registro do aceite deste termo (data/hora, sem vínculo com identidade)</li>
+                  </ul>
+                  <p className="text-muted-foreground mt-2">
+                    <strong className="text-foreground">Não será coletado:</strong> nome, e-mail, CPF, matrícula,
+                    cargo, endereço, telefone, localização, IP ou qualquer dado que permita identificação
+                    individual.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">5. Base legal</h3>
+                  <p className="text-muted-foreground">
+                    Art. 7º, I (Consentimento) · Art. 7º, II (Obrigação legal — NR-1) · Art. 11, II, a
+                    (Proteção da saúde) da Lei nº 13.709/2018 (LGPD).
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">6. Seus direitos como titular</h3>
+                  <p className="text-muted-foreground">
+                    Conforme o art. 18 da LGPD: confirmar tratamento, acessar dados, solicitar correção,
+                    eliminação, portabilidade, revogar consentimento, opor-se ao tratamento e reclamar perante
+                    a ANPD. Contato: canais de comunicação interna da{' '}
+                    {campaignInfo?.company_name ?? 'empresa'}.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground">7. Retenção e voluntariedade</h3>
+                  <p className="text-muted-foreground">
+                    Dados mantidos pelo período necessário à análise e elaboração dos relatórios NR-1, após o
+                    que serão eliminados ou anonimizados (art. 15 LGPD). Participação{' '}
+                    <strong className="text-foreground">completamente voluntária</strong> — recusar ou
+                    interromper não acarreta qualquer consequência trabalhista ou disciplinar.
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
+                  <p>
+                    Versão 2.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)
+                  </p>
+                  <p className="mt-1">
+                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} — CNPJ:{' '}
+                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: Asta
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
+
+              <div className="flex items-start space-x-3 pt-2">
                 <Checkbox
                   id="consent"
                   checked={consentAccepted}
                   onCheckedChange={(checked) => setConsentAccepted(checked === true)}
+                  className="mt-0.5"
                 />
-                <Label htmlFor="consent" className="text-sm cursor-pointer">
-                  Li e aceito o termo de consentimento
+                <Label htmlFor="consent" className="text-sm cursor-pointer leading-relaxed">
+                  Li e compreendi todas as informações deste termo. Participo voluntariamente e autorizo o
+                  tratamento dos meus dados conforme descrito acima. Estou ciente de que minha identidade
+                  não será revelada em nenhuma circunstância, por garantia técnica.
                 </Label>
               </div>
-              <Button className="w-full" disabled={!consentAccepted} onClick={() => setStep('demographics')}>
-                Continuar
-              </Button>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    window.close();
+                  }}
+                >
+                  Não aceito — sair
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={!consentAccepted}
+                  onClick={() => setStep('demographics')}
+                >
+                  Aceito e desejo participar →
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
