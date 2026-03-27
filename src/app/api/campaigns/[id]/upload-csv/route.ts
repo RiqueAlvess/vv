@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { hashEmail, generateToken } from '@/lib/crypto';
-import { sendInvitationEmail } from '@/lib/email';
+import { enqueueJob } from '@/lib/jobs';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -49,8 +49,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const sectorCache = new Map<string, string>();
     const positionCache = new Map<string, string>();
     let employeesCreated = 0;
-    let emailsSent = 0;
-    let emailsFailed = 0;
+    let emailsQueued = 0;
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -113,7 +112,6 @@ export async function POST(request: Request, { params }: RouteParams) {
         });
         employeesCreated++;
 
-        // Create invitation + send email atomically while we still have the real email
         const token = generateToken();
 
         await prisma.surveyInvitation.create({
@@ -129,26 +127,30 @@ export async function POST(request: Request, { params }: RouteParams) {
           },
         });
 
-        const sent = await sendInvitationEmail({
+        // Enqueue email job — do NOT send synchronously
+        await enqueueJob('send_invitation_email', {
           to: email,
-          campaignName: campaign.name,
-          companyName: campaign.company.name,
+          campaign_name: campaign.name,
+          company_name: campaign.company.name,
           token,
-          expiresAt,
+          expires_at: expiresAt.toISOString(),
         });
 
-        if (sent) emailsSent++;
-        else emailsFailed++;
+        emailsQueued++;
       }
     }
+
+    // Fire-and-forget: trigger immediate processing without blocking the response
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process`, {
+      method: 'POST',
+    }).catch((e) => console.warn('[Jobs] Auto-trigger failed:', e));
 
     return NextResponse.json({
       units: unitCache.size,
       sectors: sectorCache.size,
       positions: positionCache.size,
       employees: employeesCreated,
-      emails_sent: emailsSent,
-      emails_failed: emailsFailed,
+      emails_queued: emailsQueued,
       total_rows: validRows.length,
     });
   } catch (err) {
