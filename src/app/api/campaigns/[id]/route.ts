@@ -106,8 +106,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const updateData: Record<string, unknown> = {};
     if (body.name) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.start_date) updateData.start_date = body.start_date;
-    if (body.end_date) updateData.end_date = body.end_date;
+    if (body.start_date) {
+      updateData.start_date = body.start_date.includes('T')
+        ? body.start_date
+        : `${body.start_date}T00:00:00.000Z`;
+    }
+    if (body.end_date) {
+      updateData.end_date = body.end_date.includes('T')
+        ? body.end_date
+        : `${body.end_date}T23:59:59.000Z`;
+    }
     updateData.updated_at = new Date();
 
     const campaign = await prisma.campaign.update({
