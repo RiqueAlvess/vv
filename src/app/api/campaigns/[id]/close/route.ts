@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
+import { enqueueJob } from '@/lib/jobs';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -53,6 +54,14 @@ export async function POST(request: Request, { params }: RouteParams) {
         updated_at: new Date(),
       },
     });
+
+    await enqueueJob('calculate_campaign_metrics', { campaign_id: id });
+    console.log(`[Close] Enqueued metrics calculation for campaign ${id}`);
+
+    // Fire-and-forget: trigger immediate processing without blocking the response
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process`, {
+      method: 'POST',
+    }).catch((e) => console.warn('[Jobs] Auto-trigger failed:', e));
 
     return NextResponse.json(updated);
   } catch (err) {
