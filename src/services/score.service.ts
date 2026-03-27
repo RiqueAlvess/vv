@@ -1,4 +1,4 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX, NR_INTERPRETATION } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
@@ -38,31 +38,36 @@ export class ScoreService {
     }
   }
 
-  // Calculate NR value: probability × severity
-  static calculateNR(riskLevel: RiskLevel, severity: number = NR_MATRIX.default_severity): number {
-    const probability = NR_MATRIX[riskLevel].probability;
-    return probability * severity;
+  // Calculate NR value: probability × severity (both variable 1–4, NR range 1–16)
+  static calculateNR(riskLevel: RiskLevel): number {
+    return NR_MATRIX[riskLevel].probability * NR_MATRIX[riskLevel].severity;
+    // aceitavel: 1×1=1, moderado: 2×2=4, importante: 3×3=9, critico: 4×4=16
   }
 
-  // Interpret NR value
+  // Interpret NR value (scale 1–16)
   static interpretNR(nr: number): { label: string; color: string } {
-    for (const interp of NR_INTERPRETATION) {
-      if (nr <= interp.maxNR) return { label: interp.label, color: interp.color };
-    }
-    return { label: 'Crítico', color: '#ef4444' };
+    if (nr <= 4)  return { label: 'Aceitável',  color: '#22c55e' };
+    if (nr <= 8)  return { label: 'Moderado',   color: '#eab308' };
+    if (nr <= 12) return { label: 'Importante', color: '#f97316' };
+    return           { label: 'Crítico',    color: '#ef4444' };
   }
 
-  // Calculate IGRP (general psychosocial risk index) - weighted average of all dimension NRs
+  // Calculate IGRP = mean of all 7 dimension NR values (range 1–16)
   static calculateIGRP(dimensionScores: Record<DimensionType, number>): number {
     let totalNR = 0;
     let count = 0;
     for (const dim of HSE_DIMENSIONS) {
-      const score = dimensionScores[dim.key as DimensionType];
+      const score = dimensionScores[dim.key as DimensionType] ?? 0;
       const risk = this.getRiskLevel(score, dim.type);
       const nr = this.calculateNR(risk);
       totalNR += nr;
       count++;
     }
     return Number((totalNR / count).toFixed(2));
+  }
+
+  // Returns true if NR >= 9 (Importante or Crítico) — "high risk" territory
+  static isHighRisk(nr: number): boolean {
+    return nr >= 9;
   }
 }
