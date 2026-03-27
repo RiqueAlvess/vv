@@ -109,11 +109,11 @@ export const RISK_COLORS: Record<RiskLevel, string> = {
 // ============================================================
 
 export const LIKERT_SCALE: { value: number; label: string }[] = [
-  { value: 0, label: 'Discordo Totalmente' },
-  { value: 1, label: 'Discordo' },
-  { value: 2, label: 'Neutro' },
-  { value: 3, label: 'Concordo' },
-  { value: 4, label: 'Concordo Totalmente' },
+  { value: 0, label: 'Nunca' },
+  { value: 1, label: 'Raramente' },
+  { value: 2, label: 'Às vezes' },
+  { value: 3, label: 'Frequentemente' },
+  { value: 4, label: 'Sempre' },
 ];
 
 export const AGE_RANGES: string[] = [
