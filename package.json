@@ -10,7 +10,8 @@
     "lint": "next lint",
     "worker": "npx tsx src/workers/index.ts",
     "prisma:generate": "prisma generate",
-    "prisma:db:pull": "prisma db pull"
+    "prisma:db:pull": "prisma db pull",
+    "generate:hash": "npx tsx scripts/generate-hash.ts"
   },
   "repository": {
     "type": "git",
