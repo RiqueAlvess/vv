@@ -158,14 +158,15 @@ export default function CampaignDetailPage() {
   const handleCSVUpload = async (rows: Array<{ unidade: string; setor: string; cargo: string; email: string }>) => {
     setActionLoading(true);
     try {
-      const csvContent = ['unidade,setor,cargo,email', ...rows.map(r => `${r.unidade},${r.setor},${r.cargo},${r.email}`)].join('\n');
-      const res = await post(`/api/campaigns/${campaignId}/upload-csv`, { csv_content: csvContent });
+      // Send rows as JSON — no CSV re-serialization
+      const res = await post(`/api/campaigns/${campaignId}/upload-csv`, { rows });
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao importar CSV');
         return;
       }
-      success('Colaboradores importados com sucesso');
+      const data = await res.json();
+      success(`${data.employees} colaboradores importados (${data.units} unidades, ${data.sectors} setores, ${data.positions} cargos)`);
       setCsvModalOpen(false);
       fetchInvitations();
       fetchMetrics();
