@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useApi } from '@/hooks/use-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock } from 'lucide-react';
+import { AlertTriangle, Lock, Download, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
-import { GaugeChart } from './charts/gauge-chart';
 import { IgrpBarChart } from './charts/igrp-bar-chart';
 import { WorkersRiskDonut } from './charts/workers-risk-donut';
 import { StackedDimensionChart } from './charts/stacked-dimension-chart';
@@ -22,11 +22,29 @@ interface CampaignDashboardProps {
   campaignName?: string;
 }
 
-export function CampaignDashboard({ campaignId, campaignStatus, campaignName: _campaignName }: CampaignDashboardProps) {
+export function CampaignDashboard({ campaignId, campaignStatus, campaignName }: CampaignDashboardProps) {
   const { get } = useApi();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleExportPGR = async () => {
+    setDownloading(true);
+    try {
+      const url = `/api/campaigns/${campaignId}/report/pdf`;
+      const win = window.open(url, '_blank');
+      if (win) {
+        win.addEventListener('load', () => {
+          setTimeout(() => win.print(), 500);
+        });
+      }
+    } catch (e) {
+      console.error('PGR export error:', e);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (campaignStatus !== 'closed') { setLoading(false); return; }
@@ -72,15 +90,25 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName: _c
       {/* ROW 1 — KPIs */}
       <KpiRow data={data} />
 
-      {/* ROW 2 — Gauge + IGRP bars */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GaugeChart
-          responseRate={data.response_rate as number}
-          totalInvited={data.total_invited as number}
-          totalResponded={data.total_responded as number}
-        />
-        <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />
+      {/* Export button row */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          onClick={handleExportPGR}
+          disabled={downloading}
+          className="gap-2"
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloading ? 'Gerando PDF...' : 'Exportar Relatório PGR'}
+        </Button>
       </div>
+
+      {/* ROW 2 — IGRP by dimension (full width) */}
+      <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />
 
       {/* ROW 3 — Donut + Stacked by dimension */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -110,13 +138,10 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName: _c
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-64 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
+      <Skeleton className="h-64 rounded-xl" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
