@@ -66,5 +66,10 @@ export function useApi() {
     method: 'DELETE',
   }), [fetchWithAuth]);
 
-  return { fetchWithAuth, get, post, put, del };
+  const patch = useCallback((url: string, data?: unknown) => fetchWithAuth(url, {
+    method: 'PATCH',
+    body: data ? JSON.stringify(data) : undefined,
+  }), [fetchWithAuth]);
+
+  return { fetchWithAuth, get, post, put, del, patch };
 }

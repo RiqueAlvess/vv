@@ -27,8 +27,9 @@ model Company {
   created_at DateTime @default(now()) @db.Timestamptz()
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
 
-  users     User[]
-  campaigns Campaign[]
+  users           User[]
+  campaigns       Campaign[]
+  feedbackChannel CompanyFeedbackChannel?
 
   @@map("companies")
   @@schema("core")
@@ -234,6 +235,35 @@ model DimSector {
 
   @@map("dim_sectors")
   @@schema("analytics")
+}
+
+model CompanyFeedbackChannel {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id   String   @unique @db.Uuid
+  public_token String   @unique
+  active       Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  company   Company             @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  feedbacks AnonymousFeedback[]
+
+  @@map("company_feedback_channels")
+  @@schema("core")
+}
+
+model AnonymousFeedback {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel_id String   @db.Uuid
+  type       String   @db.VarChar(20)
+  category   String?  @db.VarChar(30)
+  message    String   @db.Text
+  read       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  channel CompanyFeedbackChannel @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+
+  @@map("anonymous_feedbacks")
+  @@schema("core")
 }
 
 model Job {
