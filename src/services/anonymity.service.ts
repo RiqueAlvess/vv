@@ -49,12 +49,13 @@ export class AnonymityService {
     // Generate anonymous session UUID
     const sessionUuid = generateToken();
 
-    // DESTROY the token — set to null and mark as used internally
-    // After this point, the invitation cannot be linked to any future response
+    // DESTROY the token — mark as used internally
+    // Do NOT set token_public to null — DB has NOT NULL constraint.
+    // token_used_internally=true is the authoritative "used" flag; the token
+    // remains in DB but is rejected before any lookup can succeed.
     await prisma.surveyInvitation.update({
       where: { id: invitation.id },
       data: {
-        token_public: null,
         token_used_internally: true,
       },
     });
