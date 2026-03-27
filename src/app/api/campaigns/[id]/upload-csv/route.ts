@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { hashEmail, generateToken } from '@/lib/crypto';
-import { enqueueJob } from '@/lib/jobs';
+import { sendInvitationEmail } from '@/lib/email';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -49,7 +49,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     const sectorCache = new Map<string, string>();
     const positionCache = new Map<string, string>();
     let employeesCreated = 0;
-    let emailsQueued = 0;
+    let emailsSent = 0;
+    let emailsFailed = 0;
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -127,30 +128,31 @@ export async function POST(request: Request, { params }: RouteParams) {
           },
         });
 
-        // Enqueue email job — do NOT send synchronously
-        await enqueueJob('send_invitation_email', {
-          to: email,
-          campaign_name: campaign.name,
-          company_name: campaign.company.name,
-          token,
-          expires_at: expiresAt.toISOString(),
-        });
+        let emailSent = false;
+        try {
+          emailSent = await sendInvitationEmail({
+            to: email,
+            campaignName: campaign.name,
+            companyName: campaign.company.name,
+            token,
+            expiresAt,
+          });
+        } catch (emailErr) {
+          console.error(`[Upload] Email failed for token ${token}:`, emailErr);
+        }
 
-        emailsQueued++;
+        if (emailSent) emailsSent++;
+        else emailsFailed++;
       }
     }
-
-    // Fire-and-forget: trigger immediate processing without blocking the response
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process`, {
-      method: 'POST',
-    }).catch((e) => console.warn('[Jobs] Auto-trigger failed:', e));
 
     return NextResponse.json({
       units: unitCache.size,
       sectors: sectorCache.size,
       positions: positionCache.size,
       employees: employeesCreated,
-      emails_queued: emailsQueued,
+      emails_sent: emailsSent,
+      emails_failed: emailsFailed,
       total_rows: validRows.length,
     });
   } catch (err) {
