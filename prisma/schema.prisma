@@ -253,7 +253,7 @@ model CampaignMetrics {
   top_critical_groups Json?
   calculated_at       DateTime? @db.Timestamptz()
   created_at          DateTime  @default(now()) @db.Timestamptz()
-  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @db.Timestamptz()
 
   campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
