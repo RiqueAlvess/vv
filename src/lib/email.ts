@@ -75,9 +75,9 @@ export async function sendInvitationEmail(params: {
                 <tr>
                   <td style="background:#f1f5f9;border-radius:8px;padding:16px;">
                     <p style="color:#64748b;font-size:12px;margin:0;line-height:1.6;">
-                      ⏱️ Este link expira em <strong>${expiresFormatted}</strong> e pode ser usado apenas uma vez.<br>
-                      🔒 Participação voluntária — conforme LGPD (Lei nº 13.709/2018).<br>
-                      ✉️ Se você recebeu este email por engano, pode ignorá-lo com segurança.
+                      Este link expira em <strong>${expiresFormatted}</strong> e pode ser usado apenas uma vez.<br>
+                      Participação voluntária — conforme LGPD (Lei nº 13.709/2018).<br>
+                      Se você recebeu este email por engano, pode ignorá-lo com segurança.
                     </p>
                   </td>
                 </tr>

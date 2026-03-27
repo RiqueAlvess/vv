@@ -50,17 +50,17 @@ function buildPGRHtml(params: {
 
   const hierarchyHtml = params.units.map(unit => `
     <div class="unit">
-      <div class="unit-header">📍 UNIDADE: ${unit.name.toUpperCase()}</div>
+      <div class="unit-header">UNIDADE: ${unit.name.toUpperCase()}</div>
       ${unit.sectors.map(sector => `
         <div class="sector">
-          <div class="sector-header">▸ Setor: ${sector.name}</div>
+          <div class="sector-header">Setor: ${sector.name}</div>
           ${sector.positions.map(position => {
             const hasDims = Object.keys(position.dimensions).length > 0;
             if (!hasDims || params.totalResponded < MIN_RESPONDENTS) {
               return `
                 <div class="position">
                   <div class="position-header">Cargo: ${position.name}</div>
-                  <div class="suppressed">⚠️ Dados suprimidos — menos de ${MIN_RESPONDENTS} respondentes (proteção de anonimato LGPD)</div>
+                  <div class="suppressed">Dados suprimidos — menos de ${MIN_RESPONDENTS} respondentes (proteção de anonimato LGPD)</div>
                 </div>`;
             }
             return `
@@ -157,7 +157,7 @@ function buildPGRHtml(params: {
 <!-- ANONYMITY NOTE -->
 <div class="section">
   <div class="anonymity-note">
-    ⚠️ <strong>Nota de anonimato (LGPD Art. 12):</strong> Os scores são calculados sobre o total de ${params.totalResponded} respondentes da campanha.
+    <strong>Nota de anonimato (LGPD Art. 12):</strong> Os scores são calculados sobre o total de ${params.totalResponded} respondentes da campanha.
     Por garantia técnica de anonimato (arquitetura Blind-Drop), não é possível vincular respostas individuais a cargos específicos.
     Cargos com menos de ${MIN_RESPONDENTS} respondentes têm dados suprimidos.
   </div>
