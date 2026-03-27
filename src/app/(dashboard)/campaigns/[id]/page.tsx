@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { CSVUploadModal } from '@/components/modals/csv-upload-modal';
 import { useApi } from '@/hooks/use-api';
@@ -18,7 +19,7 @@ import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Play, Square, Upload, Send, BarChart3,
-  Users, Mail, CheckCircle2, Clock, XCircle,
+  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import type { Campaign } from '@/types';
 
@@ -41,6 +42,33 @@ interface Metrics {
   response_rate: number;
 }
 
+interface Employee {
+  id: string;
+  email_hash: string;
+  has_email: boolean;
+  invited: boolean;
+  invitation_status: string | null;
+  invited_at: string | null;
+}
+
+interface Position {
+  id: string;
+  name: string;
+  employees: Employee[];
+}
+
+interface Sector {
+  id: string;
+  name: string;
+  positions: Position[];
+}
+
+interface Unit {
+  id: string;
+  name: string;
+  sectors: Sector[];
+}
+
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -52,11 +80,17 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [activateModalOpen, setActivateModalOpen] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendAllModalOpen, setSendAllModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchCampaign = useCallback(async () => {
@@ -100,6 +134,21 @@ export default function CampaignDetailPage() {
     }
   }, [campaignId, get]);
 
+  const fetchEmployees = useCallback(async () => {
+    setEmployeesLoading(true);
+    try {
+      const res = await get(`/api/campaigns/${campaignId}/employees`);
+      if (res.ok) {
+        const data = await res.json();
+        setUnits(data.data || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, [campaignId, get]);
+
   useEffect(() => {
     fetchCampaign();
     fetchInvitations();
@@ -120,6 +169,7 @@ export default function CampaignDetailPage() {
       setCsvModalOpen(false);
       fetchInvitations();
       fetchMetrics();
+      fetchEmployees();
     } catch {
       notifyError('Erro ao importar CSV');
     } finally {
@@ -165,23 +215,76 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleSendInvitations = async () => {
+  const handleSendSelected = async () => {
     setActionLoading(true);
     try {
-      const res = await post(`/api/campaigns/${campaignId}/send-invitations`);
+      const res = await post(`/api/campaigns/${campaignId}/send-invitations`, {
+        employee_ids: Array.from(selectedEmployees),
+      });
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao enviar convites');
         return;
       }
-      success('Convites enviados');
+      const data = await res.json();
+      success(`${data.sent} convite(s) enviado(s)${data.failed > 0 ? `, ${data.failed} falhou` : ''}`);
       setSendModalOpen(false);
+      setSelectedEmployees(new Set());
       fetchInvitations();
+      fetchMetrics();
+      fetchEmployees();
     } catch {
       notifyError('Erro ao enviar convites');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleSendAll = async () => {
+    setActionLoading(true);
+    try {
+      const res = await post(`/api/campaigns/${campaignId}/send-invitations`, { send_all: true });
+      if (!res.ok) {
+        const data = await res.json();
+        notifyError(data.error || 'Erro ao enviar convites');
+        return;
+      }
+      const data = await res.json();
+      success(`${data.sent} convite(s) enviado(s)${data.failed > 0 ? `, ${data.failed} falhou` : ''}`);
+      setSendAllModalOpen(false);
+      setSelectedEmployees(new Set());
+      fetchInvitations();
+      fetchMetrics();
+      fetchEmployees();
+    } catch {
+      notifyError('Erro ao enviar convites');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const toggleUnit = (unitId: string) => {
+    setExpandedUnits((prev) => {
+      const next = new Set(prev);
+      next.has(unitId) ? next.delete(unitId) : next.add(unitId);
+      return next;
+    });
+  };
+
+  const toggleSector = (sectorId: string) => {
+    setExpandedSectors((prev) => {
+      const next = new Set(prev);
+      next.has(sectorId) ? next.delete(sectorId) : next.add(sectorId);
+      return next;
+    });
+  };
+
+  const toggleEmployee = (empId: string) => {
+    setSelectedEmployees((prev) => {
+      const next = new Set(prev);
+      next.has(empId) ? next.delete(empId) : next.add(empId);
+      return next;
+    });
   };
 
   if (loading) {
@@ -197,6 +300,12 @@ export default function CampaignDetailPage() {
 
   const canManage = user?.role === 'ADM' || user?.role === 'RH';
   const responseRate = metrics?.response_rate ?? 0;
+
+  const allSelectableEmployees = units
+    .flatMap((u) => u.sectors)
+    .flatMap((s) => s.positions)
+    .flatMap((p) => p.employees)
+    .filter((e) => e.has_email && !e.invited);
 
   return (
     <div className="space-y-6">
@@ -230,10 +339,6 @@ export default function CampaignDetailPage() {
           )}
           {campaign.status === 'active' && (
             <>
-              <Button variant="outline" onClick={() => setSendModalOpen(true)}>
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Convites
-              </Button>
               <Button variant="destructive" onClick={() => setCloseModalOpen(true)}>
                 <Square className="h-4 w-4 mr-2" />
                 Encerrar Campanha
@@ -286,14 +391,163 @@ export default function CampaignDetailPage() {
         </Card>
       </div>
 
-      {/* Invitations Tab */}
-      <Tabs defaultValue="invitations">
+      {/* Tabs */}
+      <Tabs defaultValue="employees" onValueChange={(v) => v === 'employees' && fetchEmployees()}>
         <TabsList>
+          <TabsTrigger value="employees">
+            <Users className="h-4 w-4 mr-2" />
+            Colaboradores
+          </TabsTrigger>
           <TabsTrigger value="invitations">
             <Mail className="h-4 w-4 mr-2" />
             Convites ({invitations.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Colaboradores tab */}
+        <TabsContent value="employees">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Colaboradores</CardTitle>
+                  <CardDescription>Selecione quem receberá o convite de pesquisa</CardDescription>
+                </div>
+                {canManage && campaign.status === 'active' && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={selectedEmployees.size === 0 || actionLoading}
+                      onClick={() => setSendModalOpen(true)}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar Selecionados ({selectedEmployees.size})
+                    </Button>
+                    <Button
+                      disabled={actionLoading}
+                      onClick={() => setSendAllModalOpen(true)}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar para Todos
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {employeesLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : units.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum colaborador importado. Use &quot;Importar CSV&quot; na aba de rascunho.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {units.map((unit) => (
+                    <div key={unit.id} className="border rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center gap-2 px-4 py-3 bg-muted/40 hover:bg-muted/60 text-left font-medium text-sm"
+                        onClick={() => toggleUnit(unit.id)}
+                      >
+                        {expandedUnits.has(unit.id) ? (
+                          <ChevronDown className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0" />
+                        )}
+                        {unit.name}
+                        <span className="ml-auto text-muted-foreground font-normal">
+                          {unit.sectors.flatMap((s) => s.positions).flatMap((p) => p.employees).length} colaborador(es)
+                        </span>
+                      </button>
+
+                      {expandedUnits.has(unit.id) && (
+                        <div className="divide-y">
+                          {unit.sectors.map((sector) => (
+                            <div key={sector.id}>
+                              <button
+                                className="w-full flex items-center gap-2 px-6 py-2 bg-background hover:bg-muted/20 text-left text-sm text-muted-foreground"
+                                onClick={() => toggleSector(sector.id)}
+                              >
+                                {expandedSectors.has(sector.id) ? (
+                                  <ChevronDown className="h-3 w-3 shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3 shrink-0" />
+                                )}
+                                {sector.name}
+                              </button>
+
+                              {expandedSectors.has(sector.id) && (
+                                <div className="px-8 py-2 space-y-4">
+                                  {sector.positions.map((position) => (
+                                    <div key={position.id}>
+                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                        {position.name}
+                                      </p>
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>ID (hash)</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Convidado em</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {position.employees.map((emp) => {
+                                            const selectable = emp.has_email && !emp.invited;
+                                            return (
+                                              <TableRow key={emp.id}>
+                                                <TableCell>
+                                                  <Checkbox
+                                                    disabled={!selectable || !canManage || campaign.status !== 'active'}
+                                                    checked={selectedEmployees.has(emp.id)}
+                                                    onCheckedChange={() => toggleEmployee(emp.id)}
+                                                  />
+                                                </TableCell>
+                                                <TableCell className="font-mono text-xs">
+                                                  {emp.email_hash.slice(0, 8)}...
+                                                </TableCell>
+                                                <TableCell>
+                                                  {emp.invited ? (
+                                                    <Badge variant="default">
+                                                      {emp.invitation_status === 'responded' ? 'Respondeu' : 'Convidado'}
+                                                    </Badge>
+                                                  ) : emp.has_email ? (
+                                                    <Badge variant="secondary">Aguardando</Badge>
+                                                  ) : (
+                                                    <Badge variant="outline">Sem e-mail</Badge>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                  {emp.invited_at
+                                                    ? format(new Date(emp.invited_at), 'dd/MM/yyyy HH:mm')
+                                                    : '-'}
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          })}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Convites tab */}
         <TabsContent value="invitations">
           <Card>
             <CardHeader>
@@ -303,7 +557,7 @@ export default function CampaignDetailPage() {
             <CardContent>
               {invitations.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Nenhum convite encontrado. Importe colaboradores via CSV.
+                  Nenhum convite encontrado. Selecione colaboradores na aba Colaboradores.
                 </p>
               ) : (
                 <Table>
@@ -383,11 +637,21 @@ export default function CampaignDetailPage() {
       <ConfirmModal
         open={sendModalOpen}
         onOpenChange={setSendModalOpen}
-        title="Enviar Convites"
-        description="Deseja enviar os convites de pesquisa para todos os colaboradores pendentes?"
+        title="Enviar Convites Selecionados"
+        description={`Deseja enviar convites para os ${selectedEmployees.size} colaborador(es) selecionado(s)?`}
         confirmText="Enviar"
         loading={actionLoading}
-        onConfirm={handleSendInvitations}
+        onConfirm={handleSendSelected}
+      />
+
+      <ConfirmModal
+        open={sendAllModalOpen}
+        onOpenChange={setSendAllModalOpen}
+        title="Enviar para Todos"
+        description={`Deseja enviar convites para todos os ${allSelectableEmployees.length} colaborador(es) que ainda não foram convidados?`}
+        confirmText="Enviar para Todos"
+        loading={actionLoading}
+        onConfirm={handleSendAll}
       />
     </div>
   );

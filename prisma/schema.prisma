@@ -137,10 +137,11 @@ model CampaignPosition {
 }
 
 model CampaignEmployee {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  position_id String   @db.Uuid
-  email_hash  String
-  created_at  DateTime @default(now()) @db.Timestamptz()
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  position_id     String   @db.Uuid
+  email_hash      String
+  email_encrypted String?  // AES-256-GCM encrypted — deleted after first send
+  created_at      DateTime @default(now()) @db.Timestamptz()
 
   position    CampaignPosition   @relation(fields: [position_id], references: [id], onDelete: Cascade)
   invitations SurveyInvitation[]
