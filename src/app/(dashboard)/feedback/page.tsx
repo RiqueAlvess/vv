@@ -143,10 +143,10 @@ export default function FeedbackPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="positivo">✅ Positivo</SelectItem>
-            <SelectItem value="negativo">⚠️ Negativo</SelectItem>
-            <SelectItem value="sugestao">💡 Sugestão</SelectItem>
-            <SelectItem value="outro">💬 Outro</SelectItem>
+            <SelectItem value="positivo">Positivo</SelectItem>
+            <SelectItem value="negativo">Negativo</SelectItem>
+            <SelectItem value="sugestao">Sugestão</SelectItem>
+            <SelectItem value="outro">Outro</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground">{total} mensagem{total !== 1 ? 's' : ''}</span>
