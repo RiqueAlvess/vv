@@ -8,7 +8,7 @@ import {
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -109,33 +109,45 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg" className="cursor-pointer">
-                  <Avatar className="h-8 w-8">
+            <Popover>
+              <PopoverTrigger asChild>
+                <SidebarMenuButton size="lg" className="cursor-pointer w-full">
+                  <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col text-left text-sm">
+                  <div className="flex flex-col text-left text-sm min-w-0 flex-1">
                     <span className="font-medium truncate">{user?.name}</span>
-                    <span className="text-xs text-muted-foreground">{user?.role}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user?.role}</span>
                   </div>
-                  <ChevronUp className="ml-auto h-4 w-4" />
+                  <ChevronUp className="ml-auto h-4 w-4 shrink-0" />
                 </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width]">
-                <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
-                  <KeyRound className="mr-2 h-4 w-4" />
+              </PopoverTrigger>
+
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={8}
+                className="w-52 p-1"
+              >
+                <button
+                  onClick={() => setPasswordOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                >
+                  <KeyRound className="h-4 w-4" />
                   Mudar Senha
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
+                </button>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
                   Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </button>
+              </PopoverContent>
+            </Popover>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
