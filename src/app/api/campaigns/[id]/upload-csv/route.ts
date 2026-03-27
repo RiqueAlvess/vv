@@ -8,102 +8,36 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-function parseCSV(text: string): { unidade: string; setor: string; cargo: string; email: string }[] {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-
-  const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
-  const unidadeIdx = header.indexOf('unidade');
-  const setorIdx = header.indexOf('setor');
-  const cargoIdx = header.indexOf('cargo');
-  const emailIdx = header.indexOf('email');
-
-  if (unidadeIdx === -1 || setorIdx === -1 || cargoIdx === -1 || emailIdx === -1) {
-    throw new Error('CSV deve conter as colunas: unidade, setor, cargo, email');
-  }
-
-  const rows: { unidade: string; setor: string; cargo: string; email: string }[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const cols = line.split(',').map((c) => c.trim());
-    if (cols.length < 4) continue;
-
-    rows.push({
-      unidade: cols[unidadeIdx],
-      setor: cols[setorIdx],
-      cargo: cols[cargoIdx],
-      email: cols[emailIdx],
-    });
-  }
-
-  return rows;
-}
-
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
     const user = await getAuthUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (user.role !== 'ADM' && user.role !== 'RH') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'ADM' && user.role !== 'RH') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const campaign = await prisma.campaign.findUnique({
       where: { id },
       select: { id: true, company_id: true, status: true, campaign_salt: true },
     });
+    if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+    if (user.role === 'RH' && campaign.company_id !== user.company_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (campaign.status !== 'draft') return NextResponse.json({ error: 'Upload só é permitido para campanhas em rascunho' }, { status: 400 });
 
-    if (!campaign) {
-      return NextResponse.json(
-        { error: 'Campanha não encontrada' },
-        { status: 404 }
-      );
+    // Accept JSON rows directly — no CSV re-parsing needed
+    const body = await request.json();
+    const rows: { unidade: string; setor: string; cargo: string; email: string }[] = body.rows;
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return NextResponse.json({ error: 'Nenhuma linha válida encontrada' }, { status: 400 });
     }
 
-    if (user.role === 'RH' && campaign.company_id !== user.company_id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // Validate each row has required fields
+    const validRows = rows.filter(
+      (r) => r.unidade?.trim() && r.setor?.trim() && r.cargo?.trim() && r.email?.trim()?.includes('@')
+    );
 
-    if (campaign.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Upload de CSV só é permitido para campanhas em rascunho' },
-        { status: 400 }
-      );
-    }
-
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return NextResponse.json(
-        { error: 'Arquivo CSV é obrigatório' },
-        { status: 400 }
-      );
-    }
-
-    const text = await file.text();
-    let rows: { unidade: string; setor: string; cargo: string; email: string }[];
-
-    try {
-      rows = parseCSV(text);
-    } catch (parseError) {
-      return NextResponse.json(
-        { error: (parseError as Error).message },
-        { status: 400 }
-      );
-    }
-
-    if (rows.length === 0) {
-      return NextResponse.json(
-        { error: 'CSV não contém dados válidos' },
-        { status: 400 }
-      );
+    if (validRows.length === 0) {
+      return NextResponse.json({ error: 'Nenhuma linha com dados válidos' }, { status: 400 });
     }
 
     const unitCache = new Map<string, string>();
@@ -111,93 +45,59 @@ export async function POST(request: Request, { params }: RouteParams) {
     const positionCache = new Map<string, string>();
     let employeesCreated = 0;
 
-    for (const row of rows) {
-      // Find or create unit
-      const unitKey = row.unidade;
+    for (const row of validRows) {
+      // Upsert unit
+      const unitKey = row.unidade.trim();
       let unitId = unitCache.get(unitKey);
-
       if (!unitId) {
-        const existingUnit = await prisma.campaignUnit.findFirst({
-          where: { campaign_id: id, name: row.unidade },
+        const existing = await prisma.campaignUnit.findFirst({
+          where: { campaign_id: id, name: unitKey },
           select: { id: true },
         });
-
-        if (existingUnit) {
-          unitId = existingUnit.id;
-        } else {
-          const newUnit = await prisma.campaignUnit.create({
-            data: { campaign_id: id, name: row.unidade },
-            select: { id: true },
-          });
-          unitId = newUnit.id;
-        }
+        unitId = existing
+          ? existing.id
+          : (await prisma.campaignUnit.create({ data: { campaign_id: id, name: unitKey }, select: { id: true } })).id;
         unitCache.set(unitKey, unitId);
       }
 
-      // Find or create sector
-      const sectorKey = `${unitId}:${row.setor}`;
+      // Upsert sector
+      const sectorKey = `${unitId}:${row.setor.trim()}`;
       let sectorId = sectorCache.get(sectorKey);
-
       if (!sectorId) {
-        const existingSector = await prisma.campaignSector.findFirst({
-          where: { unit_id: unitId, name: row.setor },
+        const existing = await prisma.campaignSector.findFirst({
+          where: { unit_id: unitId, name: row.setor.trim() },
           select: { id: true },
         });
-
-        if (existingSector) {
-          sectorId = existingSector.id;
-        } else {
-          const newSector = await prisma.campaignSector.create({
-            data: { unit_id: unitId, name: row.setor },
-            select: { id: true },
-          });
-          sectorId = newSector.id;
-        }
+        sectorId = existing
+          ? existing.id
+          : (await prisma.campaignSector.create({ data: { unit_id: unitId, name: row.setor.trim() }, select: { id: true } })).id;
         sectorCache.set(sectorKey, sectorId);
       }
 
-      // Find or create position
-      const positionKey = `${sectorId}:${row.cargo}`;
+      // Upsert position
+      const positionKey = `${sectorId}:${row.cargo.trim()}`;
       let positionId = positionCache.get(positionKey);
-
       if (!positionId) {
-        const existingPosition = await prisma.campaignPosition.findFirst({
-          where: { sector_id: sectorId, name: row.cargo },
+        const existing = await prisma.campaignPosition.findFirst({
+          where: { sector_id: sectorId, name: row.cargo.trim() },
           select: { id: true },
         });
-
-        if (existingPosition) {
-          positionId = existingPosition.id;
-        } else {
-          const newPosition = await prisma.campaignPosition.create({
-            data: { sector_id: sectorId, name: row.cargo },
-            select: { id: true },
-          });
-          positionId = newPosition.id;
-        }
+        positionId = existing
+          ? existing.id
+          : (await prisma.campaignPosition.create({ data: { sector_id: sectorId, name: row.cargo.trim() }, select: { id: true } })).id;
         positionCache.set(positionKey, positionId);
       }
 
-      // Hash email and create employee if not exists
-      const emailHash = hashEmail(row.email, campaign.campaign_salt);
-
+      // Upsert employee (email hashed — no PII stored)
+      const email = row.email.trim().toLowerCase();
+      const emailHash = hashEmail(email, campaign.campaign_salt);
       const existingEmployee = await prisma.campaignEmployee.findUnique({
-        where: {
-          position_id_email_hash: {
-            position_id: positionId,
-            email_hash: emailHash,
-          },
-        },
+        where: { position_id_email_hash: { position_id: positionId, email_hash: emailHash } },
         select: { id: true },
       });
-
       if (!existingEmployee) {
         await prisma.campaignEmployee.create({
-          data: {
-            position_id: positionId,
-            email_hash: emailHash,
-            email_encrypted: encryptEmail(row.email),
-          },
+          data: { position_id: positionId, email_hash: emailHash, email_encrypted: encryptEmail(email) },
         });
         employeesCreated++;
       }
@@ -208,12 +108,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       sectors: sectorCache.size,
       positions: positionCache.size,
       employees: employeesCreated,
+      total_rows: validRows.length,
     });
   } catch (err) {
     console.error('Upload CSV error:', err);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
