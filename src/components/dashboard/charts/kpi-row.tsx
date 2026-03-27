@@ -5,73 +5,149 @@ import { Users, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
 
 function GaugeInline({ value }: { value: number }) {
   const pct = Math.min(100, Math.max(0, value));
+
   const color =
     pct >= 70 ? '#22c55e' :
     pct >= 50 ? '#eab308' : '#ef4444';
 
-  const cx = 60, cy = 60, r = 48;
+  // Gauge is a top-half semicircle
+  // Angles in SVG: 0° = right, 90° = down, 180° = left
+  // We sweep from left (180°) to right (0°) using sweep-flag=1 (clockwise in SVG coords)
+  // 0%   → needle at 180° (far left)
+  // 50%  → needle at 90°  (top)
+  // 100% → needle at 0°   (far right)
+
+  const cx = 60;
+  const cy = 58;
+  const r  = 44;
+  const strokeW = 11;
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const valueAngle = 180 - (pct / 100) * 180;
 
-  const endX = cx + r * Math.cos(toRad(valueAngle));
-  const endY = cy + r * Math.sin(toRad(valueAngle));
+  // Point on the arc at a given degree
+  const pt = (deg: number, radius = r) => ({
+    x: cx + radius * Math.cos(toRad(deg)),
+    y: cy + radius * Math.sin(toRad(deg)),
+  });
 
-  const largeArc = pct > 50 ? 1 : 0;
+  // Draw a clockwise arc from degStart to degEnd (SVG sweep-flag=1)
+  // degStart and degEnd are standard math angles
+  const arc = (degStart: number, degEnd: number, radius = r) => {
+    const s = pt(degStart, radius);
+    const e = pt(degEnd, radius);
+    const sweep = degEnd < degStart ? 1 : 0; // clockwise = going from 180 toward 0
+    const large = Math.abs(degStart - degEnd) > 180 ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${radius} ${radius} 0 ${large} ${sweep} ${e.x} ${e.y}`;
+  };
 
-  const bgStartX = cx - r;
-  const bgEndX = cx + r;
+  // Degree for a given percentage (180° at 0%, 0° at 100%)
+  const degFor = (p: number) => 180 - (p / 100) * 180;
+
+  const needleDeg = degFor(pct);
+  const needlePt  = pt(needleDeg, r - 8);
 
   return (
-    <svg viewBox="0 0 120 68" className="w-full max-w-[180px]" style={{ overflow: 'visible' }}>
-      {/* Red zone: 0-50% = 180° to 90° */}
+    <svg
+      viewBox="0 0 120 75"
+      className="w-full max-w-[190px]"
+      aria-label={`Taxa de adesão: ${pct.toFixed(1)}%`}
+    >
+      {/* ── Zone bands (background, drawn first) ── */}
+      {/* Red: 0% → 50% (180° → 90°) */}
       <path
-        d={`M ${bgStartX} ${cy} A ${r} ${r} 0 0 1 ${cx} ${cy - r}`}
-        fill="none" stroke="#fecaca" strokeWidth="12" strokeLinecap="butt"
+        d={arc(180, 90)}
+        fill="none"
+        stroke="#fca5a5"
+        strokeWidth={strokeW}
+        strokeLinecap="butt"
       />
-      {/* Yellow zone: 50-70% = 90° to 54° */}
+      {/* Yellow: 50% → 70% (90° → 54°) */}
       <path
-        d={`M ${cx} ${cy - r} A ${r} ${r} 0 0 1 ${cx + r * Math.cos(toRad(54))} ${cy + r * Math.sin(toRad(54))}`}
-        fill="none" stroke="#fef9c3" strokeWidth="12" strokeLinecap="butt"
+        d={arc(90, degFor(70))}
+        fill="none"
+        stroke="#fde047"
+        strokeWidth={strokeW}
+        strokeLinecap="butt"
       />
-      {/* Green zone: 70-100% = 54° to 0° */}
+      {/* Green: 70% → 100% (54° → 0°) */}
       <path
-        d={`M ${cx + r * Math.cos(toRad(54))} ${cy + r * Math.sin(toRad(54))} A ${r} ${r} 0 0 1 ${bgEndX} ${cy}`}
-        fill="none" stroke="#bbf7d0" strokeWidth="12" strokeLinecap="butt"
+        d={arc(degFor(70), 0)}
+        fill="none"
+        stroke="#86efac"
+        strokeWidth={strokeW}
+        strokeLinecap="butt"
       />
 
-      {/* Value arc (solid color, on top) */}
-      {pct > 0 && (
+      {/* ── Value arc (solid, drawn over zones) ── */}
+      {pct > 0.5 && (
         <path
-          d={`M ${bgStartX} ${cy} A ${r} ${r} 0 ${largeArc} 1 ${endX} ${endY}`}
+          d={arc(180, needleDeg)}
           fill="none"
           stroke={color}
-          strokeWidth="12"
+          strokeWidth={strokeW}
           strokeLinecap="round"
         />
       )}
 
-      {/* Needle */}
-      {(() => {
-        const needleAngle = valueAngle;
-        const needleLen = r - 8;
-        const nx = cx + needleLen * Math.cos(toRad(needleAngle));
-        const ny = cy + needleLen * Math.sin(toRad(needleAngle));
+      {/* ── Needle ── */}
+      <line
+        x1={cx} y1={cy}
+        x2={needlePt.x} y2={needlePt.y}
+        stroke="#1e293b"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx={cx} cy={cy} r="4" fill="#1e293b" />
+
+      {/* ── Zone boundary ticks ── */}
+      {[
+        { pct: 50, label: '50%', color: '#eab308' },
+        { pct: 70, label: '70%', color: '#22c55e' },
+      ].map(({ pct: p, label, color: c }) => {
+        const inner = pt(degFor(p), r - strokeW / 2 - 2);
+        const outer = pt(degFor(p), r + strokeW / 2 + 2);
         return (
-          <>
-            <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#1e293b" strokeWidth="2" strokeLinecap="round" />
-            <circle cx={cx} cy={cy} r="4" fill="#1e293b" />
-          </>
+          <g key={p}>
+            <line
+              x1={inner.x} y1={inner.y}
+              x2={outer.x} y2={outer.y}
+              stroke={c}
+              strokeWidth="1.5"
+            />
+            <text
+              x={pt(degFor(p), r + strokeW / 2 + 9).x}
+              y={pt(degFor(p), r + strokeW / 2 + 9).y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="6.5"
+              fill={c}
+              fontWeight="600"
+            >
+              {label}
+            </text>
+          </g>
         );
-      })()}
+      })}
 
-      {/* Zone labels */}
-      <text x="8"  y="66" fontSize="7" fill="#ef4444" textAnchor="middle">0%</text>
-      <text x="60" y="10" fontSize="7" fill="#eab308" textAnchor="middle">50%</text>
-      <text x="112" y="66" fontSize="7" fill="#22c55e" textAnchor="middle">100%</text>
+      {/* ── Edge labels ── */}
+      <text x={pt(180, r + strokeW / 2 + 7).x} y={pt(180, r + strokeW / 2 + 7).y}
+        textAnchor="middle" dominantBaseline="middle" fontSize="6.5" fill="#94a3b8">
+        0%
+      </text>
+      <text x={pt(0, r + strokeW / 2 + 7).x} y={pt(0, r + strokeW / 2 + 7).y}
+        textAnchor="middle" dominantBaseline="middle" fontSize="6.5" fill="#94a3b8">
+        100%
+      </text>
 
-      {/* Center value */}
-      <text x={cx} y={cy + 4} textAnchor="middle" fontSize="14" fontWeight="bold" fill={color}>
+      {/* ── Value text (positioned below needle pivot, inside the arc) ── */}
+      <text
+        x={cx}
+        y={cy + 13}
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight="700"
+        fill={color}
+      >
         {pct.toFixed(1)}%
       </text>
     </svg>
@@ -82,10 +158,6 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
   const responseRate = data.response_rate as number;
   const igrpLabel = data.igrp_label as string;
   const igrpColor = data.igrp_color as string;
-
-  const rateColor =
-    responseRate >= 70 ? '#22c55e' :
-    responseRate >= 50 ? '#eab308' : '#ef4444';
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -108,16 +180,16 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
       </Card>
 
       {/* Card 2 — Taxa de Adesão with Gauge */}
-      <Card className="flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-0 space-y-0">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Taxa de Adesão
           </CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent className="flex flex-col items-center pt-0 pb-3">
+        <CardContent className="flex flex-col items-center px-3 pt-1 pb-3">
           <GaugeInline value={responseRate} />
-          <p className="text-xs mt-1" style={{ color: rateColor }}>
+          <p className="text-xs text-muted-foreground -mt-1">
             {(data.total_responded as number)} de {(data.total_invited as number)} responderam
           </p>
         </CardContent>
