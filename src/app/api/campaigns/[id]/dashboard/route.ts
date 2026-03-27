@@ -29,6 +29,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const unitId   = searchParams.get('unit_id');
+    const sectorId = searchParams.get('sector_id');
+
     // Fetch all responses
     const rawResponses = await prisma.surveyResponse.findMany({
       where: { campaign_id: id },
@@ -152,7 +156,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     // We use the campaign-wide score per dimension per unit (all units get same score).
     // When sector-level tracking is added, this will be per-unit.
     const units = await prisma.campaignUnit.findMany({
-      where: { campaign_id: id },
+      where: {
+        campaign_id: id,
+        ...(unitId ? { id: unitId } : {}),
+      },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
@@ -168,7 +175,10 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // ── 7. TOP 5 SECTORS BY NR ────────────────────────────────────────────
     const sectors = await prisma.campaignSector.findMany({
-      where: { unit: { campaign_id: id } },
+      where: {
+        unit: { campaign_id: id },
+        ...(sectorId ? { id: sectorId } : unitId ? { unit_id: unitId } : {}),
+      },
       select: { id: true, name: true, unit: { select: { name: true } } },
       orderBy: { name: 'asc' },
     });
@@ -187,7 +197,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // ── 8. TOP 5 POSITIONS BY NR ──────────────────────────────────────────
     const positions = await prisma.campaignPosition.findMany({
-      where: { sector: { unit: { campaign_id: id } } },
+      where: {
+        sector: {
+          unit: { campaign_id: id },
+          ...(sectorId ? { id: sectorId } : unitId ? { unit_id: unitId } : {}),
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -265,6 +280,15 @@ export async function GET(request: Request, { params }: RouteParams) {
       // Demographics
       gender_distribution: genderCounts,
       age_distribution: ageCounts,
+
+      // Filter context
+      filter_context: {
+        unit_id: unitId ?? null,
+        sector_id: sectorId ?? null,
+        note: unitId || sectorId
+          ? 'Scores refletem toda a campanha (anonimato). Hierarquia filtrada por unidade/setor.'
+          : null,
+      },
     });
 
   } catch (err) {

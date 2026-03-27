@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useApi } from '@/hooks/use-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock, Download, Loader2 } from 'lucide-react';
+import { AlertTriangle, Lock, Download, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
@@ -20,9 +20,11 @@ interface CampaignDashboardProps {
   campaignId: string;
   campaignStatus: string;
   campaignName?: string;
+  unitId?: string;
+  sectorId?: string;
 }
 
-export function CampaignDashboard({ campaignId, campaignStatus, campaignName }: CampaignDashboardProps) {
+export function CampaignDashboard({ campaignId, campaignStatus, campaignName, unitId, sectorId }: CampaignDashboardProps) {
   const { get } = useApi();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,16 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName }: 
 
   useEffect(() => {
     if (campaignStatus !== 'closed') { setLoading(false); return; }
-    get(`/api/campaigns/${campaignId}/dashboard`)
+
+    const params = new URLSearchParams();
+    if (unitId)   params.set('unit_id',   unitId);
+    if (sectorId) params.set('sector_id', sectorId);
+    const qs = params.toString();
+
+    setLoading(true);
+    setData(null);
+
+    get(`/api/campaigns/${campaignId}/dashboard${qs ? `?${qs}` : ''}`)
       .then(res => res.json())
       .then(d => {
         if (d.error) throw new Error(d.error);
@@ -56,7 +67,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName }: 
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [campaignId, campaignStatus, get]);
+  }, [campaignId, campaignStatus, unitId, sectorId, get]);
 
   if (campaignStatus !== 'closed') {
     return (
@@ -85,10 +96,19 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName }: 
     );
   }
 
+  const filterContext = data.filter_context as { note: string | null } | undefined;
+
   return (
     <div className="space-y-6">
       {/* ROW 1 — KPIs */}
       <KpiRow data={data} />
+
+      {filterContext?.note && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          {filterContext.note}
+        </div>
+      )}
 
       {/* Export button row */}
       <div className="flex justify-end">

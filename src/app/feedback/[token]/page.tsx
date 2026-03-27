@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Shield, CheckCircle2, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
 
 const TYPE_OPTIONS = [
-  { value: 'positivo',  label: '✅ Feedback Positivo',  desc: 'Algo que está funcionando bem' },
-  { value: 'negativo',  label: '⚠️ Feedback Negativo',  desc: 'Algo que precisa melhorar' },
-  { value: 'sugestao',  label: '💡 Sugestão',           desc: 'Ideia para melhoria' },
-  { value: 'outro',     label: '💬 Outro',              desc: 'Qualquer outro assunto' },
+  { value: 'positivo',  label: 'Feedback Positivo',  desc: 'Algo que está funcionando bem' },
+  { value: 'negativo',  label: 'Feedback Negativo',  desc: 'Algo que precisa melhorar' },
+  { value: 'sugestao',  label: 'Sugestão',           desc: 'Ideia para melhoria' },
+  { value: 'outro',     label: 'Outro',              desc: 'Qualquer outro assunto' },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -172,7 +172,7 @@ export default function FeedbackPage() {
                 className="resize-none"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{message.length < 10 ? `Mínimo ${10 - message.length} caracteres` : '✓ Tamanho adequado'}</span>
+                <span>{message.length < 10 ? `Mínimo ${10 - message.length} caracteres` : 'Tamanho adequado'}</span>
                 <span>{message.length}/2000</span>
               </div>
             </div>
