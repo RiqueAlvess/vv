@@ -10,6 +10,8 @@ import { useApi } from '@/hooks/use-api';
 import { Activity } from 'lucide-react';
 import type { Campaign } from '@/types';
 
+type CampaignUnit = { id: string; name: string; sectors: { id: string; name: string }[] };
+
 // ─── Query key ────────────────────────────────────────────────────────────
 const CLOSED_CAMPAIGNS_KEY = ['campaigns', 'closed'] as const;
 
@@ -35,6 +37,8 @@ const CLOSED_CAMPAIGNS_KEY = ['campaigns', 'closed'] as const;
 export default function DashboardPage() {
   const { get } = useApi();
   const [selectedId, setSelectedId] = useState<string>('');
+  const [selectedUnit, setSelectedUnit] = useState<string>('all');
+  const [selectedSector, setSelectedSector] = useState<string>('all');
 
   // Fetch only closed campaigns for the selector
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery<Campaign[]>({
@@ -51,6 +55,31 @@ export default function DashboardPage() {
   // Auto-select the first campaign once the list loads
   const effectiveSelected = selectedId || campaigns[0]?.id || '';
   const selectedCampaign = campaigns.find((c) => c.id === effectiveSelected);
+
+  // Fetch units when campaign changes
+  const { data: units = [] } = useQuery<CampaignUnit[]>({
+    queryKey: ['campaign-units', effectiveSelected],
+    queryFn: async () => {
+      if (!effectiveSelected) return [];
+      const res = await get(`/api/campaigns/${effectiveSelected}/units`);
+      if (!res.ok) return [];
+      const body = await res.json();
+      return body.data ?? [];
+    },
+    enabled: !!effectiveSelected,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Derive sectors from selected unit
+  const availableSectors = selectedUnit === 'all'
+    ? []
+    : (units.find(u => u.id === selectedUnit)?.sectors ?? []);
+
+  // Reset sector when unit changes
+  const handleUnitChange = (value: string) => {
+    setSelectedUnit(value);
+    setSelectedSector('all');
+  };
 
   // ── Selector loading skeleton ────────────────────────────────────────────
   if (loadingCampaigns) {
@@ -111,12 +140,51 @@ export default function DashboardPage() {
         </Select>
       </div>
 
+      {/* Filters row */}
+      {units.length > 0 && (
+        <div className="flex gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Unidade:</span>
+            <Select value={selectedUnit} onValueChange={handleUnitChange}>
+              <SelectTrigger className="w-48 h-8 text-sm">
+                <SelectValue placeholder="Todas as unidades" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as unidades</SelectItem>
+                {units.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedUnit !== 'all' && availableSectors.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Setor:</span>
+              <Select value={selectedSector} onValueChange={setSelectedSector}>
+                <SelectTrigger className="w-48 h-8 text-sm">
+                  <SelectValue placeholder="Todos os setores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {availableSectors.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Dashboard body — guardrail is inside CampaignDashboard */}
       {effectiveSelected ? (
         <CampaignDashboard
           campaignId={effectiveSelected}
           campaignStatus={selectedCampaign?.status ?? 'closed'}
           campaignName={selectedCampaign?.name}
+          unitId={selectedUnit !== 'all' ? selectedUnit : undefined}
+          sectorId={selectedSector !== 'all' ? selectedSector : undefined}
         />
       ) : (
         // Fallback: shouldn't happen since we auto-select, but safe to have
