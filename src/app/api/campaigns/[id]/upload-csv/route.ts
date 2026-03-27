@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
-import { hashEmail } from '@/lib/crypto';
-import { encryptEmail } from '@/lib/encryption';
+import { hashEmail, generateToken } from '@/lib/crypto';
+import { sendInvitationEmail } from '@/lib/email';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,21 +17,26 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const campaign = await prisma.campaign.findUnique({
       where: { id },
-      select: { id: true, company_id: true, status: true, campaign_salt: true },
+      select: {
+        id: true,
+        company_id: true,
+        status: true,
+        campaign_salt: true,
+        name: true,
+        company: { select: { name: true } },
+      },
     });
     if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     if (user.role === 'RH' && campaign.company_id !== user.company_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     if (campaign.status !== 'draft') return NextResponse.json({ error: 'Upload só é permitido para campanhas em rascunho' }, { status: 400 });
 
-    // Accept JSON rows directly — no CSV re-parsing needed
-    const body = await request.json();
+    const body = JSON.parse(await request.text());
     const rows: { unidade: string; setor: string; cargo: string; email: string }[] = body.rows;
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'Nenhuma linha válida encontrada' }, { status: 400 });
     }
 
-    // Validate each row has required fields
     const validRows = rows.filter(
       (r) => r.unidade?.trim() && r.setor?.trim() && r.cargo?.trim() && r.email?.trim()?.includes('@')
     );
@@ -44,6 +49,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     const sectorCache = new Map<string, string>();
     const positionCache = new Map<string, string>();
     let employeesCreated = 0;
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     for (const row of validRows) {
       // Upsert unit
@@ -88,18 +98,47 @@ export async function POST(request: Request, { params }: RouteParams) {
         positionCache.set(positionKey, positionId);
       }
 
-      // Upsert employee (email hashed — no PII stored)
+      // Upsert employee — only hash is stored, real email never written to DB
       const email = row.email.trim().toLowerCase();
       const emailHash = hashEmail(email, campaign.campaign_salt);
       const existingEmployee = await prisma.campaignEmployee.findUnique({
         where: { position_id_email_hash: { position_id: positionId, email_hash: emailHash } },
         select: { id: true },
       });
+
       if (!existingEmployee) {
-        await prisma.campaignEmployee.create({
-          data: { position_id: positionId, email_hash: emailHash, email_encrypted: encryptEmail(email) },
+        const newEmployee = await prisma.campaignEmployee.create({
+          data: { position_id: positionId, email_hash: emailHash },
+          select: { id: true },
         });
         employeesCreated++;
+
+        // Create invitation + send email atomically while we still have the real email
+        const token = generateToken();
+
+        await prisma.surveyInvitation.create({
+          data: {
+            campaign_id: id,
+            employee_id: newEmployee.id,
+            token_public: token,
+            token_used: false,
+            token_used_internally: false,
+            status: 'sent',
+            sent_at: now,
+            expires_at: expiresAt,
+          },
+        });
+
+        const sent = await sendInvitationEmail({
+          to: email,
+          campaignName: campaign.name,
+          companyName: campaign.company.name,
+          token,
+          expiresAt,
+        });
+
+        if (sent) emailsSent++;
+        else emailsFailed++;
       }
     }
 
@@ -108,6 +147,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       sectors: sectorCache.size,
       positions: positionCache.size,
       employees: employeesCreated,
+      emails_sent: emailsSent,
+      emails_failed: emailsFailed,
       total_rows: validRows.length,
     });
   } catch (err) {

@@ -166,7 +166,17 @@ export default function CampaignDetailPage() {
         return;
       }
       const data = await res.json();
-      success(`${data.employees} colaboradores importados (${data.units} unidades, ${data.sectors} setores, ${data.positions} cargos)`);
+      if (data.emails_failed > 0) {
+        success(
+          `${data.employees} colaboradores importados`,
+          `${data.emails_sent} convites enviados, ${data.emails_failed} falhas no envio`
+        );
+      } else {
+        success(
+          `${data.employees} colaboradores importados`,
+          `${data.emails_sent} convites enviados com sucesso`
+        );
+      }
       setCsvModalOpen(false);
       fetchInvitations();
       fetchMetrics();

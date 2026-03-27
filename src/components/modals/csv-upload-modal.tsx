@@ -175,7 +175,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancelar</Button>
           <Button onClick={handleUpload} disabled={rows.length === 0 || loading}>
-            {loading ? 'Enviando...' : `Importar ${rows.length} registros`}
+            {loading ? 'Importando e enviando convites...' : `Importar e enviar ${rows.length} convites`}
           </Button>
         </DialogFooter>
       </DialogContent>
