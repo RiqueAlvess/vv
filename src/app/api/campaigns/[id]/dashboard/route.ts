@@ -72,9 +72,17 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Try pre-calculated metrics first
-    const cachedMetrics = await prisma.campaignMetrics.findUnique({
-      where: { campaign_id: id },
-    });
+    let cachedMetrics = null;
+    try {
+      cachedMetrics = await prisma.campaignMetrics.findUnique({
+        where: { campaign_id: id },
+      });
+    } catch (metricsError) {
+      // Schema mismatch or missing metrics — fall through to on-the-fly calculation
+      console.warn('[Dashboard] CampaignMetrics unavailable, computing on-the-fly:',
+        metricsError instanceof Error ? metricsError.message : metricsError
+      );
+    }
 
     if (cachedMetrics) {
       const dimensionScores = cachedMetrics.dimension_scores as Record<string, number>;

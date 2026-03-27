@@ -14,42 +14,77 @@ import { Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const QUESTIONS = [
-  { id: 1,  text: 'Eu sei exatamente o que é esperado de mim no trabalho' },
+  // CARGO/FUNÇÃO (positive) — questions: 1, 4, 11, 13, 17
+  { id: 1,  text: 'Tenho clareza sobre o que se espera do meu trabalho' },
+  // CONTROLE (positive) — questions: 2, 10, 15, 19, 25, 30
   { id: 2,  text: 'Posso decidir quando fazer uma pausa' },
-  { id: 3,  text: 'Diferentes grupos no trabalho exigem coisas de mim que são difíceis de combinar' },
-  { id: 4,  text: 'Eu sei como fazer meu trabalho' },
-  { id: 5,  text: 'Estou sujeito(a) a atenção pessoal ou assédio na forma de palavras ou comportamentos ofensivos' },
+  // DEMANDAS (negative) — questions: 3, 6, 9, 12, 16, 18, 20, 22
+  { id: 3,  text: 'As exigências de trabalho feitas por colegas e supervisores são difíceis de combinar' },
+  // CARGO
+  { id: 4,  text: 'Eu sei como fazer o meu trabalho' },
+  // RELACIONAMENTOS (negative) — questions: 5, 14, 21, 34
+  { id: 5,  text: 'Falam ou se comportam comigo de forma dura' },
+  // DEMANDAS
   { id: 6,  text: 'Tenho prazos inatingíveis' },
-  { id: 7,  text: 'Se o trabalho fica difícil, meus colegas me ajudam' },
-  { id: 8,  text: 'Sou apoiado(a) em uma crise emocional no trabalho' },
-  { id: 9,  text: 'Tenho que trabalhar muito intensamente' },
-  { id: 10, text: 'Tenho voz nas mudanças no modo como faço meu trabalho' },
-  { id: 11, text: 'Tenho tempo suficiente para completar meu trabalho' },
-  { id: 12, text: 'Tenho que desconsiderar regras ou procedimentos para fazer o trabalho' },
-  { id: 13, text: 'Sei qual é o meu papel e responsabilidades' },
-  { id: 14, text: 'Tenho que trabalhar com pessoas que têm valores de trabalho diferentes' },
-  { id: 15, text: 'Posso planejar quando fazer as pausas' },
-  { id: 16, text: 'Tenho volume de trabalho pesado' },
-  { id: 17, text: 'Existe uma boa combinação entre o que a organização espera de mim e as habilidades que tenho' },
-  { id: 18, text: 'Tenho que trabalhar muito rapidamente' },
-  { id: 19, text: 'Tenho uma palavra a dizer sobre o ritmo em que trabalho' },
-  { id: 20, text: 'Tenho que negligenciar alguns aspectos do meu trabalho porque tenho muito a fazer' },
-  { id: 21, text: 'Existe fricção ou raiva entre colegas' },
-  { id: 22, text: 'Não tenho tempo para fazer uma pausa' },
-  { id: 23, text: 'Minha chefia imediata me encoraja no trabalho' },
-  { id: 24, text: 'Recebo o respeito no trabalho que mereço de meus colegas' },
-  { id: 25, text: 'Tenho controle sobre quando fazer uma pausa' },
-  { id: 26, text: 'Os funcionários são sempre consultados sobre mudanças no trabalho' },
-  { id: 27, text: 'Posso contar com meus colegas para me ajudar quando as coisas ficam difíceis no trabalho' },
-  { id: 28, text: 'Posso conversar com minha chefia sobre algo que me incomodou' },
-  { id: 29, text: 'Minha chefia me apoia para o trabalho' },
-  { id: 30, text: 'Tenho alguma participação em decisões sobre o meu trabalho' },
-  { id: 31, text: 'Recebo ajuda e apoio de meus colegas' },
-  { id: 32, text: 'Quando ocorrem mudanças no trabalho, tenho clareza sobre como funcionará na prática' },
-  { id: 33, text: 'Recebo feedback sobre o meu trabalho' },
-  { id: 34, text: 'Existe tensão entre mim e colegas de trabalho' },
-  { id: 35, text: 'Minha chefia me incentiva nas minhas atividades' },
-];
+  // APOIO DOS COLEGAS (positive) — questions: 7, 24, 27, 31
+  { id: 7,  text: 'Quando o trabalho se torna difícil, posso contar com ajuda dos colegas' },
+  // APOIO DA CHEFIA (positive) — questions: 8, 23, 29, 33, 35
+  { id: 8,  text: 'Recebo informações e suporte que me ajudam no trabalho que eu faço' },
+  // DEMANDAS
+  { id: 9,  text: 'Devo trabalhar muito intensamente' },
+  // CONTROLE
+  { id: 10, text: 'Consideram a minha opinião sobre a velocidade do meu trabalho' },
+  // CARGO
+  { id: 11, text: 'Estão claras as minhas tarefas e responsabilidades' },
+  // DEMANDAS
+  { id: 12, text: 'Eu não faço algumas tarefas porque tenho muita coisa para fazer' },
+  // CARGO
+  { id: 13, text: 'Os objetivos e metas do meu setor são claros para mim' },
+  // RELACIONAMENTOS
+  { id: 14, text: 'Existem conflitos entre os colegas' },
+  // CONTROLE
+  { id: 15, text: 'Tenho liberdade de escolha de como fazer meu trabalho' },
+  // DEMANDAS
+  { id: 16, text: 'Não tenho possibilidade de fazer pausas suficientes' },
+  // CARGO
+  { id: 17, text: 'Eu vejo como o meu trabalho se encaixa nos objetivos da empresa' },
+  // DEMANDAS
+  { id: 18, text: 'Recebo pressão para trabalhar em outro horário' },
+  // CONTROLE
+  { id: 19, text: 'Tenho liberdade de escolha para decidir o que fazer no meu trabalho' },
+  // DEMANDAS
+  { id: 20, text: 'Tenho que fazer meu trabalho com muita rapidez' },
+  // RELACIONAMENTOS
+  { id: 21, text: 'Sinto que sou perseguido no trabalho' },
+  // DEMANDAS
+  { id: 22, text: 'As pausas temporárias são impossíveis de cumprir' },
+  // APOIO DA CHEFIA
+  { id: 23, text: 'Posso confiar no meu chefe quando eu tiver problemas no trabalho' },
+  // APOIO DOS COLEGAS
+  { id: 24, text: 'Meus colegas me ajudam e me dão apoio quando eu preciso' },
+  // CONTROLE
+  { id: 25, text: 'Minhas sugestões são consideradas sobre como fazer meu trabalho' },
+  // COMUNICAÇÃO E MUDANÇAS (positive) — questions: 26, 28, 32
+  { id: 26, text: 'Tenho oportunidades para pedir explicações ao chefe sobre as mudanças relacionadas ao meu trabalho' },
+  // APOIO DOS COLEGAS
+  { id: 27, text: 'No trabalho os meus colegas demonstram o respeito que mereço' },
+  // COMUNICAÇÃO E MUDANÇAS
+  { id: 28, text: 'As pessoas são sempre consultadas sobre as mudanças no trabalho' },
+  // APOIO DA CHEFIA
+  { id: 29, text: 'Quando algo no trabalho me perturba ou irrita posso falar com meu chefe' },
+  // CONTROLE
+  { id: 30, text: 'O meu horário de trabalho pode ser flexível' },
+  // APOIO DOS COLEGAS
+  { id: 31, text: 'Os colegas estão disponíveis para escutar os meus problemas de trabalho' },
+  // COMUNICAÇÃO E MUDANÇAS
+  { id: 32, text: 'Quando há mudanças, faço o meu trabalho com o mesmo carinho' },
+  // APOIO DA CHEFIA
+  { id: 33, text: 'Tenho suportado trabalhos emocionalmente exigentes' },
+  // RELACIONAMENTOS
+  { id: 34, text: 'As relações no trabalho são tensas' },
+  // APOIO DA CHEFIA
+  { id: 35, text: 'Meu chefe me incentiva no trabalho' },
+] as const;
 
 type SurveyStep = 'loading' | 'invalid' | 'consent' | 'demographics' | 'questions' | 'submitting' | 'done';
 

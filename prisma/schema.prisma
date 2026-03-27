@@ -236,6 +236,23 @@ model DimSector {
   @@schema("analytics")
 }
 
+model Job {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type         String    @db.VarChar(50)
+  payload      Json      @default("{}")
+  status       String    @default("pending") @db.VarChar(20)
+  attempts     Int       @default(0)
+  max_attempts Int       @default(3)
+  error        String?
+  run_after    DateTime  @default(now()) @db.Timestamptz()
+  started_at   DateTime? @db.Timestamptz()
+  completed_at DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+
+  @@map("jobs")
+  @@schema("core")
+}
+
 model CampaignMetrics {
   id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaign_id         String   @unique @db.Uuid
@@ -253,7 +270,7 @@ model CampaignMetrics {
   top_critical_groups Json?
   calculated_at       DateTime? @db.Timestamptz()
   created_at          DateTime  @default(now()) @db.Timestamptz()
-  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @db.Timestamptz()
 
   campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
