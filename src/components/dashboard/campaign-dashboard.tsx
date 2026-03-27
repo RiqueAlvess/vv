@@ -1,172 +1,127 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useApi } from '@/hooks/use-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useCampaignDashboard } from '@/hooks/use-campaign-dashboard';
-import { LockedState } from './locked-state';
-import { KpiCards } from './kpi-cards';
-import { DimensionRadar } from './dimension-radar';
-import { CriticalSectorsTable } from './critical-sectors-table';
-import type { CriticalSectorRow } from './critical-sectors-table';
+import { AlertTriangle, Lock } from 'lucide-react';
+
+import { KpiRow } from './charts/kpi-row';
+import { GaugeChart } from './charts/gauge-chart';
+import { IgrpBarChart } from './charts/igrp-bar-chart';
+import { WorkersRiskDonut } from './charts/workers-risk-donut';
+import { StackedDimensionChart } from './charts/stacked-dimension-chart';
+import { StackedQuestionChart } from './charts/stacked-question-chart';
+import { RadarScoreChart } from './charts/radar-score-chart';
+import { HeatmapChart } from './charts/heatmap-chart';
+import { PositionTable } from './charts/position-table';
 
 interface CampaignDashboardProps {
   campaignId: string;
-  /**
-   * Raw campaign status from DB ('draft' | 'active' | 'closed').
-   * Passed in from the parent so this component never needs to fetch the
-   * campaign record itself — the parent already has it.
-   */
   campaignStatus: string;
   campaignName?: string;
 }
 
-/**
- * Main dashboard orchestrator. Intentionally thin — it only:
- *   1. Enforces the Dashboard Lock guardrail
- *   2. Calls the single data hook
- *   3. Handles loading / error states
- *   4. Composes the three visual sections
- *
- * ── Dashboard Lock ──────────────────────────────────────────────────────────
- * If campaignStatus !== 'closed', the LockedState is shown immediately and
- * the data hook is NOT called (enabled=false). This enforces the NR-1 anonymity
- * rule: releasing partial data during collection lets observers correlate
- * invitation status changes with report updates.
- *
- * ── Data flow ───────────────────────────────────────────────────────────────
- * Parent provides campaignId + campaignStatus (from its own query).
- * This component fetches nothing beyond the analytics payload.
- */
-export function CampaignDashboard({
-  campaignId,
-  campaignStatus,
-  campaignName,
-}: CampaignDashboardProps) {
-  const [downloading, setDownloading] = useState(false);
+export function CampaignDashboard({ campaignId, campaignStatus, campaignName: _campaignName }: CampaignDashboardProps) {
+  const { get } = useApi();
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // ── Guardrail ─────────────────────────────────────────────────────────────
-  // Check status BEFORE calling the hook so React's rules of hooks are
-  // respected (hooks can't be called conditionally). The hook itself uses
-  // `enabled: false` when status !== 'closed' so no network request fires.
-  const isClosed = campaignStatus === 'closed';
+  useEffect(() => {
+    if (campaignStatus !== 'closed') { setLoading(false); return; }
+    get(`/api/campaigns/${campaignId}/dashboard`)
+      .then(res => res.json())
+      .then(d => {
+        if (d.error) throw new Error(d.error);
+        setData(d);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [campaignId, campaignStatus, get]);
 
-  const handleDownloadPGR = async () => {
-    setDownloading(true);
-    try {
-      const res = await fetch(`/api/campaigns/${campaignId}/report/pdf`);
-      if (!res.ok) throw new Error('Erro ao gerar relatório');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `PGR_${campaignName ?? campaignId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      // error is surfaced via the button state; a toast hook can be added here
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const { data, isLoading, isError, error } = useCampaignDashboard(campaignId, {
-    enabled: isClosed,
-  });
-
-  // ── Lock screen ───────────────────────────────────────────────────────────
-  if (!isClosed) {
-    return <LockedState status={campaignStatus} campaignName={campaignName} />;
-  }
-
-  // ── Loading skeleton ──────────────────────────────────────────────────────
-  if (isLoading) {
-    return <DashboardSkeleton />;
-  }
-
-  // ── Error state ───────────────────────────────────────────────────────────
-  if (isError || !data) {
+  if (campaignStatus !== 'closed') {
     return (
-      <Alert variant="destructive" className="max-w-lg mx-auto mt-12">
+      <div className="flex flex-col items-center justify-center min-h-[420px] text-center">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Lock className="w-7 h-7 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold">
+          {campaignStatus === 'draft' ? 'Campanha em rascunho' : 'Coleta em andamento'}
+        </h2>
+        <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+          O dashboard é liberado somente após o encerramento da campanha, para garantir a anonimidade dos respondentes.
+        </p>
+      </div>
+    );
+  }
+
+  if (loading) return <DashboardSkeleton />;
+
+  if (error || !data) {
+    return (
+      <Alert variant="destructive" className="max-w-lg mx-auto">
         <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          {error instanceof Error ? error.message : 'Erro ao carregar dados do dashboard.'}
-        </AlertDescription>
+        <AlertDescription>{error ?? 'Erro ao carregar dashboard'}</AlertDescription>
       </Alert>
     );
   }
 
-  // ── Narrow `top_sectors` to the typed shape ───────────────────────────────
-  // DashboardData.top_sectors is Record<string, unknown>[] (wide API type).
-  // We narrow it here so CriticalSectorsTable receives a typed prop.
-  const topSectors: CriticalSectorRow[] = (data.top_sectors ?? []).flatMap((raw) => {
-    const r = raw as Record<string, unknown>;
-    if (typeof r.sector === 'string' && typeof r.percentage === 'number') {
-      return [{ sector: r.sector, percentage: r.percentage, color: String(r.color ?? '#94a3b8') }];
-    }
-    return [];
-  });
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Row 1 — KPI cards */}
-      <KpiCards metrics={data.metrics} />
+      {/* ROW 1 — KPIs */}
+      <KpiRow data={data} />
 
-      {/* Row 2 — Radar + Critical Sectors side by side */}
+      {/* ROW 2 — Gauge + IGRP bars */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <DimensionRadar dimensionScores={data.dimension_scores} />
-        <CriticalSectorsTable sectors={topSectors} />
+        <GaugeChart
+          responseRate={data.response_rate as number}
+          totalInvited={data.total_invited as number}
+          totalResponded={data.total_responded as number}
+        />
+        <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />
       </div>
 
-      {/* PGR PDF export */}
-      <div className="flex justify-end">
-        <Button onClick={handleDownloadPGR} disabled={downloading} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          {downloading ? 'Gerando PDF...' : 'Exportar Relatório PGR'}
-        </Button>
+      {/* ROW 3 — Donut + Stacked by dimension */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <WorkersRiskDonut
+          highRiskPct={data.workers_high_risk_pct as number}
+          criticalPct={data.workers_critical_pct as number}
+          totalResponded={data.total_responded as number}
+        />
+        <StackedDimensionChart data={data.stacked_by_dimension as unknown[]} />
       </div>
+
+      {/* ROW 4 — Stacked by question */}
+      <StackedQuestionChart data={data.stacked_by_question as unknown[]} />
+
+      {/* ROW 5 — Radar + Heatmap */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RadarScoreChart dimensions={data.dimension_analysis as unknown[]} />
+        <HeatmapChart heatmap={data.heatmap as unknown[]} />
+      </div>
+
+      {/* ROW 6 — Position Table */}
+      <PositionTable positions={data.position_table as unknown[]} />
     </div>
   );
 }
 
-// ─── Loading skeleton ──────────────────────────────────────────────────────
-
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      {/* KPI cards skeleton */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border p-5 space-y-3">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
-      {/* Charts skeleton */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border p-5 space-y-3">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-[280px] w-full" />
-          <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 w-full" />
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border p-5 space-y-3">
-          <Skeleton className="h-5 w-40" />
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
+        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+      <Skeleton className="h-96 rounded-xl" />
     </div>
   );
 }

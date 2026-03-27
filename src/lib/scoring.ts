@@ -51,7 +51,7 @@ export interface DimensionScore {
   riskLevel: RiskLevel;
   /** NR-1 Probability factor derived from riskLevel (1 = low, 4 = high) */
   probability: number;
-  /** NR-1 Severity factor (fixed at 2 — moderate exposure baseline for psychosocial) */
+  /** NR-1 Severity factor (1–4, variable per risk level) */
   severity: number;
   /** NR value = probability × severity (used in compliance risk matrices) */
   nrValue: number;
@@ -176,15 +176,23 @@ const PROBABILITY: Record<RiskLevel, number> = {
 };
 
 /**
- * Fixed severity = 2 (moderate).
- * Psychosocial risk severity is assumed moderate at baseline under NR-1,
- * pending a specific workplace severity assessment by an occupational psychologist.
+ * Severity factors — variable per risk level (1–4).
+ * Reflects the progressive health impact as risk increases:
+ *   1 = Leve (discomfort, minimal impact)
+ *   2 = Moderado (moderate psychological suffering)
+ *   3 = Significativo (initial illness onset)
+ *   4 = Grave (burnout, depression, CAT)
  */
-const SEVERITY = 2;
+const SEVERITY_MAP: Record<RiskLevel, number> = {
+  aceitavel:  1,
+  moderado:   2,
+  importante: 3,
+  critico:    4,
+};
 
-/** nrValue = probability × severity */
+/** nrValue = probability × severity  →  range 1–16 */
 function riskToNR(riskLevel: RiskLevel): number {
-  return PROBABILITY[riskLevel] * SEVERITY;
+  return PROBABILITY[riskLevel] * SEVERITY_MAP[riskLevel];
 }
 
 // ─── Presentation layer ────────────────────────────────────────────────────
@@ -200,10 +208,10 @@ const RISK_DISPLAY: Record<RiskLevel, { interpretation: string; color: string }>
 
 /** Maps an IGRP (mean nrValue across dimensions) to a risk tier. */
 function igrpToRiskLevel(igrp: number): RiskLevel {
-  // IGRP range with severity=2: min=2 (all aceitável) to max=8 (all crítico)
-  if (igrp >= 7) return 'critico';
-  if (igrp >= 5) return 'importante';
-  if (igrp >= 3) return 'moderado';
+  // IGRP range 1–16: mirrors NR_INTERPRETATION thresholds
+  if (igrp > 12) return 'critico';
+  if (igrp > 8)  return 'importante';
+  if (igrp > 4)  return 'moderado';
   return 'aceitavel';
 }
 
@@ -227,7 +235,7 @@ function igrpToRiskLevel(igrp: number): RiskLevel {
  * result.dimensions[0].key          // 'demandas'
  * result.dimensions[0].rawScore     // e.g. 3.5
  * result.dimensions[0].riskLevel    // 'critico'
- * result.dimensions[0].nrValue      // 8  (= prob 4 × severity 2)
+ * result.dimensions[0].nrValue      // 16  (= prob 4 × severity 4)
  * result.igrp                       // e.g. 5.71
  * result.igrpInterpretation         // 'Importante'
  */
@@ -257,7 +265,7 @@ export function calculateHSEITScores(answers: Record<string, number>): HSEITScor
       rawScore,
       riskLevel,
       probability,
-      severity: SEVERITY,
+      severity: SEVERITY_MAP[riskLevel],
       nrValue,
       interpretation,
       color,
