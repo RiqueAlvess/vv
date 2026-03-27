@@ -127,29 +127,45 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
             )}
 
             {rows.length > 0 && (
-              <ScrollArea className="h-64 rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Unidade</TableHead>
-                      <TableHead>Setor</TableHead>
-                      <TableHead>Cargo</TableHead>
-                      <TableHead>Email</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.slice(0, 50).map((row, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-sm">{row.unidade}</TableCell>
-                        <TableCell className="text-sm">{row.setor}</TableCell>
-                        <TableCell className="text-sm">{row.cargo}</TableCell>
-                        <TableCell className="text-sm font-mono">{row.email}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {rows.length > 50 && <p className="p-2 text-xs text-muted-foreground text-center">Mostrando 50 de {rows.length} registros</p>}
-              </ScrollArea>
+              <>
+                <ScrollArea className="h-56 rounded-md border">
+                  <div className="min-w-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[22%]">Unidade</TableHead>
+                          <TableHead className="w-[18%]">Setor</TableHead>
+                          <TableHead className="w-[20%]">Cargo</TableHead>
+                          <TableHead className="w-[40%]">Email</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.slice(0, 100).map((row, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm max-w-0">
+                              <span className="block truncate" title={row.unidade}>{row.unidade}</span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-0">
+                              <span className="block truncate" title={row.setor}>{row.setor}</span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-0">
+                              <span className="block truncate" title={row.cargo}>{row.cargo}</span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-0">
+                              <span className="block truncate font-mono text-xs" title={row.email}>{row.email}</span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
+                {rows.length > 100 && (
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    Mostrando 100 de {rows.length} registros
+                  </p>
+                )}
+              </>
             )}
 
             <Button variant="outline" size="sm" onClick={reset}>Escolher outro arquivo</Button>
@@ -159,7 +175,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancelar</Button>
           <Button onClick={handleUpload} disabled={rows.length === 0 || loading}>
-            {loading ? 'Enviando...' : `Importar ${rows.length} registros`}
+            {loading ? 'Importando e enviando convites...' : `Importar e enviar ${rows.length} convites`}
           </Button>
         </DialogFooter>
       </DialogContent>
