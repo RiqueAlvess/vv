@@ -1,9 +1,11 @@
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/auth';
 
-const password = process.argv[2] || 'pokemon.230H';
+async function main() {
+  const password = process.argv[2] || 'pokemon.230H';
+  const hash = await hashPassword(password);
 
-const salt = bcrypt.genSaltSync(10);
-const hash = bcrypt.hashSync(password, salt);
+  console.log(`\nPassword: ${password}`);
+  console.log(`Hash: ${hash}\n`);
+}
 
-console.log(`\nPassword: ${password}`);
-console.log(`Hash: ${hash}\n`);
+main().catch(console.error);
