@@ -55,7 +55,10 @@ export async function POST(request: Request) {
 
   if (uploadError) {
     console.error('Storage upload error:', uploadError);
-    return NextResponse.json({ error: 'Erro ao fazer upload' }, { status: 500 });
+    const message = uploadError.message?.includes('Bucket not found')
+      ? 'Storage bucket nao configurado. Crie o bucket "checklist-evidences" no Supabase.'
+      : 'Erro ao fazer upload do arquivo';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   const { data: { publicUrl } } = supabase.storage
