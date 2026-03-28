@@ -101,7 +101,6 @@ export function CampaignChecklist({ campaignId, canEdit }: CampaignChecklistProp
       const res = await fetchWithAuth('/api/checklist/upload', {
         method: 'POST',
         body: fd,
-        headers: {},
       });
 
       if (!res.ok) {
