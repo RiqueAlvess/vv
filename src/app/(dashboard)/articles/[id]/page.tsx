@@ -34,12 +34,26 @@ export default function ArticleViewPage() {
 
   const renderMarkdown = (text: string) =>
     text
-      .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:600;margin:1rem 0 0.5rem">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 style="font-size:1.2rem;font-weight:700;margin:1.5rem 0 0.75rem">$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1 style="font-size:1.5rem;font-weight:700;margin:1.5rem 0 0.75rem">$1</h1>')
+      .replace(/<iframe[^>]*>.*?<\/iframe>/gs, (match) => match)
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+        '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:12px 0;display:block" />')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline">$1</a>')
+      .replace(/^### (.+)$/gm,
+        '<h3 style="font-size:1rem;font-weight:600;margin:1.2rem 0 0.4rem">$1</h3>')
+      .replace(/^## (.+)$/gm,
+        '<h2 style="font-size:1.2rem;font-weight:700;margin:1.5rem 0 0.6rem">$1</h2>')
+      .replace(/^# (.+)$/gm,
+        '<h1 style="font-size:1.5rem;font-weight:800;margin:1.5rem 0 0.6rem">$1</h1>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^- (.+)$/gm, '<li style="margin-left:1.5rem;list-style:disc">$1</li>')
+      .replace(/`(.+?)`/g,
+        '<code style="background:#f1f5f9;padding:2px 5px;border-radius:3px;font-family:monospace;font-size:0.85em">$1</code>')
+      .replace(/^---$/gm, '<hr style="margin:1.5rem 0;border-color:#e2e8f0"/>')
+      .replace(/^- (.+)$/gm,
+        '<li style="margin-left:1.5rem;list-style:disc;margin-bottom:3px">$1</li>')
+      .replace(/^\d+\. (.+)$/gm,
+        '<li style="margin-left:1.5rem;list-style:decimal;margin-bottom:3px">$1</li>')
       .replace(/\n/g, '<br/>');
 
   if (loading) return (
