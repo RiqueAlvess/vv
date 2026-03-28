@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const QUESTIONS = [
@@ -218,9 +219,7 @@ export default function SurveyPage() {
         {/* Header */}
         <div className="text-center py-4">
           <div className="flex justify-center mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Shield className="h-5 w-5" />
-            </div>
+            <Logo size={44} />
           </div>
           <h1 className="text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
           {campaignInfo && (
@@ -236,9 +235,7 @@ export default function SurveyPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
-                  <Shield className="h-5 w-5" />
-                </div>
+                <Logo size={40} />
                 <div>
                   <CardTitle>Termo de Consentimento Livre e Esclarecido</CardTitle>
                   <CardDescription>
@@ -262,7 +259,7 @@ export default function SurveyPage() {
                     <strong className="text-foreground">{campaignInfo?.company_cnpj ?? '[CNPJ]'}</strong>,
                     como parte do cumprimento das obrigações da NR-1, que exige a identificação e gestão de
                     riscos psicossociais no ambiente de trabalho. A plataforma utilizada é o{' '}
-                    <strong className="text-foreground">Asta</strong>, que opera como operador de dados nos
+                    <strong className="text-foreground">vivamente360</strong>, que opera como operador de dados nos
                     termos do artigo 5º, inciso VII da LGPD.
                   </p>
                 </div>
@@ -349,7 +346,7 @@ export default function SurveyPage() {
                   </p>
                   <p className="mt-1">
                     Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} — CNPJ:{' '}
-                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: Asta
+                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: vivamente360
                   </p>
                 </div>
               </div>

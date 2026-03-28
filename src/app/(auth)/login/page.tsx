@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,10 +50,8 @@ export default function LoginPage() {
     <div className="flex flex-col justify-center w-full max-w-sm px-2">
       {/* Logo */}
       <div className="flex flex-col items-center mb-10">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground mb-5 shadow-md">
-          <Shield className="h-7 w-7" />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Asta</h1>
+        <Logo size={56} />
+        <h1 className="text-2xl font-bold text-foreground tracking-tight mt-4">vivamente360</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Plataforma de Riscos Psicossociais NR-1
         </p>

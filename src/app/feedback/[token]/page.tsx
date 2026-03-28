@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, CheckCircle2, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 
 const TYPE_OPTIONS = [
   { value: 'positivo',  label: 'Feedback Positivo',  desc: 'Algo que está funcionando bem' },
@@ -109,11 +110,9 @@ export default function FeedbackPage() {
         {/* Header */}
         <div className="text-center py-6">
           <div className="flex justify-center mb-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <MessageSquare className="h-6 w-6" />
-            </div>
+            <Logo size={44} />
           </div>
-          <h1 className="text-xl font-bold">Canal de Feedback Anônimo</h1>
+          <h1 className="text-xl font-bold">Canal de Feedback Anonimo</h1>
           <p className="text-muted-foreground text-sm mt-1">{companyName}</p>
         </div>
 
@@ -121,7 +120,6 @@ export default function FeedbackPage() {
           <CardHeader>
             <CardTitle className="text-base">Enviar Feedback</CardTitle>
             <CardDescription className="flex items-center gap-1.5 text-xs">
-              <Shield className="h-3.5 w-3.5 text-green-500" />
               100% anônimo — nenhum dado identificador é coletado
             </CardDescription>
           </CardHeader>

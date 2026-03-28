@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, Shield, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { Logo } from '@/components/ui/logo';
 
 const navItems = {
   ADM: [
@@ -94,12 +95,10 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Shield className="h-4 w-4" />
-          </div>
+          <Logo size={36} />
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">Asta</span>
-            <span className="text-xs text-muted-foreground">Riscos Psicossociais NR-1</span>
+            <span className="text-sm font-semibold">vivamente360</span>
+            <span className="text-xs text-muted-foreground">Saude Psicossocial</span>
           </div>
         </div>
       </SidebarHeader>

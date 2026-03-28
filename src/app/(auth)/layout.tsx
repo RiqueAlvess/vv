@@ -1,3 +1,5 @@
+import { Logo } from '@/components/ui/logo';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
@@ -15,21 +17,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Top — logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5 text-white"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Asta</span>
+          <Logo size={36} />
+          <span className="text-white font-semibold text-lg tracking-tight">vivamente360</span>
         </div>
 
         {/* Middle — headline */}
@@ -63,7 +52,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Bottom — copyright */}
         <div className="relative z-10">
           <p className="text-slate-500 text-xs">
-            Asta &copy; {new Date().getFullYear()} — Plataforma corporativa de RH
+            vivamente360 &copy; {new Date().getFullYear()} — Plataforma corporativa de RH
           </p>
         </div>
       </div>
