@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -30,12 +29,10 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Erro ao fazer login');
+        setError(data.error || 'Credenciais inválidas');
         return;
       }
 
-      // Cookies are set by the API response (httpOnly)
-      // Redirect based on role
       if (data.user?.role === 'ADM') {
         router.push('/companies');
       } else {
@@ -49,49 +46,78 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Shield className="h-6 w-6" />
-          </div>
+    <div className="flex flex-col justify-center w-full max-w-sm px-2">
+      {/* Logo */}
+      <div className="flex flex-col items-center mb-10">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground mb-5 shadow-md">
+          <Shield className="h-7 w-7" />
         </div>
-        <CardTitle className="text-2xl">Asta</CardTitle>
-        <CardDescription>Plataforma de Riscos Psicossociais NR-1</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          {error && (
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Asta</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Plataforma de Riscos Psicossociais NR-1
+        </p>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-sm font-medium">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="seu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="h-11"
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-sm font-medium">
+            Senha
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="h-11"
+            autoComplete="current-password"
+          />
+        </div>
+
+        {error && (
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">
             <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="w-full h-11 text-sm font-medium"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Entrando...
+            </>
+          ) : (
+            'Entrar'
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Entrar
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </Button>
+      </form>
+
+      {/* Footer note */}
+      <p className="text-center text-xs text-muted-foreground mt-10">
+        Acesso restrito a usuários autorizados
+      </p>
+    </div>
   );
 }
