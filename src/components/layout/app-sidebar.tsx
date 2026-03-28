@@ -12,21 +12,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, Shield, LogOut, ChevronUp, MessageSquare, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, Shield, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 const navItems = {
   ADM: [
     { title: 'Empresas', url: '/companies', icon: Building2 },
     { title: 'Usuários', url: '/users', icon: Users },
+    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],
   RH: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
     { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
+    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],
   LIDERANCA: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],
 };
 
