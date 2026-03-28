@@ -4,11 +4,11 @@ import { getAuthUser } from '@/lib/auth';
 import { z } from 'zod';
 
 const articleSchema = z.object({
-  title: z.string().min(3).max(200),
-  content: z.string().min(1),
-  cover_url: z.string().url().optional().or(z.literal('')),
-  pinned: z.boolean().optional(),
-  published: z.boolean().optional(),
+  title: z.string().min(3, 'Titulo deve ter no minimo 3 caracteres').max(200),
+  content: z.string().min(1, 'Conteudo nao pode ser vazio'),
+  cover_url: z.string().optional().nullable().transform(v => v || null),
+  pinned: z.boolean().optional().default(false),
+  published: z.boolean().optional().default(true),
 });
 
 function slugify(text: string): string {
@@ -59,7 +59,10 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const parsed = articleSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  if (!parsed.success) {
+    console.error('Article validation error:', parsed.error.issues);
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
 
   const { title, content, cover_url, pinned = false, published = true } = parsed.data;
 
