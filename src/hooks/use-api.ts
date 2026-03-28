@@ -10,13 +10,18 @@ export function useApi() {
   const fetchWithAuth = useCallback(async (url: string, options: ApiOptions = {}) => {
     const { skipAuth, ...fetchOptions } = options;
 
+    // Do NOT set Content-Type for FormData — browser sets it with boundary automatically
+    const isFormData = fetchOptions.body instanceof FormData;
+
     const res = await fetch(url, {
       ...fetchOptions,
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
+      headers: isFormData
+        ? { ...fetchOptions.headers }
+        : {
+            'Content-Type': 'application/json',
+            ...fetchOptions.headers,
+          },
     });
 
     // If 401, try to refresh token
@@ -31,10 +36,12 @@ export function useApi() {
         return fetch(url, {
           ...fetchOptions,
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...fetchOptions.headers,
-          },
+          headers: isFormData
+            ? { ...fetchOptions.headers }
+            : {
+                'Content-Type': 'application/json',
+                ...fetchOptions.headers,
+              },
         });
       }
 
