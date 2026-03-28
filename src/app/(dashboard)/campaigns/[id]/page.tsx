@@ -19,8 +19,9 @@ import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Play, Square, Upload, Send, BarChart3,
-  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight,
+  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight, ClipboardCheck,
 } from 'lucide-react';
+import { CampaignChecklist } from '@/components/checklist/campaign-checklist';
 import type { Campaign } from '@/types';
 
 const statusLabels: Record<string, string> = {
@@ -422,6 +423,10 @@ export default function CampaignDetailPage() {
             <Mail className="h-4 w-4 mr-2" />
             Convites ({invitations.length})
           </TabsTrigger>
+          <TabsTrigger value="checklist">
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            Checklist NR-1
+          </TabsTrigger>
         </TabsList>
 
         {/* Colaboradores tab */}
@@ -565,6 +570,11 @@ export default function CampaignDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Checklist NR-1 tab */}
+        <TabsContent value="checklist">
+          <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
         </TabsContent>
 
         {/* Convites tab */}
