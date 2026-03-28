@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -8,7 +8,6 @@ import {
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +33,20 @@ const navItems = {
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -107,49 +120,65 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <Popover>
-              <PopoverTrigger asChild>
-                <SidebarMenuButton size="lg" className="cursor-pointer w-full">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col text-left text-sm min-w-0 flex-1">
-                    <span className="font-medium truncate">{user?.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">{user?.role}</span>
-                  </div>
-                  <ChevronUp className="ml-auto h-4 w-4 shrink-0" />
-                </SidebarMenuButton>
-              </PopoverTrigger>
+        <div ref={menuRef} className="relative p-2">
 
-              <PopoverContent
-                side="top"
-                align="start"
-                sideOffset={8}
-                className="w-52 p-1"
-              >
+          {/* Floating menu — appears above the button */}
+          {menuOpen && (
+            <div
+              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-border bg-background shadow-lg"
+              style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}
+            >
+              <div className="py-1">
                 <button
-                  onClick={() => setPasswordOpen(true)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                  type="button"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setPasswordOpen(true);
+                  }}
                 >
-                  <KeyRound className="h-4 w-4" />
-                  Mudar Senha
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  <span>Mudar Senha</span>
                 </button>
-                <div className="my-1 h-px bg-border" />
+                <div className="my-1 mx-2 h-px bg-border" />
                 <button
-                  onClick={logout}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                  type="button"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
                 >
                   <LogOut className="h-4 w-4" />
-                  Sair
+                  <span>Sair</span>
                 </button>
-              </PopoverContent>
-            </Popover>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              </div>
+            </div>
+          )}
+
+          {/* User button */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(prev => !prev)}
+            className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+          >
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col text-left text-sm min-w-0 flex-1">
+              <span className="font-medium truncate">{user?.name}</span>
+              <span className="text-xs text-muted-foreground truncate">{user?.role}</span>
+            </div>
+            <ChevronUp
+              className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
+                menuOpen ? '' : 'rotate-180'
+              }`}
+            />
+          </button>
+
+        </div>
       </SidebarFooter>
 
       <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
