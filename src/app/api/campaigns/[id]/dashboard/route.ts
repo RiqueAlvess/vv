@@ -104,6 +104,145 @@ export async function GET(request: Request, { params }: RouteParams) {
     const workersHighRiskPct = Math.round((workersHighRisk / totalResponded) * 100);
     const workersCriticalPct = Math.round((workersCritical / totalResponded) * 100);
 
+    // ── DEMOGRAPHIC RISK ANALYSIS ─────────────────────────────────────────────
+
+    const GENDER_LABELS: Record<string, string> = {
+      M: 'Masculino',
+      F: 'Feminino',
+      O: 'Outro',
+      N: 'Nao informado',
+    };
+
+    const AGE_ORDER = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+
+    const genderGroups: Record<string, {
+      total: number;
+      criticalDimensions: number;
+      totalDimensions: number;
+      byDimension: Record<string, { sum: number; count: number }>;
+    }> = {};
+
+    const ageGroups: Record<string, {
+      total: number;
+      criticalDimensions: number;
+      totalDimensions: number;
+      byDimension: Record<string, { sum: number; count: number }>;
+    }> = {};
+
+    for (const resp of responses) {
+      const genderKey = GENDER_LABELS[resp.gender ?? 'N'] ?? 'Nao informado';
+      const ageKey = resp.age_range ?? 'Nao informado';
+
+      if (!genderGroups[genderKey]) {
+        genderGroups[genderKey] = { total: 0, criticalDimensions: 0, totalDimensions: 0, byDimension: {} };
+      }
+      if (!ageGroups[ageKey]) {
+        ageGroups[ageKey] = { total: 0, criticalDimensions: 0, totalDimensions: 0, byDimension: {} };
+      }
+
+      genderGroups[genderKey].total++;
+      ageGroups[ageKey].total++;
+
+      for (const dim of HSE_DIMENSIONS) {
+        let total = 0;
+        let count = 0;
+        for (const qn of dim.questionNumbers) {
+          const val = (resp.responses as Record<string, number>)[`q${qn}`];
+          if (val !== undefined) { total += val; count++; }
+        }
+        if (count === 0) continue;
+
+        const score = total / count;
+        const riskLevel = ScoreService.getRiskLevel(score, dim.type);
+        const nr = ScoreService.calculateNR(riskLevel);
+        const isCritical = nr >= 9;
+
+        if (!genderGroups[genderKey].byDimension[dim.key]) {
+          genderGroups[genderKey].byDimension[dim.key] = { sum: 0, count: 0 };
+        }
+        genderGroups[genderKey].byDimension[dim.key].sum += nr;
+        genderGroups[genderKey].byDimension[dim.key].count++;
+        genderGroups[genderKey].totalDimensions++;
+        if (isCritical) genderGroups[genderKey].criticalDimensions++;
+
+        if (!ageGroups[ageKey].byDimension[dim.key]) {
+          ageGroups[ageKey].byDimension[dim.key] = { sum: 0, count: 0 };
+        }
+        ageGroups[ageKey].byDimension[dim.key].sum += nr;
+        ageGroups[ageKey].byDimension[dim.key].count++;
+        ageGroups[ageKey].totalDimensions++;
+        if (isCritical) ageGroups[ageKey].criticalDimensions++;
+      }
+    }
+
+    const genderChartData = Object.entries(genderGroups)
+      .filter(([, g]) => g.total >= 1)
+      .map(([gender, g]) => {
+        const criticalPct = g.totalDimensions > 0
+          ? Math.round((g.criticalDimensions / g.totalDimensions) * 100)
+          : 0;
+        const worstDim = Object.entries(g.byDimension)
+          .map(([key, d]) => ({
+            key,
+            name: HSE_DIMENSIONS.find(hd => hd.key === key)?.name ?? key,
+            avgNR: d.count > 0 ? d.sum / d.count : 0,
+          }))
+          .sort((a, b) => b.avgNR - a.avgNR)[0];
+
+        return {
+          gender,
+          total_responses: g.total,
+          critical_pct: criticalPct,
+          worst_dimension: worstDim?.name ?? null,
+          worst_dimension_nr: worstDim ? Math.round(worstDim.avgNR * 10) / 10 : 0,
+          suppressed: g.total < 5,
+          dimensions: Object.fromEntries(
+            Object.entries(g.byDimension).map(([key, d]) => [
+              key,
+              d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,
+            ])
+          ),
+        };
+      })
+      .sort((a, b) => b.critical_pct - a.critical_pct);
+
+    const ageChartData = Object.entries(ageGroups)
+      .filter(([key]) => key !== 'Nao informado' || ageGroups[key].total > 0)
+      .map(([ageRange, g]) => {
+        const criticalPct = g.totalDimensions > 0
+          ? Math.round((g.criticalDimensions / g.totalDimensions) * 100)
+          : 0;
+        const worstDim = Object.entries(g.byDimension)
+          .map(([key, d]) => ({
+            key,
+            name: HSE_DIMENSIONS.find(hd => hd.key === key)?.name ?? key,
+            avgNR: d.count > 0 ? d.sum / d.count : 0,
+          }))
+          .sort((a, b) => b.avgNR - a.avgNR)[0];
+
+        return {
+          age_range: ageRange,
+          total_responses: g.total,
+          critical_pct: criticalPct,
+          worst_dimension: worstDim?.name ?? null,
+          worst_dimension_nr: worstDim ? Math.round(worstDim.avgNR * 10) / 10 : 0,
+          suppressed: g.total < 5,
+          dimensions: Object.fromEntries(
+            Object.entries(g.byDimension).map(([key, d]) => [
+              key,
+              d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,
+            ])
+          ),
+        };
+      })
+      .sort((a, b) => {
+        const ai = AGE_ORDER.indexOf(a.age_range);
+        const bi = AGE_ORDER.indexOf(b.age_range);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
     // ── 4. STACKED BAR BY DIMENSION ──────────────────────────────────────
     // For each dimension: how many respondents fall in each risk bucket
     const stackedByDimension = HSE_DIMENSIONS.map(dim => {
@@ -280,6 +419,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       // Demographics
       gender_distribution: genderCounts,
       age_distribution: ageCounts,
+      gender_risk: genderChartData,
+      age_risk: ageChartData,
 
       // Filter context
       filter_context: {
