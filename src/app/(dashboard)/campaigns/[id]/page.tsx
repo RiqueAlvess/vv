@@ -34,6 +34,7 @@ interface Invitation {
   status: string;
   sent_at: string | null;
   token_used: boolean;
+  employee?: { email_hash: string };
 }
 
 interface Metrics {
@@ -154,6 +155,14 @@ export default function CampaignDetailPage() {
     fetchInvitations();
     fetchMetrics();
   }, [fetchCampaign, fetchInvitations, fetchMetrics]);
+
+  useEffect(() => {
+    if (campaign?.status !== 'active') return;
+    const interval = setInterval(() => {
+      fetchMetrics();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [campaign?.status, fetchMetrics]);
 
   const handleCSVUpload = async (rows: Array<{ unidade: string; setor: string; cargo: string; email: string }>) => {
     setActionLoading(true);
@@ -562,54 +571,81 @@ export default function CampaignDetailPage() {
         <TabsContent value="invitations">
           <Card>
             <CardHeader>
-              <CardTitle>Convites Enviados</CardTitle>
-              <CardDescription>Lista de convites de pesquisa</CardDescription>
+              <CardTitle>Convites da Campanha</CardTitle>
+              <CardDescription>
+                Visão agregada — status individual protegido por anonimato
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {invitations.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum convite encontrado. Selecione colaboradores na aba Colaboradores.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Enviado em</TableHead>
-                      <TableHead>Respondido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invitations.slice(0, 50).map((inv) => (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-mono text-xs">{inv.id.slice(0, 8)}...</TableCell>
-                        <TableCell>
-                          <Badge variant={inv.status === 'sent' ? 'default' : inv.status === 'pending' ? 'secondary' : 'outline'}>
-                            {inv.status === 'sent' ? 'Enviado' : inv.status === 'pending' ? 'Pendente' : inv.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {inv.sent_at ? format(new Date(inv.sent_at), 'dd/MM/yyyy HH:mm') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {inv.token_used ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : inv.sent_at ? (
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </TableCell>
-                      </TableRow>
+            <CardContent className="space-y-6">
+              {/* Aggregate progress */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Taxa de resposta</span>
+                  <span className="font-semibold">
+                    {metrics?.total_responded ?? 0} / {metrics?.total_invited ?? 0} responderam
+                  </span>
+                </div>
+                <Progress value={responseRate} className="h-3" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{responseRate.toFixed(1)}% de adesão</span>
+                  <span>
+                    {(metrics?.total_invited ?? 0) - (metrics?.total_responded ?? 0)} pendentes
+                  </span>
+                </div>
+              </div>
+
+              {/* Status summary cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{metrics?.total_invited ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Convidados</p>
+                </div>
+                <div className="rounded-lg border bg-green-500/10 border-green-500/20 p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{metrics?.total_responded ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Responderam</p>
+                </div>
+                <div className="rounded-lg border bg-orange-500/10 border-orange-500/20 p-3 text-center">
+                  <p className="text-2xl font-bold text-orange-500">
+                    {(metrics?.total_invited ?? 0) - (metrics?.total_responded ?? 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Pendentes</p>
+                </div>
+              </div>
+
+              {/* Anonymity note */}
+              <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                O status individual de cada convite é protegido por anonimato (LGPD).
+                Os dados acima são contagens agregadas e atualizadas em tempo real.
+              </div>
+
+              {/* Invitation list — show only hash and sent date, NO individual status */}
+              {invitations.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                    Convites enviados ({invitations.length})
+                  </p>
+                  <div className="max-h-64 overflow-y-auto space-y-1 rounded-md border p-2">
+                    {invitations.slice(0, 100).map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-xs"
+                      >
+                        <span className="font-mono text-muted-foreground">
+                          {inv.employee?.email_hash
+                            ? `${inv.employee.email_hash.slice(0, 16)}...`
+                            : `${inv.id.slice(0, 16)}...`
+                          }
+                        </span>
+                        <span className="text-muted-foreground">
+                          {inv.sent_at
+                            ? format(new Date(inv.sent_at), 'dd/MM/yyyy HH:mm')
+                            : '—'
+                          }
+                        </span>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
-              )}
-              {invitations.length > 50 && (
-                <p className="text-sm text-muted-foreground text-center mt-4">
-                  Mostrando 50 de {invitations.length} convites
-                </p>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
