@@ -8,7 +8,7 @@ interface RouteParams { params: Promise<{ id: string }> }
 const updateSchema = z.object({
   title: z.string().min(3).max(200).optional(),
   content: z.string().optional(),
-  cover_url: z.string().url().optional().or(z.literal('')).or(z.null()),
+  cover_url: z.string().optional().nullable().transform(v => v || null),
   pinned: z.boolean().optional(),
   published: z.boolean().optional(),
 });
