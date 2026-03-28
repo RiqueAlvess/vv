@@ -16,8 +16,8 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Asta - Plataforma de Riscos Psicossociais',
-  description: 'Plataforma SaaS de análise de riscos psicossociais baseada no HSE-IT e NR-1',
+  title: 'vivamente360 — Saude Psicossocial NR-1',
+  description: 'Plataforma SaaS de analise de riscos psicossociais baseada no HSE-IT e NR-1',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
