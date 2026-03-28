@@ -50,6 +50,7 @@ model User {
   company        Company        @relation(fields: [company_id], references: [id], onDelete: Cascade)
   refresh_tokens RefreshToken[]
   campaigns      Campaign[]     @relation("CampaignCreator")
+  articles_authored Article[]   @relation("ArticleAuthor")
 
   @@map("users")
   @@schema("core")
@@ -263,6 +264,24 @@ model AnonymousFeedback {
   channel CompanyFeedbackChannel @relation(fields: [channel_id], references: [id], onDelete: Cascade)
 
   @@map("anonymous_feedbacks")
+  @@schema("core")
+}
+
+model Article {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String
+  slug       String   @unique
+  content    String
+  cover_url  String?
+  pinned     Boolean  @default(false)
+  published  Boolean  @default(true)
+  author_id  String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @db.Timestamptz()
+
+  author User @relation("ArticleAuthor", fields: [author_id], references: [id])
+
+  @@map("articles")
   @@schema("core")
 }
 
