@@ -94,6 +94,7 @@ model Campaign {
   metrics     CampaignMetrics?
   facts       FactResponse[]
   dim_sectors DimSector[]
+  checklist   ChecklistProgress?
 
   @@map("campaigns")
   @@schema("survey")
@@ -200,6 +201,35 @@ model SurveyQuestion {
   active          Boolean @default(true)
 
   @@map("survey_questions")
+  @@schema("survey")
+}
+
+model ChecklistProgress {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id   String   @unique @db.Uuid
+  checked_items Json     @default("[]")
+  updated_at    DateTime @default(now()) @db.Timestamptz()
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  campaign  Campaign            @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  evidences ChecklistEvidence[]
+
+  @@map("checklist_progress")
+  @@schema("survey")
+}
+
+model ChecklistEvidence {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklist_id String   @db.Uuid
+  item_id      String
+  file_name    String
+  file_url     String
+  file_type    String   @db.VarChar(50)
+  uploaded_at  DateTime @default(now()) @db.Timestamptz()
+
+  checklist ChecklistProgress @relation(fields: [checklist_id], references: [id], onDelete: Cascade)
+
+  @@map("checklist_evidences")
   @@schema("survey")
 }
 
