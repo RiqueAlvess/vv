@@ -18,8 +18,8 @@ export async function POST(request: Request) {
   if (!file || !itemId || !campaignId) {
     return NextResponse.json({ error: 'file, item_id e campaign_id sao obrigatorios' }, { status: 400 });
   }
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: 'Arquivo muito grande (max 10MB)' }, { status: 400 });
+  if (file.size > 50 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Arquivo muito grande (max 50MB)' }, { status: 400 });
   }
 
   const campaign = await prisma.campaign.findUnique({
