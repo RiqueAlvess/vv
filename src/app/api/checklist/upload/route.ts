@@ -18,8 +18,8 @@ export async function POST(request: Request) {
   if (!file || !itemId || !campaignId) {
     return NextResponse.json({ error: 'file, item_id e campaign_id sao obrigatorios' }, { status: 400 });
   }
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: 'Arquivo muito grande (max 10MB)' }, { status: 400 });
+  if (file.size > 50 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Arquivo muito grande (max 50MB)' }, { status: 400 });
   }
 
   const campaign = await prisma.campaign.findUnique({
@@ -50,19 +50,19 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(arrayBuffer);
 
   const { error: uploadError } = await supabase.storage
-    .from('checklist-evidences')
+    .from('checklist-vivamente')
     .upload(storagePath, buffer, { contentType: file.type, upsert: false });
 
   if (uploadError) {
     console.error('Storage upload error:', uploadError);
     const message = uploadError.message?.includes('Bucket not found')
-      ? 'Storage bucket nao configurado. Crie o bucket "checklist-evidences" no Supabase.'
+      ? 'Storage bucket nao configurado. Crie o bucket "checklist-vivamente" no Supabase.'
       : 'Erro ao fazer upload do arquivo';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
   const { data: { publicUrl } } = supabase.storage
-    .from('checklist-evidences')
+    .from('checklist-vivamente')
     .getPublicUrl(storagePath);
 
   const evidence = await prisma.checklistEvidence.create({
