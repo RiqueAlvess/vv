@@ -15,6 +15,8 @@ import { StackedQuestionChart } from './charts/stacked-question-chart';
 import { RadarScoreChart } from './charts/radar-score-chart';
 import { HeatmapChart } from './charts/heatmap-chart';
 import { PositionTable } from './charts/position-table';
+import { GenderRiskChart } from './charts/gender-risk-chart';
+import { AgeRiskChart } from './charts/age-risk-chart';
 
 interface CampaignDashboardProps {
   campaignId: string;
@@ -149,7 +151,15 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         <HeatmapChart heatmap={data.heatmap as unknown[]} />
       </div>
 
-      {/* ROW 6 — Position Table */}
+      {/* ROW 6 — Demographic risk analysis */}
+      {((data.gender_risk as unknown[])?.length > 0 || (data.age_risk as unknown[])?.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GenderRiskChart data={(data.gender_risk as unknown[]) as Parameters<typeof GenderRiskChart>[0]['data']} />
+          <AgeRiskChart data={(data.age_risk as unknown[]) as Parameters<typeof AgeRiskChart>[0]['data']} />
+        </div>
+      )}
+
+      {/* ROW 7 — Position Table */}
       <PositionTable positions={data.position_table as unknown[]} />
     </div>
   );
