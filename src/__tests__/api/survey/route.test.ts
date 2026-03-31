@@ -1,5 +1,10 @@
 import { GET, POST } from '@/app/api/survey/[token]/route';
 
+// ── persistFactResponses mock ──────────────────────────────────────────────────
+jest.mock('@/actions/survey.actions', () => ({
+  persistFactResponses: jest.fn().mockResolvedValue(undefined),
+}));
+
 // ── Prisma mock ────────────────────────────────────────────────────────────────
 jest.mock('@/lib/prisma', () => ({
   prisma: {
@@ -40,6 +45,7 @@ jest.mock('@/lib/crypto', () => ({
 
 import { prisma } from '@/lib/prisma';
 import { AnonymityService } from '@/services/anonymity.service';
+import { persistFactResponses } from '@/actions/survey.actions';
 
 const mockTransaction = prisma.$transaction as jest.Mock;
 const mockFindUnique = prisma.surveyInvitation.findUnique as jest.Mock;
@@ -134,6 +140,74 @@ describe('POST /api/survey/[token]', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(AnonymityService.scheduleStatusUpdate).toHaveBeenCalledWith('inv-1', 3_600_000);
+  });
+
+  it('calls persistFactResponses with the correct surveyResponseId after a successful submission', async () => {
+    const mockPersist = persistFactResponses as jest.Mock;
+    mockPersist.mockResolvedValueOnce(undefined);
+
+    mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const mockTx = {
+        surveyInvitation: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'inv-1',
+            campaign_id: 'c-1',
+            token_used_internally: false,
+            expires_at: null,
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        campaign: {
+          findUnique: jest.fn().mockResolvedValue({ status: 'active' }),
+        },
+        surveyResponse: {
+          create: jest.fn().mockResolvedValue({ id: 'resp-42' }),
+        },
+      };
+      mockValidateAndDestroy.mockResolvedValueOnce(VALID_SESSION);
+      return callback(mockTx);
+    });
+
+    const res = await POST(makePostRequest(VALID_BODY), makeRouteParams('tok'));
+    expect(res.status).toBe(200);
+    expect(mockPersist).toHaveBeenCalledWith(
+      'resp-42',
+      VALID_SESSION.campaignId,
+      VALID_BODY.responses
+    );
+  });
+
+  it('returns 200 even when persistFactResponses throws', async () => {
+    const mockPersist = persistFactResponses as jest.Mock;
+    mockPersist.mockRejectedValueOnce(new Error('analytics DB down'));
+
+    mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const mockTx = {
+        surveyInvitation: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'inv-1',
+            campaign_id: 'c-1',
+            token_used_internally: false,
+            expires_at: null,
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        campaign: {
+          findUnique: jest.fn().mockResolvedValue({ status: 'active' }),
+        },
+        surveyResponse: {
+          create: jest.fn().mockResolvedValue({ id: 'resp-99' }),
+        },
+      };
+      mockValidateAndDestroy.mockResolvedValueOnce(VALID_SESSION);
+      return callback(mockTx);
+    });
+
+    const res = await POST(makePostRequest(VALID_BODY), makeRouteParams('tok'));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
   });
 
   it('does not consume the token if response INSERT fails inside the transaction', async () => {

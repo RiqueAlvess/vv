@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { surveyResponseSchema } from '@/lib/validations';
 import { AnonymityService } from '@/services/anonymity.service';
+import { persistFactResponses } from '@/actions/survey.actions';
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -84,7 +85,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Blind Drop Protocol Steps 3 & 4 — atomic: token consumption + response insert.
     // If the INSERT fails the transaction rolls back, so the token is never consumed.
-    let session: { sessionUuid: string; campaignId: string; invitationId: string } | null;
+    let session: { sessionUuid: string; campaignId: string; invitationId: string; surveyResponseId: string } | null;
     try {
       session = await prisma.$transaction(async (tx) => {
         const s = await AnonymityService.validateAndDestroyToken(token, tx);
@@ -98,8 +99,8 @@ export async function POST(request: Request, { params }: RouteParams) {
           consent_accepted
         );
 
-        await tx.surveyResponse.create({ data: anonymousData });
-        return s;
+        const surveyResponse = await tx.surveyResponse.create({ data: anonymousData, select: { id: true } });
+        return { ...s, surveyResponseId: surveyResponse.id };
       });
     } catch (txErr) {
       if (txErr instanceof Error && txErr.message === 'Campaign is not active') {
@@ -116,6 +117,13 @@ export async function POST(request: Request, { params }: RouteParams) {
         { error: 'Token inválido, expirado ou já utilizado' },
         { status: 410 }
       );
+    }
+
+    // Persist analytics fact rows — non-fatal: user's response is already saved
+    try {
+      await persistFactResponses(session.surveyResponseId, session.campaignId, responses);
+    } catch (error) {
+      console.error('[FactResponse]', error);
     }
 
     // Blind Drop Protocol Step 5: Schedule delayed status update (outside transaction)
