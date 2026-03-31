@@ -11,7 +11,8 @@
     "worker": "npx tsx src/workers/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:db:pull": "prisma db pull",
-    "generate:hash": "npx tsx scripts/generate-hash.ts"
+    "generate:hash": "npx tsx scripts/generate-hash.ts",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -60,8 +61,12 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/uuid": "^10.0.0",
-    "prisma": "^6.19.2"
+    "jest": "^30.3.0",
+    "jest-environment-node": "^30.3.0",
+    "prisma": "^6.19.2",
+    "ts-jest": "^29.4.6"
   }
 }
