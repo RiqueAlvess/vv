@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { hashEmail, generateToken } from '@/lib/crypto';
+import { statusUpdateQueue } from '@/lib/queues/status-update.queue';
 
 /**
  * Blind Drop Anonymity Protocol
@@ -105,5 +106,16 @@ export class AnonymityService {
         status_update_scheduled_at: scheduledAt,
       },
     });
+
+    const millisUntilScheduledAt = scheduledAt.getTime() - Date.now();
+    await statusUpdateQueue.add(
+      'process-status-update',
+      { invitationId, scheduledAt },
+      {
+        delay: millisUntilScheduledAt,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      }
+    );
   }
 }
