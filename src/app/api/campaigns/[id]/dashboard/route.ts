@@ -8,6 +8,89 @@ import type { RiskLevel, DimensionType } from '@/types';
 
 interface RouteParams { params: Promise<{ id: string }> }
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// ---------------------------------------------------------------------------
+// Cache helper — isolated for testability
+// ---------------------------------------------------------------------------
+
+/**
+ * Attempt to serve dashboard metrics from the CampaignMetrics cache.
+ *
+ * Rules:
+ *  - closed campaign  → always return cached data (immutable result set)
+ *  - active campaign  → return cached data only when < 5 min old
+ *  - missing / empty cache → return null (caller falls through to live compute)
+ */
+export async function getCampaignMetricsWithCache(
+  campaignId: string,
+  status: string,
+): Promise<Record<string, unknown> | null> {
+  const cached = await prisma.campaignMetrics.findUnique({
+    where: { campaign_id: campaignId },
+  });
+
+  if (!cached || !cached.risk_distribution) return null;
+
+  if (status === 'closed') {
+    return buildPayloadFromCache(campaignId, cached);
+  }
+
+  // Active (or other) campaigns: respect TTL
+  const ageMs = Date.now() - new Date(cached.updated_at).getTime();
+  if (ageMs < CACHE_TTL_MS) {
+    return buildPayloadFromCache(campaignId, cached);
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helper — reconstruct response shape from stored columns
+// ---------------------------------------------------------------------------
+
+type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
+
+function buildPayloadFromCache(
+  campaignId: string,
+  cached: NonNullable<StoredMetrics>,
+): Record<string, unknown> {
+  // risk_distribution stores: campaign_name, igrp_label, igrp_color,
+  //   workers_high_risk_pct, workers_critical_pct, stacked_by_dimension, stacked_by_question
+  const rd = (cached.risk_distribution ?? {}) as Record<string, unknown>;
+  const tc = (cached.top_critical_sectors ?? {}) as Record<string, unknown>;
+  const dd = (cached.demographic_data ?? {}) as Record<string, unknown>;
+
+  return {
+    campaign_id: campaignId,
+    campaign_name: rd.campaign_name ?? null,
+    total_invited: cached.total_invited,
+    total_responded: cached.total_responded,
+    response_rate: Number(cached.response_rate),
+    igrp: Number(cached.igrp ?? 0),
+    igrp_label: rd.igrp_label ?? null,
+    igrp_color: rd.igrp_color ?? null,
+    workers_high_risk_pct: rd.workers_high_risk_pct ?? 0,
+    workers_critical_pct: rd.workers_critical_pct ?? 0,
+    dimension_analysis: cached.dimension_scores ?? [],
+    stacked_by_dimension: rd.stacked_by_dimension ?? [],
+    stacked_by_question: rd.stacked_by_question ?? [],
+    heatmap: cached.heatmap_data ?? [],
+    top_sectors_by_nr: tc.top_sectors_by_nr ?? [],
+    top_positions_by_nr: tc.top_positions_by_nr ?? [],
+    position_table: cached.top_critical_groups ?? [],
+    gender_distribution: dd.gender_distribution ?? {},
+    age_distribution: dd.age_distribution ?? {},
+    gender_risk: cached.scores_by_gender ?? [],
+    age_risk: cached.scores_by_age ?? [],
+    filter_context: { unit_id: null, sector_id: null, note: null },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
@@ -22,9 +105,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       select: { id: true, company_id: true, status: true, name: true },
     });
     if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
-    if (campaign.status !== 'closed') {
-      return NextResponse.json({ error: 'Dashboard disponível apenas para campanhas encerradas' }, { status: 400 });
-    }
+
     if (user.role !== 'ADM' && campaign.company_id !== user.company_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -32,6 +113,23 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { searchParams } = new URL(request.url);
     const unitId   = searchParams.get('unit_id');
     const sectorId = searchParams.get('sector_id');
+    const isUnfiltered = !unitId && !sectorId;
+
+    // ── Cache read ────────────────────────────────────────────────────────────
+    // Only use cache for unfiltered requests; filters affect org-structure queries
+    // that are not included in the cached payload.
+    if (isUnfiltered) {
+      const cached = await getCampaignMetricsWithCache(id, campaign.status);
+      if (cached) return NextResponse.json(cached);
+    }
+
+    // ── Status guard ──────────────────────────────────────────────────────────
+    if (campaign.status !== 'closed') {
+      return NextResponse.json(
+        { error: 'Dashboard disponível apenas para campanhas encerradas' },
+        { status: 400 },
+      );
+    }
 
     // Fetch all responses
     const rawResponses = await prisma.surveyResponse.findMany({
@@ -53,7 +151,6 @@ export async function GET(request: Request, { params }: RouteParams) {
     }));
 
     // ── 1. DIMENSION SCORES & NR ─────────────────────────────────────────
-    // For each dimension: avg score, classification, P, S, NR, color
     const dimensionAnalysis = HSE_DIMENSIONS.map(dim => {
       let total = 0;
       let count = 0;
@@ -81,13 +178,13 @@ export async function GET(request: Request, { params }: RouteParams) {
       };
     });
 
-    // ── 2. IGRP (mean of all 7 NR values) ────────────────────────────────
+    // ── 2. IGRP ───────────────────────────────────────────────────────────
     const igrp = Math.round(
-      dimensionAnalysis.reduce((sum, d) => sum + d.nr, 0) / dimensionAnalysis.length * 100
+      dimensionAnalysis.reduce((sum, d) => sum + d.nr, 0) / dimensionAnalysis.length * 100,
     ) / 100;
     const igrpInterp = ScoreService.interpretNR(igrp);
 
-    // ── 3. WORKERS AT HIGH RISK (NR >= 9) ────────────────────────────────
+    // ── 3. WORKERS AT HIGH RISK ───────────────────────────────────────────
     let workersHighRisk = 0;
     let workersCritical = 0;
     for (const resp of responses) {
@@ -200,7 +297,7 @@ export async function GET(request: Request, { params }: RouteParams) {
             Object.entries(g.byDimension).map(([key, d]) => [
               key,
               d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,
-            ])
+            ]),
           ),
         };
       })
@@ -231,7 +328,7 @@ export async function GET(request: Request, { params }: RouteParams) {
             Object.entries(g.byDimension).map(([key, d]) => [
               key,
               d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,
-            ])
+            ]),
           ),
         };
       })
@@ -244,7 +341,6 @@ export async function GET(request: Request, { params }: RouteParams) {
       });
 
     // ── 4. STACKED BAR BY DIMENSION ──────────────────────────────────────
-    // For each dimension: how many respondents fall in each risk bucket
     const stackedByDimension = HSE_DIMENSIONS.map(dim => {
       const counts = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 };
       for (const resp of responses) {
@@ -265,13 +361,11 @@ export async function GET(request: Request, { params }: RouteParams) {
     });
 
     // ── 5. STACKED BAR BY QUESTION ────────────────────────────────────────
-    // For each question: % of respondents at each risk level (considering polarity)
     const stackedByQuestion = HSE_DIMENSIONS.flatMap(dim =>
       dim.questionNumbers.map(qn => {
         const counts = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 };
         for (const resp of responses) {
           const val = resp.responses[`q${qn}`] ?? 0;
-          // For a single question, treat as a "score" and classify
           const risk = ScoreService.getRiskLevel(val, dim.type);
           counts[risk]++;
         }
@@ -286,14 +380,10 @@ export async function GET(request: Request, { params }: RouteParams) {
           importante_pct:Math.round((counts.importante/ total) * 100),
           critico_pct:   Math.round((counts.critico   / total) * 100),
         };
-      })
+      }),
     ).sort((a, b) => a.question_number - b.question_number);
 
-    // ── 6. HEATMAP: NR by dimension × unit ───────────────────────────────
-    // Fetch org structure to group responses by unit
-    // NOTE: responses have no direct unit link (Blind Drop).
-    // We use the campaign-wide score per dimension per unit (all units get same score).
-    // When sector-level tracking is added, this will be per-unit.
+    // ── 6. HEATMAP ────────────────────────────────────────────────────────
     const units = await prisma.campaignUnit.findMany({
       where: {
         campaign_id: id,
@@ -303,12 +393,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       orderBy: { name: 'asc' },
     });
 
-    // For now: heatmap shows campaign-wide NR per dimension (same for all units)
-    // This is correct per Blind Drop — no per-unit response data available
     const heatmapData = units.map(unit => ({
       unit: unit.name,
       dimensions: Object.fromEntries(
-        dimensionAnalysis.map(d => [d.key, { nr: d.nr, color: d.nr_color, label: d.nr_label }])
+        dimensionAnalysis.map(d => [d.key, { nr: d.nr, color: d.nr_color, label: d.nr_label }]),
       ),
     }));
 
@@ -322,12 +410,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       orderBy: { name: 'asc' },
     });
 
-    // Campaign-wide NR for each dimension (same for all sectors — Blind Drop)
     const topSectorsByNR = sectors
       .map(sector => ({
         sector: sector.name,
         unit: sector.unit.name,
-        nr: igrp, // campaign-wide IGRP as proxy
+        nr: igrp,
         label: igrpInterp.label,
         color: igrpInterp.color,
       }))
@@ -380,7 +467,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const positionTable = positions.map(pos => {
       const nr = igrp;
       const { label } = ScoreService.interpretNR(nr);
-      const scoreAsPct = Math.round((igrp / 16) * 100 * 10) / 10; // NR as % of max (16)
+      const scoreAsPct = Math.round((igrp / 16) * 100 * 10) / 10;
       return {
         position: pos.name,
         sector: pos.sector.name,
@@ -388,26 +475,22 @@ export async function GET(request: Request, { params }: RouteParams) {
         score_pct: scoreAsPct,
         classification: label,
         nr,
-        n_responses: totalResponded, // campaign-wide (Blind Drop)
+        n_responses: totalResponded,
       };
     }).sort((a, b) => b.nr - a.nr);
 
-    return NextResponse.json({
-      // Meta
+    // ── Build response payload ─────────────────────────────────────────────
+    const payload = {
       campaign_id: id,
       campaign_name: campaign.name,
       total_invited: totalInvited,
       total_responded: totalResponded,
       response_rate: Math.round(responseRate * 100) / 100,
-
-      // Core metrics
       igrp,
       igrp_label: igrpInterp.label,
       igrp_color: igrpInterp.color,
       workers_high_risk_pct: workersHighRiskPct,
       workers_critical_pct: workersCriticalPct,
-
-      // Chart data
       dimension_analysis: dimensionAnalysis,
       stacked_by_dimension: stackedByDimension,
       stacked_by_question: stackedByQuestion,
@@ -415,14 +498,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       top_sectors_by_nr: topSectorsByNR,
       top_positions_by_nr: topPositionsByNR,
       position_table: positionTable,
-
-      // Demographics
       gender_distribution: genderCounts,
       age_distribution: ageCounts,
       gender_risk: genderChartData,
       age_risk: ageChartData,
-
-      // Filter context
       filter_context: {
         unit_id: unitId ?? null,
         sector_id: sectorId ?? null,
@@ -430,7 +509,77 @@ export async function GET(request: Request, { params }: RouteParams) {
           ? 'Scores refletem toda a campanha (anonimato). Hierarquia filtrada por unidade/setor.'
           : null,
       },
-    });
+    };
+
+    // ── Cache write (unfiltered closed campaigns only) ─────────────────────
+    if (isUnfiltered) {
+      const now = new Date();
+      await prisma.campaignMetrics.upsert({
+        where: { campaign_id: id },
+        create: {
+          campaign_id: id,
+          total_invited: totalInvited,
+          total_responded: totalResponded,
+          response_rate: payload.response_rate,
+          igrp,
+          dimension_scores: dimensionAnalysis,
+          risk_distribution: {
+            campaign_name: campaign.name,
+            igrp_label: igrpInterp.label,
+            igrp_color: igrpInterp.color,
+            workers_high_risk_pct: workersHighRiskPct,
+            workers_critical_pct: workersCriticalPct,
+            stacked_by_dimension: stackedByDimension,
+            stacked_by_question: stackedByQuestion,
+          },
+          demographic_data: {
+            gender_distribution: genderCounts,
+            age_distribution: ageCounts,
+          },
+          heatmap_data: heatmapData,
+          top_critical_sectors: {
+            top_sectors_by_nr: topSectorsByNR,
+            top_positions_by_nr: topPositionsByNR,
+          },
+          scores_by_gender: genderChartData,
+          scores_by_age: ageChartData,
+          top_critical_groups: positionTable,
+          calculated_at: now,
+          updated_at: now,
+        },
+        update: {
+          total_invited: totalInvited,
+          total_responded: totalResponded,
+          response_rate: payload.response_rate,
+          igrp,
+          dimension_scores: dimensionAnalysis,
+          risk_distribution: {
+            campaign_name: campaign.name,
+            igrp_label: igrpInterp.label,
+            igrp_color: igrpInterp.color,
+            workers_high_risk_pct: workersHighRiskPct,
+            workers_critical_pct: workersCriticalPct,
+            stacked_by_dimension: stackedByDimension,
+            stacked_by_question: stackedByQuestion,
+          },
+          demographic_data: {
+            gender_distribution: genderCounts,
+            age_distribution: ageCounts,
+          },
+          heatmap_data: heatmapData,
+          top_critical_sectors: {
+            top_sectors_by_nr: topSectorsByNR,
+            top_positions_by_nr: topPositionsByNR,
+          },
+          scores_by_gender: genderChartData,
+          scores_by_age: ageChartData,
+          top_critical_groups: positionTable,
+          updated_at: now,
+        },
+      });
+    }
+
+    return NextResponse.json(payload);
 
   } catch (err) {
     console.error('Dashboard error:', err);
