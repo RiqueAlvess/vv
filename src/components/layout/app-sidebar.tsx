@@ -18,6 +18,7 @@ import { Logo } from '@/components/ui/logo';
 
 const navItems = {
   ADM: [
+    { title: 'Dashboard', url: '/adm/dashboard', icon: LayoutDashboard },
     { title: 'Empresas', url: '/companies', icon: Building2 },
     { title: 'Usuários', url: '/users', icon: Users },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },

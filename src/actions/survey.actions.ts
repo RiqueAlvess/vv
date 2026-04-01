@@ -211,7 +211,7 @@ async function enqueueStatusUpdate(invitationId: string, delayMs: number): Promi
  * Computes per-dimension HSE-IT scores from raw answers and writes
  * FactResponse rows to the analytics star schema.
  */
-async function persistFactResponses(
+export async function persistFactResponses(
   responseId: string,
   campaignId: string,
   answers: Record<string, number>

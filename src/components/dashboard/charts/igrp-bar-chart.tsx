@@ -6,7 +6,15 @@ interface DimensionData {
   key: string; name: string; nr: number; nr_color: string; nr_label: string; avg_score: number;
 }
 
-export function IgrpBarChart({ dimensions }: { dimensions: unknown[] }) {
+interface IgrpBarChartProps {
+  dimensions: unknown[] | null | undefined;
+}
+
+export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
+  if (!Array.isArray(dimensions) || dimensions.length === 0) {
+    return null;
+  }
+
   const data = (dimensions as DimensionData[]).map(d => ({
     name: d.name
       .replace('Comunicação e Mudanças', 'Com. e Mudanças')
@@ -35,7 +43,7 @@ export function IgrpBarChart({ dimensions }: { dimensions: unknown[] }) {
               formatter={(val: unknown, _: unknown, props: { payload?: { label: string; score: number } }) => [
                 `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,
                 'Risco',
-              ]}
+              ] as [string, string]}
             />
             <ReferenceLine y={4}  stroke="#22c55e" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#22c55e' }} />
             <ReferenceLine y={8}  stroke="#eab308" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#eab308' }} />

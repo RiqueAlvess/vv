@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { hashEmail, generateToken } from '@/lib/crypto';
+import { statusUpdateQueue } from '@/lib/queues/status-update.queue';
+
+type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /**
  * Blind Drop Anonymity Protocol
@@ -25,14 +28,19 @@ export class AnonymityService {
 
   // Step 3: Validate token, create anonymous session, DESTROY the original token
   // This is the critical anonymity step — the token is nullified so it can never
-  // be used to correlate an invitation to a response
-  static async validateAndDestroyToken(tokenPublic: string): Promise<{
+  // be used to correlate an invitation to a response.
+  // Must be called inside a prisma.$transaction — all DB calls use the tx client.
+  // Throws Error('Campaign is not active') if the campaign is not in 'active' status.
+  static async validateAndDestroyToken(
+    tokenPublic: string,
+    tx: TransactionClient,
+  ): Promise<{
     sessionUuid: string;
     campaignId: string;
     invitationId: string;
   } | null> {
     // Find invitation by token
-    const invitation = await prisma.surveyInvitation.findUnique({
+    const invitation = await tx.surveyInvitation.findUnique({
       where: { token_public: tokenPublic },
       select: {
         id: true,
@@ -46,6 +54,16 @@ export class AnonymityService {
     if (invitation.token_used_internally) return null;
     if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) return null;
 
+    // Verify campaign is still accepting responses
+    const campaign = await tx.campaign.findUnique({
+      where: { id: invitation.campaign_id },
+      select: { status: true },
+    });
+
+    if (!campaign || campaign.status !== 'active') {
+      throw new Error('Campaign is not active');
+    }
+
     // Generate anonymous session UUID
     const sessionUuid = generateToken();
 
@@ -53,7 +71,7 @@ export class AnonymityService {
     // Do NOT set token_public to null — DB has NOT NULL constraint.
     // token_used_internally=true is the authoritative "used" flag; the token
     // remains in DB but is rejected before any lookup can succeed.
-    await prisma.surveyInvitation.update({
+    await tx.surveyInvitation.update({
       where: { id: invitation.id },
       data: {
         token_used_internally: true,
@@ -105,5 +123,16 @@ export class AnonymityService {
         status_update_scheduled_at: scheduledAt,
       },
     });
+
+    const millisUntilScheduledAt = scheduledAt.getTime() - Date.now();
+    await statusUpdateQueue.add(
+      'process-status-update',
+      { invitationId, scheduledAt },
+      {
+        delay: millisUntilScheduledAt,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      }
+    );
   }
 }

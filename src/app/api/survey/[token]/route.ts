@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { surveyResponseSchema } from '@/lib/validations';
 import { AnonymityService } from '@/services/anonymity.service';
+import { persistFactResponses } from '@/actions/survey.actions';
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -70,17 +71,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
 
-    // Blind Drop Protocol Step 3: Validate token, create anonymous session, DESTROY token
-    const session = await AnonymityService.validateAndDestroyToken(token);
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Token inválido, expirado ou já utilizado' },
-        { status: 410 }
-      );
-    }
-
-    // Validate body
+    // Validate body before opening the transaction — request.json() is one-shot
     const body = await request.json();
     const parsed = surveyResponseSchema.safeParse(body);
     if (!parsed.success) {
@@ -92,18 +83,50 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const { responses, gender, age_range, consent_accepted } = parsed.data;
 
-    // Blind Drop Protocol Step 4: Build anonymous response (NO identifiers)
-    const anonymousData = AnonymityService.buildAnonymousResponse(
-      session.campaignId,
-      session.sessionUuid,
-      responses,
-      { gender, ageRange: age_range },
-      consent_accepted
-    );
+    // Blind Drop Protocol Steps 3 & 4 — atomic: token consumption + response insert.
+    // If the INSERT fails the transaction rolls back, so the token is never consumed.
+    let session: { sessionUuid: string; campaignId: string; invitationId: string; surveyResponseId: string } | null;
+    try {
+      session = await prisma.$transaction(async (tx) => {
+        const s = await AnonymityService.validateAndDestroyToken(token, tx);
+        if (!s) return null;
 
-    await prisma.surveyResponse.create({ data: anonymousData });
+        const anonymousData = AnonymityService.buildAnonymousResponse(
+          s.campaignId,
+          s.sessionUuid,
+          responses,
+          { gender, ageRange: age_range },
+          consent_accepted
+        );
 
-    // Blind Drop Protocol Step 5: Schedule delayed status update
+        const surveyResponse = await tx.surveyResponse.create({ data: anonymousData, select: { id: true } });
+        return { ...s, surveyResponseId: surveyResponse.id };
+      });
+    } catch (txErr) {
+      if (txErr instanceof Error && txErr.message === 'Campaign is not active') {
+        return NextResponse.json(
+          { error: 'This survey is no longer accepting responses' },
+          { status: 409 }
+        );
+      }
+      throw txErr;
+    }
+
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Token inválido, expirado ou já utilizado' },
+        { status: 410 }
+      );
+    }
+
+    // Persist analytics fact rows — non-fatal: user's response is already saved
+    try {
+      await persistFactResponses(session.surveyResponseId, session.campaignId, responses);
+    } catch (error) {
+      console.error('[FactResponse]', error);
+    }
+
+    // Blind Drop Protocol Step 5: Schedule delayed status update (outside transaction)
     const delayMs = AnonymityService.calculateRandomDelay();
     await AnonymityService.scheduleStatusUpdate(session.invitationId, delayMs);
 

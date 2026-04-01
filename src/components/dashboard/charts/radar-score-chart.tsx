@@ -38,7 +38,7 @@ export function RadarScoreChart({ dimensions }: { dimensions: unknown[] }) {
               formatter={(val: unknown, _: unknown, props: { payload?: { score: number; label: string } }) => [
                 `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,
                 '',
-              ]}
+              ] as [string, string]}
             />
           </RadarChart>
         </ResponsiveContainer>
