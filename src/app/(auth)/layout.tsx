@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Top — logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <LogoImage width={120} height={40} />
+          <div className="h-8"><LogoImage /></div>
         </div>
 
         {/* Middle — headline */}

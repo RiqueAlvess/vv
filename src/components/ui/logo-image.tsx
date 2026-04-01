@@ -5,20 +5,20 @@ import { brand } from '@/lib/brand';
 
 interface LogoImageProps {
   className?: string;
-  width?: number;
-  height?: number;
 }
 
-export function LogoImage({ className, width = 120, height = 40 }: LogoImageProps) {
+export function LogoImage({ className }: LogoImageProps) {
   return (
     <Image
       src={brand.logoUrl}
       alt={brand.name}
-      width={width}
-      height={height}
+      width={200}
+      height={60}
       className={className}
       style={{
         objectFit: 'contain',
+        width: 'auto',
+        height: '100%',
         filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.35)) drop-shadow(0 1px 2px rgba(0,0,0,0.2))',
       }}
       priority
