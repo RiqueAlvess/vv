@@ -1,10 +1,8 @@
-import { Logo } from '@/components/ui/logo';
-
-const DEFAULT_AUTH_BG_IMAGE_URL =
-  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80&auto=format&fit=crop';
+import { LogoImage } from '@/components/ui/logo-image';
+import { brand } from '@/lib/brand';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const authBgImageUrl = process.env.NEXT_PUBLIC_AUTH_BG_IMAGE_URL || DEFAULT_AUTH_BG_IMAGE_URL;
+  const authBgImageUrl = brand.authBgUrl;
 
   return (
     <div className="min-h-screen flex">
@@ -12,7 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div
         className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12"
         style={{
-          backgroundImage: `url('${authBgImageUrl}')`,
+          backgroundImage: authBgImageUrl ? `url('${authBgImageUrl}')` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -22,8 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Top — logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <Logo size={36} />
-          <span className="text-[#C5A059] font-semibold text-lg tracking-tight">Asta</span>
+          <LogoImage width={120} height={40} />
         </div>
 
         {/* Middle — headline */}

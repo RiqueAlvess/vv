@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { Logo } from '@/components/ui/logo';
+import { LogoImage } from '@/components/ui/logo-image';
 
 const navItems = {
   ADM: [
@@ -96,11 +96,7 @@ export function AppSidebar() {
       <Sidebar className="bg-[#002B49]">
       <SidebarHeader className="border-b border-[#C5A059]/30 bg-[#002B49]">
         <div className="flex items-center gap-2 px-2 py-3">
-          <Logo size={36} />
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-[#C5A059]">Asta</span>
-            <span className="text-xs text-white/60">Saude Psicossocial</span>
-          </div>
+          <LogoImage width={100} height={34} className="h-8 w-auto" />
         </div>
       </SidebarHeader>
       <SidebarContent>

@@ -1,21 +1,16 @@
 'use client';
 
-const DEFAULT_LOGO_URL = 'https://placehold.co/160x160/png?text=Asta';
+import { brand } from '@/lib/brand';
 
 export function Logo({ size = 40 }: { size?: number }) {
-  const logoUrl = process.env.NEXT_PUBLIC_LOGO_URL || DEFAULT_LOGO_URL;
-
   return (
     <img
-      src={logoUrl}
-      alt="Asta"
+      src={brand.logoUrl}
+      alt={brand.name}
       width={size}
       height={size}
       className="rounded-md object-contain"
       loading="lazy"
-      onError={(event) => {
-        event.currentTarget.src = DEFAULT_LOGO_URL;
-      }}
     />
   );
 }
