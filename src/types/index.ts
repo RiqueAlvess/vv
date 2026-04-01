@@ -65,8 +65,6 @@ export interface SurveyInvitation {
   id: string;
   campaign_id: string;
   employee_id: string;
-  token_public: string;
-  token_used: boolean;
   status: string;
   sent_at: string;
   expires_at: string;
