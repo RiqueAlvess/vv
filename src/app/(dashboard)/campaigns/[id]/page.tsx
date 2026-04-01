@@ -34,7 +34,6 @@ interface Invitation {
   id: string;
   status: string;
   sent_at: string | null;
-  token_used: boolean;
   employee?: { email_hash: string };
 }
 

@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const where = { campaign_id: id };
 
-    const [count, invitations] = await Promise.all([
+    const [count, invitations, respondedCount] = await Promise.all([
       prisma.surveyInvitation.count({ where }),
       prisma.surveyInvitation.findMany({
         where,
@@ -55,8 +55,6 @@ export async function GET(request: Request, { params }: RouteParams) {
           id: true,
           campaign_id: true,
           employee_id: true,
-          token_public: true,
-          token_used: true,
           status: true,
           sent_at: true,
           expires_at: true,
@@ -65,44 +63,17 @@ export async function GET(request: Request, { params }: RouteParams) {
         skip: offset,
         take: limit_,
       }),
+      prisma.surveyInvitation.count({
+        where: { campaign_id: id, token_used: true },
+      }),
     ]);
-
-    // For RH users, show only aggregated status counts instead of individual statuses
-    // to protect anonymity
-    if (user.role === 'RH') {
-      const sanitized = invitations.map((inv) => ({
-        id: inv.id,
-        campaign_id: inv.campaign_id,
-        employee_id: inv.employee_id,
-        status: inv.status,
-        sent_at: inv.sent_at,
-        expires_at: inv.expires_at,
-      }));
-
-      const respondedCount = await prisma.surveyInvitation.count({
-        where: {
-          campaign_id: id,
-          token_used: true,
-        },
-      });
-
-      return NextResponse.json({
-        data: sanitized,
-        aggregated: {
-          total: count,
-          responded: respondedCount,
-        },
-        pagination: {
-          page,
-          limit: limit_,
-          total: count,
-          totalPages: Math.ceil(count / limit_),
-        },
-      });
-    }
 
     return NextResponse.json({
       data: invitations,
+      aggregated: {
+        total: count,
+        responded: respondedCount,
+      },
       pagination: {
         page,
         limit: limit_,
