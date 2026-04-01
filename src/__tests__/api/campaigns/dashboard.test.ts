@@ -318,4 +318,83 @@ describe('GET /api/campaigns/[id]/dashboard', () => {
     const res = await GET(makeRequest(), makeParams());
     expect(res.status).toBe(403);
   });
+
+  // ── Suppression: dimensions must be null when group total < 5 ─────────────
+
+  it('suppressed group with 4 respondents returns suppressed:true and dimensions:null', async () => {
+    mockFindMetrics.mockResolvedValue(null);
+    // 4 responses, all gender 'M' → one gender group with total=4 (<5 → suppressed)
+    mockFindResponses.mockResolvedValue([
+      makeSurveyResponse('r-1'),
+      makeSurveyResponse('r-2'),
+      makeSurveyResponse('r-3'),
+      makeSurveyResponse('r-4'),
+    ]);
+    mockCountInvitations.mockResolvedValue(10);
+    mockFindUnits.mockResolvedValue([]);
+    mockFindSectors.mockResolvedValue([]);
+    mockFindPositions.mockResolvedValue([]);
+    mockUpsertMetrics.mockResolvedValue({});
+
+    const res = await GET(makeRequest(), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const maleGroup = body.gender_risk.find((g: { gender: string }) => g.gender === 'Masculino');
+    expect(maleGroup).toBeDefined();
+    expect(maleGroup.suppressed).toBe(true);
+    expect(maleGroup.dimensions).toBeNull();
+  });
+
+  it('non-suppressed group with 5 respondents returns suppressed:false and non-null dimensions', async () => {
+    mockFindMetrics.mockResolvedValue(null);
+    // 5 responses, all gender 'F' → one gender group with total=5 (≥5 → not suppressed)
+    const makeFemaleSurveyResponse = (id: string) => ({ ...makeSurveyResponse(id), gender: 'F' });
+    mockFindResponses.mockResolvedValue([
+      makeFemaleSurveyResponse('r-1'),
+      makeFemaleSurveyResponse('r-2'),
+      makeFemaleSurveyResponse('r-3'),
+      makeFemaleSurveyResponse('r-4'),
+      makeFemaleSurveyResponse('r-5'),
+    ]);
+    mockCountInvitations.mockResolvedValue(10);
+    mockFindUnits.mockResolvedValue([]);
+    mockFindSectors.mockResolvedValue([]);
+    mockFindPositions.mockResolvedValue([]);
+    mockUpsertMetrics.mockResolvedValue({});
+
+    const res = await GET(makeRequest(), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const femGroup = body.gender_risk.find((g: { gender: string }) => g.gender === 'Feminino');
+    expect(femGroup).toBeDefined();
+    expect(femGroup.suppressed).toBe(false);
+    expect(femGroup.dimensions).not.toBeNull();
+    expect(typeof femGroup.dimensions).toBe('object');
+  });
+
+  it('suppressed group with 0 respondents returns suppressed:true and dimensions:null', async () => {
+    mockFindMetrics.mockResolvedValue(null);
+    // Only 'F' responses exist; 'M' group would be absent, but age_range 'Nao informado'
+    // can exist with 0 — instead test via a group that gets 0 by having all responses
+    // carry an age we can isolate. Use a single response with age '65+' (total=1 < 5).
+    const singleResp = { ...makeSurveyResponse('r-1'), gender: 'M', age_range: '65+' };
+    mockFindResponses.mockResolvedValue([singleResp]);
+    mockCountInvitations.mockResolvedValue(10);
+    mockFindUnits.mockResolvedValue([]);
+    mockFindSectors.mockResolvedValue([]);
+    mockFindPositions.mockResolvedValue([]);
+    mockUpsertMetrics.mockResolvedValue({});
+
+    const res = await GET(makeRequest(), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    // The age group '65+' has total=1 → suppressed
+    const ageGroup = body.age_risk.find((g: { age_range: string }) => g.age_range === '65+');
+    expect(ageGroup).toBeDefined();
+    expect(ageGroup.suppressed).toBe(true);
+    expect(ageGroup.dimensions).toBeNull();
+  });
 });

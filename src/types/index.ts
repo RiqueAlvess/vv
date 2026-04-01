@@ -110,6 +110,9 @@ export interface CampaignMetrics {
 // Utility Types
 // ============================================================
 
+/** Per-dimension NR averages returned by the group-breakdown endpoints. */
+export type DimensionData = Record<string, number>;
+
 export type DimensionType =
   | 'demandas'
   | 'controle'
