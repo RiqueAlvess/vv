@@ -3,18 +3,21 @@ import { claimNextJob, completeJob, failJob } from '@/lib/jobs';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
 import { sendInvitationEmail } from '@/lib/email';
 
-function isAuthorized(request: Request): boolean {
-  const authHeader = request.headers.get('authorization');
+function checkAuth(request: Request): NextResponse | null {
   const cronSecret = process.env.CRON_SECRET;
-  // If no secret configured, allow all calls (development)
-  if (!cronSecret) return true;
-  return authHeader === `Bearer ${cronSecret}`;
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'Cron secret not configured' }, { status: 500 });
+  }
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return null;
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = checkAuth(request);
+  if (authError) return authError;
 
   const job = await claimNextJob();
 
@@ -71,9 +74,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = checkAuth(request);
+  if (authError) return authError;
   const { prisma } = await import('@/lib/prisma');
   const counts = await prisma.job.groupBy({
     by: ['status'],
