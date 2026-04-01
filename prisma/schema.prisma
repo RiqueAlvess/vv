@@ -43,9 +43,10 @@ model User {
   password_hash String
   role          String   @db.VarChar(20)
   sector_id     String?  @db.Uuid
-  active        Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.Timestamptz()
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+  active        Boolean   @default(true)
+  last_login_at DateTime? @db.Timestamptz()
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
 
   company        Company        @relation(fields: [company_id], references: [id], onDelete: Cascade)
   refresh_tokens RefreshToken[]
