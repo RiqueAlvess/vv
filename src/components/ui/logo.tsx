@@ -1,3 +1,5 @@
+'use client';
+
 const DEFAULT_LOGO_URL = 'https://placehold.co/160x160/png?text=Asta';
 
 export function Logo({ size = 40 }: { size?: number }) {
