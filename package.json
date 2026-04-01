@@ -15,8 +15,9 @@
     "generate:hash": "npx tsx scripts/generate-hash.ts",
     "test": "jest",
     "init:server": "bash scripts/init-server.sh",
-    "reset:server": "bash scripts/reset-server.sh",
-    "deploy:update": "bash scripts/deploy-update.sh"
+    "reset:server": "docker compose down -v && bash scripts/init-server.sh",
+    "deploy:update": "bash scripts/deploy-update.sh",
+    "logs": "docker compose logs -f"
   },
   "repository": {
     "type": "git",
