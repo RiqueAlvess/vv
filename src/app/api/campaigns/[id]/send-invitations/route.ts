@@ -28,6 +28,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (user.role === 'RH' && campaign.company_id !== user.company_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (campaign.status !== 'active') {
+      return NextResponse.json(
+        { error: 'Invitations can only be sent when the campaign is active.' },
+        { status: 409 }
+      );
+    }
 
     const body = await request.json();
     const { employee_ids, send_all } = body as {

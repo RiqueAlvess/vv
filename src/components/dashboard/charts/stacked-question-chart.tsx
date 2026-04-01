@@ -38,7 +38,7 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
                 />
                 <YAxis tick={{ fontSize: 10 }} unit="%" domain={[0, 100]} />
                 <Tooltip
-                  formatter={(val: number) => `${val}%`}
+                  formatter={(val: unknown) => `${val}%`}
                   labelFormatter={(label, payload) =>
                     payload?.[0] ? `${label} — ${(payload[0].payload as { dim: string }).dim}` : label
                   }

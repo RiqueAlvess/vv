@@ -30,7 +30,7 @@ export function StackedDimensionChart({ data }: { data: unknown[] }) {
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} unit="%" />
             <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={80} />
-            <Tooltip formatter={(val: number) => `${val}%`} />
+            <Tooltip formatter={(val: unknown) => `${val}%`} />
             <Legend iconSize={10} formatter={(v) => <span className="text-xs">{v}</span>} />
             <Bar dataKey="Aceitável"  stackId="a" fill="#22c55e" />
             <Bar dataKey="Moderado"   stackId="a" fill="#eab308" />
