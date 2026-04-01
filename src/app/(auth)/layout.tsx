@@ -13,12 +13,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-900/60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#002B49]/95 via-[#002B49]/85 to-[#001f35]/80" />
 
         {/* Top — logo */}
         <div className="relative z-10 flex items-center gap-3">
           <Logo size={36} />
-          <span className="text-white font-semibold text-lg tracking-tight">vivamente360</span>
+          <span className="text-[#C5A059] font-semibold text-lg tracking-tight">Asta</span>
         </div>
 
         {/* Middle — headline */}
@@ -27,32 +27,32 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Plataforma de Análise de<br />
             Riscos Psicossociais
           </h1>
-          <p className="text-slate-300 text-sm leading-relaxed max-w-sm">
+          <p className="text-white/80 text-sm leading-relaxed max-w-sm">
             Gestão completa de campanhas HSE-IT para compliance com a NR-1.
             Anonimato garantido por design.
           </p>
           <div className="flex items-center gap-6 pt-2">
             <div className="text-center">
               <p className="text-white font-bold text-xl">NR-1</p>
-              <p className="text-slate-400 text-xs">Compliance</p>
+              <p className="text-[#C5A059] text-xs">Compliance</p>
             </div>
             <div className="h-8 w-px bg-white/20" />
             <div className="text-center">
               <p className="text-white font-bold text-xl">HSE-IT</p>
-              <p className="text-slate-400 text-xs">Instrumento</p>
+              <p className="text-[#C5A059] text-xs">Instrumento</p>
             </div>
             <div className="h-8 w-px bg-white/20" />
             <div className="text-center">
               <p className="text-white font-bold text-xl">LGPD</p>
-              <p className="text-slate-400 text-xs">Conformidade</p>
+              <p className="text-[#C5A059] text-xs">Conformidade</p>
             </div>
           </div>
         </div>
 
         {/* Bottom — copyright */}
         <div className="relative z-10">
-          <p className="text-slate-500 text-xs">
-            vivamente360 &copy; {new Date().getFullYear()} — Plataforma corporativa de RH
+          <p className="text-white/60 text-xs">
+            Asta &copy; {new Date().getFullYear()} — Plataforma corporativa de RH
           </p>
         </div>
       </div>

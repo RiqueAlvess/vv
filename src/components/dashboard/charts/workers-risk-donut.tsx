@@ -9,9 +9,9 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
   const lowPct = Math.max(0, 100 - highRiskPct);
 
   const data = [
-    { name: 'Aceitável/Moderado', value: lowPct, color: '#22c55e' },
-    { name: 'Importante (NR 9–12)', value: importantPct, color: '#f97316' },
-    { name: 'Crítico (NR 13–16)', value: criticalPct, color: '#ef4444' },
+    { name: 'Aceitável/Moderado', value: lowPct, color: '#002B49' },
+    { name: 'Importante (NR 9–12)', value: importantPct, color: '#C5A059' },
+    { name: 'Crítico (NR 13–16)', value: criticalPct, color: '#D4AF37' },
   ].filter(d => d.value > 0);
 
   return (

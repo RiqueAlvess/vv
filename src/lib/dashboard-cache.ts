@@ -8,6 +8,43 @@ export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+/**
+ * Guard against legacy/incompatible cache rows.
+ * We only serve cached payloads that match the dashboard contract expected by UI.
+ */
+function hasCompatibleDashboardShape(cached: NonNullable<StoredMetrics>): boolean {
+  if (!isArray(cached.dimension_scores)) return false;
+  if (!isArray(cached.heatmap_data)) return false;
+  if (!isArray(cached.top_critical_groups)) return false;
+  if (!isArray(cached.scores_by_gender)) return false;
+  if (!isArray(cached.scores_by_age)) return false;
+
+  const rd = cached.risk_distribution;
+  if (!isObject(rd)) return false;
+  if (!isArray(rd.stacked_by_dimension)) return false;
+  if (!isArray(rd.stacked_by_question)) return false;
+
+  const tc = cached.top_critical_sectors;
+  if (!isObject(tc)) return false;
+  if (!isArray(tc.top_sectors_by_nr)) return false;
+  if (!isArray(tc.top_positions_by_nr)) return false;
+
+  const dd = cached.demographic_data;
+  if (!isObject(dd)) return false;
+  if (!isObject(dd.gender_distribution)) return false;
+  if (!isObject(dd.age_distribution)) return false;
+
+  return true;
+}
+
 export function buildPayloadFromCache(
   campaignId: string,
   cached: NonNullable<StoredMetrics>,
@@ -59,6 +96,7 @@ export async function getCampaignMetricsWithCache(
   });
 
   if (!cached || !cached.risk_distribution) return null;
+  if (!hasCompatibleDashboardShape(cached)) return null;
 
   if (status === 'closed') {
     return buildPayloadFromCache(campaignId, cached);
