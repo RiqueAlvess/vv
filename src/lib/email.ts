@@ -1,12 +1,18 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const fromEmail = process.env.DEFAULT_FROM_EMAIL;
-if (!fromEmail) {
-  throw new Error('DEFAULT_FROM_EMAIL environment variable is required');
-}
-const FROM = fromEmail;
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
+function getResend(): Resend {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error('RESEND_API_KEY environment variable is required');
+  return new Resend(key);
+}
+
+function getFrom(): string {
+  const from = process.env.DEFAULT_FROM_EMAIL;
+  if (!from) throw new Error('DEFAULT_FROM_EMAIL environment variable is required');
+  return from;
+}
 
 export function buildSurveyUrl(token: string): string {
   return `${BASE_URL}/survey/${token}`;
@@ -29,8 +35,8 @@ export async function sendInvitationEmail(params: {
   });
 
   try {
-    const { error } = await resend.emails.send({
-      from: FROM,
+    const { error } = await getResend().emails.send({
+      from: getFrom(),
       to: params.to,
       subject: `Pesquisa de Clima — ${params.companyName}`,
       html: `

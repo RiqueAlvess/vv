@@ -32,10 +32,11 @@ export function IgrpBarChart({ dimensions }: { dimensions: unknown[] }) {
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" interval={0} />
             <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#64748b' }} />
             <Tooltip
-              formatter={(val: number, _: string, props: { payload: { label: string; score: number } }) => [
-                `NR: ${val} (${props.payload.label}) | Score: ${props.payload.score.toFixed(2)}`,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              formatter={(val: unknown, _: unknown, props: any) => [
+                `NR: ${val} (${props.payload.label}) | Score: ${(props.payload.score as number).toFixed(2)}`,
                 'Risco',
-              ]}
+              ] as [string, string]}
             />
             <ReferenceLine y={4}  stroke="#22c55e" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#22c55e' }} />
             <ReferenceLine y={8}  stroke="#eab308" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#eab308' }} />
