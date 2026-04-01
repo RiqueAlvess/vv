@@ -96,7 +96,7 @@ export function AppSidebar() {
       <Sidebar className="bg-[#002B49]">
       <SidebarHeader className="border-b border-[#C5A059]/30 bg-[#002B49]">
         <div className="flex items-center gap-2 px-2 py-3">
-          <LogoImage width={100} height={34} className="h-8 w-auto" />
+          <div className="h-10"><LogoImage /></div>
         </div>
       </SidebarHeader>
       <SidebarContent>
