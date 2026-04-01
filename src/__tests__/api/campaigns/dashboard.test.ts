@@ -33,7 +33,8 @@ jest.mock('@/lib/rate-limit', () => ({
   apiLimiter: jest.fn(() => ({ success: true })),
 }));
 
-import { GET, getCampaignMetricsWithCache } from '@/app/api/campaigns/[id]/dashboard/route';
+import { GET } from '@/app/api/campaigns/[id]/dashboard/route';
+import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 

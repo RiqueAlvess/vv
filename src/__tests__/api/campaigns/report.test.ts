@@ -27,7 +27,8 @@ jest.mock('@/lib/auth', () => ({
   getAuthUser: jest.fn(),
 }));
 
-import { POST, computeDimensions } from '@/app/api/campaigns/[id]/report/route';
+import { POST } from '@/app/api/campaigns/[id]/report/route';
+import { computeDimensions } from '@/lib/report-helpers';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { NR_MATRIX } from '@/lib/constants';

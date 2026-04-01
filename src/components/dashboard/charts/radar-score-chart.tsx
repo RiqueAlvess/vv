@@ -35,10 +35,11 @@ export function RadarScoreChart({ dimensions }: { dimensions: unknown[] }) {
             <PolarRadiusAxis angle={90} domain={[0, 16]} tick={{ fontSize: 9 }} tickCount={5} />
             <Radar name="NR" dataKey="NR" stroke="#1d4ed8" fill="#1d4ed8" fillOpacity={0.2} strokeWidth={2} />
             <Tooltip
-              formatter={(val: number, _: string, props: { payload: { score: number; label: string } }) => [
-                `NR: ${val} (${props.payload.label}) | Score: ${props.payload.score.toFixed(2)}`,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              formatter={(val: unknown, _: unknown, props: any) => [
+                `NR: ${val} (${props.payload.label}) | Score: ${(props.payload.score as number).toFixed(2)}`,
                 '',
-              ]}
+              ] as [string, string]}
             />
           </RadarChart>
         </ResponsiveContainer>

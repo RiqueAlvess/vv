@@ -3,23 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 
-interface TimeSeriesRow {
-  date: Date | string;
-  role: string;
-  count: bigint | number;
-}
-
-function buildDateRange(days: number): string[] {
-  const result: string[] = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    result.push(d.toISOString().slice(0, 10));
-  }
-  return result;
-}
-
 export async function GET(request: Request) {
   try {
     const user = await getAuthUser(request);
@@ -39,97 +22,128 @@ export async function GET(request: Request) {
       );
     }
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const last7Start = new Date(todayStart);
-    last7Start.setDate(todayStart.getDate() - 6);
-    const last30Start = new Date(todayStart);
-    last30Start.setDate(todayStart.getDate() - 29);
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
 
-    const [
-      totalCompanies,
-      activeCompanies,
-      companiesWithUsers,
-      totalUsers,
-      rhUsers,
-      liderUsers,
-      activeToday,
-      activeLast7,
-      activeLast30,
-      timeSeriesRows,
-    ] = await Promise.all([
-      prisma.company.count(),
-      prisma.company.count({
-        where: { campaigns: { some: { status: 'active' } } },
-      }),
-      prisma.company.count({
-        where: { users: { some: {} } },
-      }),
-      prisma.user.count(),
-      prisma.user.count({ where: { role: 'RH' } }),
-      prisma.user.count({ where: { role: 'LIDERANCA' } }),
-      prisma.user.count({
-        where: { last_login_at: { gte: todayStart } },
-      }),
-      prisma.user.count({
-        where: { last_login_at: { gte: last7Start } },
-      }),
-      prisma.user.count({
-        where: { last_login_at: { gte: last30Start } },
-      }),
-      prisma.$queryRaw<TimeSeriesRow[]>`
-        SELECT
-          DATE(last_login_at AT TIME ZONE 'UTC') AS date,
-          role,
-          COUNT(*)::int AS count
-        FROM core.users
-        WHERE last_login_at IS NOT NULL
-          AND last_login_at >= NOW() - INTERVAL '30 days'
-        GROUP BY DATE(last_login_at AT TIME ZONE 'UTC'), role
-        ORDER BY date ASC
-      `,
-    ]);
+    const companies = await prisma.company.findMany({
+      select: { id: true, name: true, cnpj: true },
+      orderBy: { name: 'asc' },
+    });
 
-    // Build 30-entry time series (one per day, zero-filled)
-    const dateRange = buildDateRange(30);
-    const seriesMap = new Map<string, { rh: number; lider: number; total: number }>(
-      dateRange.map((d) => [d, { rh: 0, lider: 0, total: 0 }])
-    );
-
-    for (const row of timeSeriesRows) {
-      const dateStr =
-        row.date instanceof Date
-          ? row.date.toISOString().slice(0, 10)
-          : String(row.date);
-      const entry = seriesMap.get(dateStr);
-      if (entry) {
-        const n = Number(row.count);
-        if (row.role === 'RH') entry.rh = n;
-        if (row.role === 'LIDERANCA') entry.lider = n;
-        entry.total += n;
-      }
+    if (!companyId) {
+      return NextResponse.json({ companies });
     }
 
-    const accessTimeSeries = dateRange.map((date) => ({
-      date,
-      ...seriesMap.get(date)!,
+    const company = companies.find((c) => c.id === companyId);
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const [usersRaw, invitationsRaw, campaignsRaw, respondedCounts] =
+      await Promise.all([
+        prisma.user.findMany({
+          where: { company_id: companyId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            active: true,
+            last_login_at: true,
+            created_at: true,
+          },
+          orderBy: { created_at: 'desc' },
+        }),
+        prisma.surveyInvitation.findMany({
+          where: { campaign: { company_id: companyId } },
+          select: {
+            id: true,
+            status: true,
+            employee: {
+              select: {
+                email_hash: true,
+                position: {
+                  select: {
+                    name: true,
+                    sector: {
+                      select: { name: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.campaign.findMany({
+          where: { company_id: companyId },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            created_at: true,
+            _count: { select: { invitations: true } },
+          },
+          orderBy: { created_at: 'desc' },
+        }),
+        prisma.surveyInvitation.groupBy({
+          by: ['campaign_id', 'status'],
+          where: { campaign: { company_id: companyId } },
+          _count: { id: true },
+        }),
+      ]);
+
+    // Build responded/pending counts per campaign
+    const campaignStatusMap = new Map<
+      string,
+      { responded: number; pending: number }
+    >();
+    for (const row of respondedCounts) {
+      if (!campaignStatusMap.has(row.campaign_id)) {
+        campaignStatusMap.set(row.campaign_id, { responded: 0, pending: 0 });
+      }
+      const entry = campaignStatusMap.get(row.campaign_id)!;
+      if (row.status === 'responded') entry.responded += row._count.id;
+      if (row.status === 'pending') entry.pending += row._count.id;
+    }
+
+    const users = usersRaw.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      active: u.active,
+      last_login_at: u.last_login_at?.toISOString() ?? null,
+      created_at: u.created_at.toISOString(),
     }));
 
+    const employees = invitationsRaw.map((inv) => ({
+      id: inv.id,
+      employee_name: null as string | null,
+      employee_email: inv.employee.email_hash,
+      department: inv.employee.position?.sector?.name ?? null,
+      position: inv.employee.position?.name ?? null,
+      status: inv.status,
+    }));
+
+    const campaigns = campaignsRaw.map((c) => {
+      const counts = campaignStatusMap.get(c.id) ?? {
+        responded: 0,
+        pending: 0,
+      };
+      return {
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        created_at: c.created_at.toISOString(),
+        total_invitations: c._count.invitations,
+        responded: counts.responded,
+        pending: counts.pending,
+      };
+    });
+
     return NextResponse.json({
-      companies: {
-        total: totalCompanies,
-        active: activeCompanies,
-        withUsers: companiesWithUsers,
-      },
-      users: {
-        total: totalUsers,
-        rh: rhUsers,
-        lider: liderUsers,
-        activeToday,
-        activeLast7Days: activeLast7,
-        activeLast30Days: activeLast30,
-      },
-      accessTimeSeries,
+      companies,
+      selected: { company, users, employees, campaigns },
     });
   } catch (err) {
     console.error('Adm stats error:', err);

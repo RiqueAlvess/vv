@@ -136,7 +136,6 @@ export function DimensionRadar({ dimensionScores }: DimensionRadarProps) {
               strokeWidth={2}
               dot={{ r: 3, fill: fillColor, strokeWidth: 0 }}
             />
-            {/* @ts-expect-error recharts generic props */}
             <Tooltip content={<CustomTooltip />} />
           </RadarChart>
         </ResponsiveContainer>
