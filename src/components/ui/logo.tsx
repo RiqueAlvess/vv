@@ -10,6 +10,7 @@ export function Logo({ size = 40 }: { size?: number }) {
       width={size}
       height={size}
       className="rounded-md object-contain"
+      loading="lazy"
       onError={(event) => {
         event.currentTarget.src = DEFAULT_LOGO_URL;
       }}

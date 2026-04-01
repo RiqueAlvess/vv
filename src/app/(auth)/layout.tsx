@@ -17,7 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           backgroundPosition: 'center',
         }}
       >
-        {/* Overlay */}
+        {/* Overlay (resolved in favor of softer layer to preserve background image visibility) */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#002B49]/72 via-[#002B49]/52 to-[#001f35]/42" />
 
         {/* Top — logo */}
