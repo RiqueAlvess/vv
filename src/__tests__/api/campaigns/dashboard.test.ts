@@ -98,6 +98,35 @@ function makeCachedMetrics(updatedAt: Date = new Date()) {
   };
 }
 
+/** Legacy/worker-like cache shape that should be rejected and recomputed */
+function makeLegacyCachedMetrics(updatedAt: Date = new Date()) {
+  return {
+    ...makeCachedMetrics(updatedAt),
+    // legacy mismatch: object map instead of array
+    dimension_scores: { demandas: 2.5 },
+    // legacy mismatch: no stacked arrays expected by buildPayloadFromCache
+    risk_distribution: {
+      aceitavel: 1,
+      moderado: 2,
+      importante: 3,
+      critico: 4,
+    },
+    // legacy mismatch: array instead of object with top_sectors_by_nr/top_positions_by_nr
+    top_critical_sectors: [{ sector: 'Vendas', percentage: 40 }],
+    // legacy mismatch: different demographic structure
+    demographic_data: {
+      gender: { labels: ['Masculino'], values: [20] },
+      age: { labels: ['25-34'], values: [20] },
+      workers_high_risk_pct: 12,
+    },
+    // legacy mismatch: maps instead of array entries expected by demographic cards
+    scores_by_gender: { Masculino: { demandas: 2.5 } },
+    scores_by_age: { '25-34': { demandas: 2.5 } },
+    // legacy mismatch: top groups by demographic tuple, not position table
+    top_critical_groups: [{ group: 'Masculino (25-34)', riskLevel: 32 }],
+  };
+}
+
 /** Minimal survey response with answers for all 35 HSE-IT questions */
 function makeSurveyResponse(id: string) {
   const responses: Record<string, number> = {};
@@ -136,6 +165,12 @@ describe('getCampaignMetricsWithCache', () => {
 
   it('returns null when cached record has no risk_distribution (incomplete entry)', async () => {
     mockFindMetrics.mockResolvedValue({ ...makeCachedMetrics(), risk_distribution: null });
+    const result = await getCampaignMetricsWithCache('camp-1', 'closed');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when cached record has legacy/incompatible shape', async () => {
+    mockFindMetrics.mockResolvedValue(makeLegacyCachedMetrics());
     const result = await getCampaignMetricsWithCache('camp-1', 'closed');
     expect(result).toBeNull();
   });
@@ -235,6 +270,22 @@ describe('GET /api/campaigns/[id]/dashboard', () => {
     expect(res.status).toBe(200);
     expect(body.igrp).toBe(4);
     expect(mockFindResponses).not.toHaveBeenCalled();
+  });
+
+  it('recomputes and upserts when a closed campaign has legacy/incompatible cache shape', async () => {
+    mockFindMetrics.mockResolvedValue(makeLegacyCachedMetrics());
+    setupLiveComputationMocks();
+
+    const res = await GET(makeRequest(), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockFindResponses).toHaveBeenCalledTimes(1);
+    expect(mockUpsertMetrics).toHaveBeenCalledTimes(1);
+    expect(Array.isArray(body.stacked_by_dimension)).toBe(true);
+    expect(Array.isArray(body.stacked_by_question)).toBe(true);
+    expect(Array.isArray(body.gender_risk)).toBe(true);
+    expect(Array.isArray(body.age_risk)).toBe(true);
   });
 
   // ── Cache miss: falls through to live computation ─────────────────────────
