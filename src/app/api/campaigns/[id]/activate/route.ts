@@ -41,20 +41,6 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const invitationCount = await prisma.surveyInvitation.count({
-      where: {
-        campaign_id: id,
-        status: 'sent',
-      },
-    });
-
-    if (invitationCount === 0) {
-      return NextResponse.json(
-        { error: 'É necessário ter pelo menos 1 convite enviado para ativar a campanha' },
-        { status: 400 }
-      );
-    }
-
     const updatedCampaign = await prisma.campaign.update({
       where: { id },
       data: {
