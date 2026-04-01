@@ -6,7 +6,15 @@ interface DimensionData {
   key: string; name: string; nr: number; nr_color: string; nr_label: string; avg_score: number;
 }
 
-export function IgrpBarChart({ dimensions }: { dimensions: unknown[] }) {
+interface IgrpBarChartProps {
+  dimensions: unknown[] | null | undefined;
+}
+
+export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
+  if (!Array.isArray(dimensions) || dimensions.length === 0) {
+    return null;
+  }
+
   const data = (dimensions as DimensionData[]).map(d => ({
     name: d.name
       .replace('Comunicação e Mudanças', 'Com. e Mudanças')
