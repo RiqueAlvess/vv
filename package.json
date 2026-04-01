@@ -11,6 +11,7 @@
     "worker": "npx tsx src/workers/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:db:pull": "prisma db pull",
+    "seed:admin": "npx tsx scripts/seed-admin.ts",
     "generate:hash": "npx tsx scripts/generate-hash.ts",
     "test": "jest"
   },
