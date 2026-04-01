@@ -34,10 +34,10 @@ export function RadarScoreChart({ dimensions }: { dimensions: unknown[] | null |
       <CardContent>
         <ResponsiveContainer width="100%" height={260}>
           <RadarChart data={data} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
-            <PolarGrid stroke="#e2e8f0" />
-            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748b' }} />
+            <PolarGrid stroke="#F4F4F4" />
+            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#333333' }} />
             <PolarRadiusAxis angle={90} domain={[0, 16]} tick={{ fontSize: 9 }} tickCount={5} />
-            <Radar name="NR" dataKey="NR" stroke="#1d4ed8" fill="#1d4ed8" fillOpacity={0.2} strokeWidth={2} />
+            <Radar name="NR" dataKey="NR" stroke="#002B49" fill="#C5A059" fillOpacity={0.22} strokeWidth={2} />
             <Tooltip
               formatter={(val: unknown, _: unknown, props: { payload?: { score: number; label: string } }) => [
                 `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,

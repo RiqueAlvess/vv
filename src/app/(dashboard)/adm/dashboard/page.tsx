@@ -64,18 +64,18 @@ function formatDate(iso: string | null) {
 function RoleBadge({ role }: { role: string }) {
   if (role === 'ADM')
     return (
-      <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100">
+      <Badge className="bg-[#C5A059] text-[#002B49] border-[#C5A059]/60 hover:bg-[#D4AF37] font-semibold">
         ADM
       </Badge>
     );
   if (role === 'RH')
     return (
-      <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">
+      <Badge className="bg-[#002B49] text-white border-[#002B49] hover:bg-[#002B49]">
         RH
       </Badge>
     );
   return (
-    <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+    <Badge className="bg-[#002B49]/70 text-white border-[#002B49]/70 hover:bg-[#002B49]/70">
       {role}
     </Badge>
   );
