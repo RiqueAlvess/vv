@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.DEFAULT_FROM_EMAIL ?? 'help@3sdev.com.br';
+const fromEmail = process.env.DEFAULT_FROM_EMAIL;
+if (!fromEmail) {
+  throw new Error('DEFAULT_FROM_EMAIL environment variable is required');
+}
+const FROM = fromEmail;
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export function buildSurveyUrl(token: string): string {
