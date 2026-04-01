@@ -9,7 +9,6 @@ module.exports = {
           moduleResolution: 'node',
           module: 'commonjs',
           rootDir: '.',
-          ignoreDeprecations: '6.0',
         },
       },
     ],
