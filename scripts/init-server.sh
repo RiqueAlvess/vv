@@ -1,147 +1,86 @@
 #!/bin/bash
-set -e  # exit immediately on any error
+set -e
 
 echo "=========================================="
-echo " vivamente360 — Server Init Script"
+echo " vivamente360 — Docker Init"
 echo "=========================================="
-echo ""
 
-# ─── COLORS ───────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 ok()   { echo -e "${GREEN}✓ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 fail() { echo -e "${RED}✗ $1${NC}"; exit 1; }
 
-# ─── REQUIREMENTS CHECK ───────────────────────
-echo "── Checking requirements ──"
+# Check Docker
+command -v docker >/dev/null 2>&1 || fail "Docker not found. Install: https://docs.docker.com/engine/install/"
+command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 || fail "Docker Compose not found."
+ok "Docker $(docker -v)"
 
-command -v node >/dev/null 2>&1 || fail "Node.js not found. Install Node 18+ first: https://nodejs.org"
-command -v npm  >/dev/null 2>&1 || fail "npm not found."
-command -v git  >/dev/null 2>&1 || fail "git not found."
-
-NODE_VERSION=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-  fail "Node.js 18+ required. Current: $(node -v)"
-fi
-
-ok "Node.js $(node -v)"
-ok "npm $(npm -v)"
-
-# ─── ENV FILE CHECK ───────────────────────────
-echo ""
-echo "── Checking environment ──"
-
+# Check env
 if [ ! -f ".env.local" ]; then
   if [ -f ".env.local.example" ]; then
     cp .env.local.example .env.local
-    warn ".env.local not found — copied from .env.local.example"
-    warn "IMPORTANT: Edit .env.local with your real values before continuing."
+    warn ".env.local created from example. Edit it now with real values."
     echo ""
-    echo "  Required variables:"
+    echo "  Required:"
     echo "  - DATABASE_URL"
     echo "  - DIRECT_URL"
-    echo "  - NEXTAUTH_SECRET (or JWT_SECRET)"
+    echo "  - NEXTAUTH_SECRET"
     echo "  - RESEND_API_KEY"
     echo "  - NEXT_PUBLIC_APP_URL"
     echo "  - NEXT_PUBLIC_LOGO_URL"
     echo "  - NEXT_PUBLIC_AUTH_BG_IMAGE_URL"
+    echo "  - CRON_SECRET"
+    echo "  - DEFAULT_FROM_EMAIL"
     echo ""
-    read -p "Press ENTER after editing .env.local to continue..." _
+    read -p "Press ENTER after editing .env.local..." _
   else
-    fail ".env.local not found and no .env.local.example to copy from. Create .env.local manually."
+    fail ".env.local not found. Create it before running init."
   fi
 else
   ok ".env.local found"
 fi
 
-# ─── INSTALL DEPENDENCIES ─────────────────────
+# Stop any existing containers
 echo ""
-echo "── Installing dependencies ──"
-npm install || fail "npm install failed"
-ok "Dependencies installed"
+echo "── Stopping existing containers ──"
+docker compose down --remove-orphans 2>/dev/null && warn "Stopped existing containers" || true
 
-# ─── PRISMA GENERATE ──────────────────────────
+# Build images
 echo ""
-echo "── Generating Prisma client ──"
-npx prisma generate || fail "prisma generate failed"
-ok "Prisma client generated"
+echo "── Building Docker images ──"
+docker compose build --no-cache || fail "Docker build failed"
+ok "Images built"
 
-# ─── RUN MIGRATIONS ───────────────────────────
+# Run migrate + seed (runs to completion before app starts)
 echo ""
-echo "── Applying database migrations ──"
+echo "── Running migrations and seeding admin ──"
+docker compose run --rm migrate || fail "Migration or seed failed"
+ok "Database ready"
 
-# Check if we have supabase migrations or prisma migrations
-if [ -d "supabase/migrations" ] && [ "$(ls -A supabase/migrations/*.sql 2>/dev/null | wc -l)" -gt 0 ]; then
-  warn "Supabase SQL migrations detected."
-  warn "These must be applied manually in the Supabase SQL editor."
-  warn "Files to apply in order:"
-  for f in supabase/migrations/*.sql; do
-    echo "    → $f"
-  done
-  echo ""
-  read -p "Press ENTER after applying migrations in Supabase dashboard to continue..." _
-  ok "Migrations acknowledged"
-else
-  # Fallback: try prisma migrate deploy
-  npx prisma migrate deploy || fail "prisma migrate deploy failed"
-  ok "Migrations applied"
-fi
-
-# ─── SEED ADMIN ───────────────────────────────
+# Start app and worker
 echo ""
-echo "── Creating default admin user ──"
-npm run seed:admin || fail "seed:admin failed"
-ok "Admin user created"
+echo "── Starting application ──"
+docker compose up -d app worker || fail "Failed to start containers"
+ok "Containers started"
 
-# ─── BUILD ────────────────────────────────────
+# Health check
 echo ""
-echo "── Building application ──"
-npm run build || fail "npm run build failed"
-ok "Build complete"
+echo "── Waiting for app to be ready ──"
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+    ok "App is responding"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    warn "App did not respond in 30s. Check logs: docker compose logs app"
+  fi
+  sleep 2
+done
 
-# ─── PM2 SETUP ────────────────────────────────
-echo ""
-echo "── Setting up PM2 process manager ──"
-
-if ! command -v pm2 >/dev/null 2>&1; then
-  npm install -g pm2 || fail "Failed to install PM2"
-  ok "PM2 installed"
-else
-  ok "PM2 already installed ($(pm2 -v))"
-fi
-
-# Stop existing processes if running
-pm2 delete vv-app    2>/dev/null && warn "Stopped existing vv-app process" || true
-pm2 delete vv-worker 2>/dev/null && warn "Stopped existing vv-worker process" || true
-
-# Start Next.js app
-pm2 start npm --name "vv-app" -- start || fail "Failed to start app with PM2"
-ok "Next.js app started via PM2"
-
-# Start BullMQ worker (if worker script exists)
-if [ -f "ecosystem.config.js" ]; then
-  pm2 start ecosystem.config.js || fail "Failed to start worker via PM2"
-  ok "BullMQ worker started via PM2"
-else
-  warn "ecosystem.config.js not found — worker not started. Run 'npm run worker' manually."
-fi
-
-# Save PM2 process list
-pm2 save || warn "pm2 save failed — processes may not survive reboot"
-
-# Setup PM2 startup
-echo ""
-echo "── PM2 startup (survives reboots) ──"
-warn "Run the command below as root/sudo to enable PM2 on system startup:"
-echo ""
-pm2 startup | tail -1
-echo ""
-
-# ─── DONE ─────────────────────────────────────
 echo ""
 echo "=========================================="
 echo -e "${GREEN} Init complete!${NC}"
@@ -150,9 +89,8 @@ echo ""
 echo "  App:    http://localhost:3000"
 echo "  Admin:  admin@admin.com / administrador.230H"
 echo ""
-echo "  PM2 status:  pm2 status"
-echo "  App logs:    pm2 logs vv-app"
-echo "  Worker logs: pm2 logs vv-worker"
-echo ""
-echo "  Next step: point your domain/reverse proxy to port 3000"
+echo "  Logs:   docker compose logs -f app"
+echo "  Worker: docker compose logs -f worker"
+echo "  Stop:   docker compose down"
+echo "  Update: npm run deploy:update"
 echo "=========================================="

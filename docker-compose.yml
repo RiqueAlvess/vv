@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vv-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - vv-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: vv-worker
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - vv-network
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: vv-migrate
+    restart: "no"
+    env_file:
+      - .env.local
+    command: sh -c "npx prisma db push --accept-data-loss && npm run seed:admin"
+    networks:
+      - vv-network
+
+networks:
+  vv-network:
+    driver: bridge
