@@ -40,9 +40,8 @@ export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" interval={0} />
             <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#64748b' }} />
             <Tooltip
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              formatter={(val: unknown, _: unknown, props: any) => [
-                `NR: ${val} (${props.payload.label}) | Score: ${(props.payload.score as number).toFixed(2)}`,
+              formatter={(val: unknown, _: unknown, props: { payload?: { label: string; score: number } }) => [
+                `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,
                 'Risco',
               ] as [string, string]}
             />

@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     });
     if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     if (user.role === 'RH' && campaign.company_id !== user.company_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    if (campaign.status !== 'draft') return NextResponse.json({ error: 'Upload só é permitido para campanhas em rascunho' }, { status: 400 });
+    if (campaign.status !== 'active') return NextResponse.json({ error: 'CSV import is only allowed when the campaign is active.' }, { status: 409 });
 
     const body = JSON.parse(await request.text());
     const rows: { unidade: string; setor: string; cargo: string; email: string }[] = body.rows;

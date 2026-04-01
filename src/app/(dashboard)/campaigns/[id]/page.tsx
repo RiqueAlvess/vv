@@ -19,8 +19,14 @@ import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Play, Square, Upload, Send, BarChart3,
-  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight, ClipboardCheck,
+  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight, ClipboardCheck, Download,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CampaignChecklist } from '@/components/checklist/campaign-checklist';
 import type { Campaign } from '@/types';
 
@@ -169,6 +175,11 @@ export default function CampaignDetailPage() {
     try {
       // Send rows as JSON — no CSV re-serialization
       const res = await post(`/api/campaigns/${campaignId}/upload-csv`, { rows });
+      if (res.status === 409) {
+        const data = await res.json();
+        notifyError(data.error || 'Ação não permitida no status atual da campanha');
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao importar CSV');
@@ -241,6 +252,11 @@ export default function CampaignDetailPage() {
       const res = await post(`/api/campaigns/${campaignId}/send-invitations`, {
         employee_ids: Array.from(selectedEmployees),
       });
+      if (res.status === 409) {
+        const data = await res.json();
+        notifyError(data.error || 'Ação não permitida no status atual da campanha');
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao enviar convites');
@@ -264,6 +280,11 @@ export default function CampaignDetailPage() {
     setActionLoading(true);
     try {
       const res = await post(`/api/campaigns/${campaignId}/send-invitations`, { send_all: true });
+      if (res.status === 409) {
+        const data = await res.json();
+        notifyError(data.error || 'Ação não permitida no status atual da campanha');
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao enviar convites');
@@ -345,25 +366,50 @@ export default function CampaignDetailPage() {
       {/* Action Buttons */}
       {canManage && (
         <div className="flex gap-2 flex-wrap">
+          {/* Download CSV Template — always available */}
+          <Button
+            variant="outline"
+            onClick={() => { window.location.href = '/api/campaigns/csv-template'; }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Baixar Modelo CSV
+          </Button>
+
+          {/* CSV Import — only when campaign is active */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="outline"
+                    disabled={campaign.status !== 'active'}
+                    onClick={() => setCsvModalOpen(true)}
+                    className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar CSV
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {campaign.status !== 'active' && (
+                <TooltipContent>
+                  <p>Disponível apenas quando a campanha estiver ativa</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+
           {campaign.status === 'draft' && (
-            <>
-              <Button variant="outline" onClick={() => setCsvModalOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar CSV
-              </Button>
-              <Button onClick={() => setActivateModalOpen(true)}>
-                <Play className="h-4 w-4 mr-2" />
-                Ativar Campanha
-              </Button>
-            </>
+            <Button onClick={() => setActivateModalOpen(true)}>
+              <Play className="h-4 w-4 mr-2" />
+              Ativar Campanha
+            </Button>
           )}
           {campaign.status === 'active' && (
-            <>
-              <Button variant="destructive" onClick={() => setCloseModalOpen(true)}>
-                <Square className="h-4 w-4 mr-2" />
-                Encerrar Campanha
-              </Button>
-            </>
+            <Button variant="destructive" onClick={() => setCloseModalOpen(true)}>
+              <Square className="h-4 w-4 mr-2" />
+              Encerrar Campanha
+            </Button>
           )}
           {campaign.status === 'closed' && (
             <Button asChild>
@@ -437,23 +483,51 @@ export default function CampaignDetailPage() {
                   <CardTitle>Colaboradores</CardTitle>
                   <CardDescription>Selecione quem receberá o convite de pesquisa</CardDescription>
                 </div>
-                {canManage && campaign.status === 'active' && (
+                {canManage && (
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={selectedEmployees.size === 0 || actionLoading}
-                      onClick={() => setSendModalOpen(true)}
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar Selecionados ({selectedEmployees.size})
-                    </Button>
-                    <Button
-                      disabled={actionLoading}
-                      onClick={() => setSendAllModalOpen(true)}
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar para Todos
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant="outline"
+                              disabled={campaign.status !== 'active' || selectedEmployees.size === 0 || actionLoading}
+                              onClick={() => setSendModalOpen(true)}
+                              className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              Enviar Selecionados ({selectedEmployees.size})
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {campaign.status !== 'active' && (
+                          <TooltipContent>
+                            <p>Disponível apenas quando a campanha estiver ativa</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              disabled={campaign.status !== 'active' || actionLoading}
+                              onClick={() => setSendAllModalOpen(true)}
+                              className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              Enviar para Todos
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {campaign.status !== 'active' && (
+                          <TooltipContent>
+                            <p>Disponível apenas quando a campanha estiver ativa</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 )}
               </div>
