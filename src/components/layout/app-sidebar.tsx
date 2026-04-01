@@ -93,26 +93,26 @@ export function AppSidebar() {
   const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
+      <Sidebar className="bg-[#002B49]">
+      <SidebarHeader className="border-b border-[#C5A059]/30 bg-[#002B49]">
         <div className="flex items-center gap-2 px-2 py-3">
           <Logo size={36} />
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">vivamente360</span>
-            <span className="text-xs text-muted-foreground">Saude Psicossocial</span>
+            <span className="text-sm font-semibold text-[#C5A059]">Asta</span>
+            <span className="text-xs text-white/60">Saude Psicossocial</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/40 text-xs uppercase tracking-widest">Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + '/')}>
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
+                    <Link href={item.url} className="text-white/80 hover:bg-white/10 hover:text-white data-[active=true]:border-r-2 data-[active=true]:border-[#C5A059] data-[active=true]:bg-[#C5A059]/20 data-[active=true]:text-[#C5A059]">
+                      <item.icon className="h-4 w-4 text-[#C5A059]" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -128,22 +128,22 @@ export function AppSidebar() {
           {/* Floating menu — appears above the button */}
           {menuOpen && (
             <div
-              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-border bg-background shadow-lg"
+              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#C5A059]/30 bg-[#002B49] shadow-lg"
               style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}
             >
               <div className="py-1">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#C5A059]/20 hover:text-[#C5A059] transition-colors"
                   onClick={() => {
                     setMenuOpen(false);
                     setPasswordOpen(true);
                   }}
                 >
-                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  <KeyRound className="h-4 w-4 text-[#C5A059]" />
                   <span>Mudar Senha</span>
                 </button>
-                <div className="my-1 mx-2 h-px bg-border" />
+                <div className="my-1 mx-2 h-px bg-[#C5A059]/30" />
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -163,16 +163,16 @@ export function AppSidebar() {
           <button
             type="button"
             onClick={() => setMenuOpen(prev => !prev)}
-            className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+            className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-white hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
           >
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              <AvatarFallback className="bg-[#C5A059]/20 text-[#C5A059] text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left text-sm min-w-0 flex-1">
               <span className="font-medium truncate">{user?.name}</span>
-              <span className="text-xs text-muted-foreground truncate">{user?.role}</span>
+              <span className="text-xs text-white/60 truncate">{user?.role}</span>
             </div>
             <ChevronUp
               className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
