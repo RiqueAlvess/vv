@@ -1,19 +1,24 @@
 import { Logo } from '@/components/ui/logo';
 
+const DEFAULT_AUTH_BG_IMAGE_URL =
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80&auto=format&fit=crop';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const authBgImageUrl = process.env.NEXT_PUBLIC_AUTH_BG_IMAGE_URL || DEFAULT_AUTH_BG_IMAGE_URL;
+
   return (
     <div className="min-h-screen flex">
       {/* Left column — background image */}
       <div
         className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12"
         style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80&auto=format&fit=crop')`,
+          backgroundImage: `url('${authBgImageUrl}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#002B49]/95 via-[#002B49]/85 to-[#001f35]/80" />
+        {/* Overlay (resolved in favor of softer layer to preserve background image visibility) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#002B49]/72 via-[#002B49]/52 to-[#001f35]/42" />
 
         {/* Top — logo */}
         <div className="relative z-10 flex items-center gap-3">
