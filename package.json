@@ -13,7 +13,10 @@
     "prisma:db:pull": "prisma db pull",
     "seed:admin": "npx tsx scripts/seed-admin.ts",
     "generate:hash": "npx tsx scripts/generate-hash.ts",
-    "test": "jest"
+    "test": "jest",
+    "init:server": "bash scripts/init-server.sh",
+    "reset:server": "bash scripts/reset-server.sh",
+    "deploy:update": "bash scripts/deploy-update.sh"
   },
   "repository": {
     "type": "git",

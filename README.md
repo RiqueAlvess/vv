@@ -45,3 +45,39 @@ npm run dev       # Next.js dev server
 npm run worker    # BullMQ worker process (run separately)
 npm run build     # Production build
 ```
+
+## Production Setup (Hostinger VPS)
+
+### First time — full init
+```bash
+git clone <your-repo-url> .
+cp .env.local.example .env.local
+# Edit .env.local with production values
+npm run init:server
+```
+
+This single command:
+1. Validates Node.js and environment
+2. Installs all dependencies
+3. Generates Prisma client
+4. Applies database migrations
+5. Creates default admin user
+6. Builds the Next.js app
+7. Starts app + worker via PM2
+8. Configures PM2 to survive reboots
+
+### Subsequent deploys
+```bash
+npm run deploy:update
+```
+
+### Full reset
+```bash
+npm run reset:server
+```
+
+### Default admin credentials
+
+- Email: `admin@admin.com`
+- Password: `administrador.230H`
+- **Change the password immediately after first login.**
