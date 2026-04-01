@@ -136,8 +136,8 @@ export function DimensionRadar({ dimensionScores }: DimensionRadarProps) {
               strokeWidth={2}
               dot={{ r: 3, fill: fillColor, strokeWidth: 0 }}
             />
-            {/* @ts-expect-error recharts generic props */}
-            <Tooltip content={<CustomTooltip />} />
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            <Tooltip content={<CustomTooltip /> as any} />
           </RadarChart>
         </ResponsiveContainer>
 

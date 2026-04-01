@@ -36,7 +36,7 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
             >
               {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
             </Pie>
-            <Tooltip formatter={(val: number) => [`${val}%`, '']} />
+            <Tooltip formatter={(val: unknown) => [`${val}%`, '']} />
             <Legend iconType="circle" iconSize={10} formatter={(value) => <span className="text-xs">{value}</span>} />
           </PieChart>
         </ResponsiveContainer>

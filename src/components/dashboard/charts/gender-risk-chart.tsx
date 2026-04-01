@@ -124,7 +124,7 @@ export function GenderRiskChart({ data }: { data: GenderData[] }) {
               <LabelList
                 dataKey="display_pct"
                 position="top"
-                formatter={(v: number) => v > 0 ? `${v}%` : '—'}
+                formatter={(v: unknown) => (v as number) > 0 ? `${v}%` : '—'}
                 style={{ fontSize: 11, fontWeight: 600 }}
               />
               {chartData.map((entry, i) => (
