@@ -59,7 +59,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   );
 }
 
-export function GenderRiskChart({ data }: { data: GenderData[] }) {
+export function GenderRiskChart({ data }: { data: GenderData[] | null | undefined }) {
+  if (!Array.isArray(data) || data.length === 0) return null;
   const hasVisibleData = data.some(d => !d.suppressed && d.total_responses > 0);
   if (!hasVisibleData) return (
     <Card>

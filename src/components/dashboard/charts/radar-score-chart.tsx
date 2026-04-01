@@ -7,7 +7,11 @@ import { Badge } from '@/components/ui/badge';
 
 interface DimData { key: string; name: string; nr: number; nr_color: string; nr_label: string; avg_score: number; }
 
-export function RadarScoreChart({ dimensions }: { dimensions: unknown[] }) {
+export function RadarScoreChart({ dimensions }: { dimensions: unknown[] | null | undefined }) {
+  if (!Array.isArray(dimensions) || dimensions.length === 0) {
+    return null;
+  }
+
   const data = (dimensions as DimData[]).map(d => ({
     subject: d.name
       .replace('Comunicação e Mudanças', 'Com./Mudanças')

@@ -147,7 +147,9 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
 
       {/* ROW 5 — Radar + Heatmap */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <RadarScoreChart dimensions={data.dimension_analysis as unknown[]} />
+        {Array.isArray(data.dimension_analysis) && data.dimension_analysis.length > 0 && (
+          <RadarScoreChart dimensions={data.dimension_analysis as unknown[]} />
+        )}
         <HeatmapChart heatmap={data.heatmap as unknown[]} />
       </div>
 
