@@ -8,7 +8,12 @@ interface HeatmapRow {
 }
 
 export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
-  const rows = heatmap as HeatmapRow[];
+  const rows = (Array.isArray(heatmap) ? heatmap : [])
+    .filter((row): row is HeatmapRow => {
+      if (!row || typeof row !== 'object') return false;
+      const candidate = row as Partial<HeatmapRow>;
+      return typeof candidate.unit === 'string' && !!candidate.dimensions && typeof candidate.dimensions === 'object';
+    });
 
   if (!rows.length) {
     return (
@@ -55,7 +60,7 @@ export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
                       .replace('Cargo/Função', 'Cargo')}
                   </td>
                   {rows.map(row => {
-                    const cell = row.dimensions[dim.key];
+                    const cell = row.dimensions?.[dim.key];
                     if (!cell) return (
                       <td key={row.unit} className="p-1">
                         <div className="h-9 rounded bg-muted flex items-center justify-center text-muted-foreground">—</div>
