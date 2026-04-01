@@ -68,6 +68,9 @@ export async function POST(request: Request) {
       },
     });
 
+    // Fire-and-forget: update last login timestamp — non-blocking
+    prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } }).catch(() => {});
+
     const response = NextResponse.json({
       token,
       refreshToken,
