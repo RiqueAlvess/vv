@@ -41,41 +41,47 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* 60-30-10 Color Rule: 60% Neutral (slate) / 30% Navy (#1e3a5f) / 10% Action (blue) */
 :root {
-  --background: 210 20% 98%;
-  --foreground: 213 58% 14%;
+  --color-primary: #002B49;
+  --color-accent: #C5A059;
+  --color-accent-alt: #D4AF37;
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F4F4F4;
+  --color-text: #333333;
+  --color-text-inverse: #FFFFFF;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 213 58% 14%;
+  --card-foreground: 0 0% 20%;
   --popover: 0 0% 100%;
-  --popover-foreground: 213 58% 14%;
-  --primary: 213 58% 24%;
+  --popover-foreground: 0 0% 20%;
+  --primary: 207 100% 14%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 214 20% 94%;
-  --secondary-foreground: 213 58% 20%;
-  --muted: 214 20% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 214 82% 51%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 20%;
+  --accent: 38 47% 56%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 20% 88%;
-  --input: 214 20% 88%;
-  --ring: 214 82% 51%;
-  --chart-1: 213 58% 24%;
-  --chart-2: 199 70% 44%;
-  --chart-3: 214 82% 51%;
-  --chart-4: 214 40% 60%;
-  --chart-5: 199 50% 55%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 38 47% 56%;
+  --chart-1: 207 100% 14%;
+  --chart-2: 38 47% 56%;
+  --chart-3: 45 65% 52%;
+  --chart-4: 207 75% 24%;
+  --chart-5: 38 40% 42%;
   --radius: 0.5rem;
-  --sidebar: hsl(213 58% 18%);
-  --sidebar-foreground: hsl(210 20% 94%);
-  --sidebar-primary: hsl(214 82% 51%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(213 50% 22%);
-  --sidebar-accent-foreground: hsl(210 20% 94%);
-  --sidebar-border: hsl(213 45% 25%);
-  --sidebar-ring: hsl(214 82% 51%);
+  --sidebar: hsl(207 100% 14%);
+  --sidebar-foreground: hsl(0 0% 100%);
+  --sidebar-primary: hsl(38 47% 56%);
+  --sidebar-primary-foreground: hsl(207 100% 14%);
+  --sidebar-accent: hsl(38 47% 56% / 0.2);
+  --sidebar-accent-foreground: hsl(38 47% 56%);
+  --sidebar-border: hsl(38 47% 56% / 0.3);
+  --sidebar-ring: hsl(38 47% 56%);
 }
 
 .dark {

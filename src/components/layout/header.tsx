@@ -26,19 +26,19 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
-      <SidebarTrigger className="-ml-1" />
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[#C5A059]/30 bg-[#002B49] px-4 text-white">
+      <SidebarTrigger className="-ml-1 hover:text-[#C5A059]" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>{getTitle()}</BreadcrumbPage>
+            <BreadcrumbPage className="font-semibold text-[#C5A059]">{getTitle()}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex items-center gap-2">
         {user?.company_name && (
-          <Badge variant="secondary" className="text-xs">
+          <Badge className="border-[#C5A059]/30 bg-[#C5A059]/20 text-xs text-[#C5A059] hover:bg-[#C5A059]/30">
             {user.company_name}
           </Badge>
         )}

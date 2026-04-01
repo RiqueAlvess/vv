@@ -18,9 +18,9 @@ interface AgeData {
 }
 
 const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#ef4444' :
-  pct >= 30 ? '#f97316' :
-  pct >= 15 ? '#eab308' : '#22c55e';
+  pct >= 50 ? '#8C6A2A' :
+  pct >= 30 ? '#D4AF37' :
+  pct >= 15 ? '#C5A059' : '#002B49';
 
 interface TooltipPayload {
   payload: AgeData;
@@ -117,14 +117,14 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} margin={{ top: 20, right: 8, bottom: 4, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F4" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: '#64748b' }}
+              tick={{ fontSize: 10, fill: '#333333' }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 10, fill: '#64748b' }}
+              tick={{ fontSize: 10, fill: '#333333' }}
               unit="%"
             />
             <Tooltip content={<CustomTooltip />} />

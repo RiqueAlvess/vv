@@ -36,18 +36,18 @@ export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" interval={0} />
-            <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#64748b' }} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F4" />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#333333' }} angle={-30} textAnchor="end" interval={0} />
+            <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#333333' }} />
             <Tooltip
               formatter={(val: unknown, _: unknown, props: { payload?: { label: string; score: number } }) => [
                 `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,
                 'Risco',
               ] as [string, string]}
             />
-            <ReferenceLine y={4}  stroke="#22c55e" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#22c55e' }} />
-            <ReferenceLine y={8}  stroke="#eab308" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#eab308' }} />
-            <ReferenceLine y={12} stroke="#f97316" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#f97316' }} />
+            <ReferenceLine y={4}  stroke="#D4AF37" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#D4AF37' }} />
+            <ReferenceLine y={8}  stroke="#C5A059" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#C5A059' }} />
+            <ReferenceLine y={12} stroke="#002B49" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#002B49' }} />
             <Bar dataKey="nr" radius={[4, 4, 0, 0]}>
               {data.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />
