@@ -3,6 +3,8 @@ import { claimNextJob, completeJob, failJob } from '@/lib/jobs';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
 import { sendInvitationEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+
 function checkAuth(request: Request): NextResponse | null {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {

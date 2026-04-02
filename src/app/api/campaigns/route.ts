@@ -5,6 +5,8 @@ import { apiLimiter } from '@/lib/rate-limit';
 import { campaignSchema } from '@/lib/validations';
 import { generateSalt } from '@/lib/crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const user = await getAuthUser(request);

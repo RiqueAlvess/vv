@@ -4,6 +4,8 @@ import { signToken, signRefreshToken, comparePassword } from '@/lib/auth';
 import { loginLimiter } from '@/lib/rate-limit';
 import { loginSchema } from '@/lib/validations';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

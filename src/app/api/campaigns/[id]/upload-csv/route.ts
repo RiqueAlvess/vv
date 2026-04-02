@@ -4,6 +4,8 @@ import { getAuthUser } from '@/lib/auth';
 import { hashEmail, generateToken } from '@/lib/crypto';
 import { sendInvitationEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }

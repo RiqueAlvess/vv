@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 // GET — fetch channel info for the authenticated user's company
 export async function GET(request: Request) {
   const user = await getAuthUser(request);
