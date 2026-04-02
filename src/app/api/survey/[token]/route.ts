@@ -4,6 +4,8 @@ import { surveyResponseSchema } from '@/lib/validations';
 import { AnonymityService } from '@/services/anonymity.service';
 import { persistFactResponses } from '@/actions/survey.actions';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: Promise<{ token: string }>;
 }

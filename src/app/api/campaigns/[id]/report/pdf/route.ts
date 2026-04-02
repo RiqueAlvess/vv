@@ -5,6 +5,8 @@ import { HSE_DIMENSIONS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import type { RiskLevel } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: Promise<{ id: string }> }
 
 function buildPGRHtml(params: {

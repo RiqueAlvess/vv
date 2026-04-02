@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: Promise<{ id: string }> }
 
 const updateSchema = z.object({
