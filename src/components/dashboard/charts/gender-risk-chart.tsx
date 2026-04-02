@@ -18,16 +18,16 @@ interface GenderData {
 }
 
 const GENDER_COLORS: Record<string, string> = {
-  'Masculino':     '#002B49',
-  'Feminino':      '#C5A059',
-  'Outro':         '#D4AF37',
+  'Masculino':     '#0D3D4F',
+  'Feminino':      '#00C896',
+  'Outro':         '#1B5F75',
   'Nao informado': '#94a3b8',
 };
 
 const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#8C6A2A' :
-  pct >= 30 ? '#D4AF37' :
-  pct >= 15 ? '#C5A059' : '#002B49';
+  pct >= 50 ? '#EF4444' :
+  pct >= 30 ? '#F97316' :
+  pct >= 15 ? '#F59E0B' : '#0D3D4F';
 
 interface TooltipPayload {
   payload: GenderData;
@@ -110,14 +110,14 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 4, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F4" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             <XAxis
               dataKey="gender"
-              tick={{ fontSize: 11, fill: '#333333' }}
+              tick={{ fontSize: 11, fill: '#6B7280' }}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 10, fill: '#333333' }}
+              tick={{ fontSize: 10, fill: '#6B7280' }}
               unit="%"
             />
             <Tooltip content={<CustomTooltip />} />

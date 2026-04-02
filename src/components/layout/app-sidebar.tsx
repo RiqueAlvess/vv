@@ -93,8 +93,8 @@ export function AppSidebar() {
   const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   return (
-      <Sidebar className="bg-[#002B49]">
-      <SidebarHeader className="border-b border-[#C5A059]/30 bg-[#002B49]">
+      <Sidebar className="bg-[#0D3D4F]">
+      <SidebarHeader className="border-b border-[#00C896]/30 bg-[#0D3D4F]">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="h-10"><LogoImage /></div>
         </div>
@@ -107,8 +107,8 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + '/')}>
-                    <Link href={item.url} className="text-white/80 hover:bg-white/10 hover:text-white data-[active=true]:border-r-2 data-[active=true]:border-[#C5A059] data-[active=true]:bg-[#C5A059]/20 data-[active=true]:text-[#C5A059]">
-                      <item.icon className="h-4 w-4 text-[#C5A059]" />
+                    <Link href={item.url} className="text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors data-[active=true]:bg-[#00C896] data-[active=true]:text-[#0D3D4F] data-[active=true]:font-semibold data-[active=true]:rounded-lg">
+                      <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -124,22 +124,22 @@ export function AppSidebar() {
           {/* Floating menu — appears above the button */}
           {menuOpen && (
             <div
-              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#C5A059]/30 bg-[#002B49] shadow-lg"
+              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#00C896]/30 bg-[#0D3D4F] shadow-lg"
               style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}
             >
               <div className="py-1">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#C5A059]/20 hover:text-[#C5A059] transition-colors"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#00C896]/20 hover:text-[#00C896] transition-colors"
                   onClick={() => {
                     setMenuOpen(false);
                     setPasswordOpen(true);
                   }}
                 >
-                  <KeyRound className="h-4 w-4 text-[#C5A059]" />
+                  <KeyRound className="h-4 w-4 text-[#00C896]" />
                   <span>Mudar Senha</span>
                 </button>
-                <div className="my-1 mx-2 h-px bg-[#C5A059]/30" />
+                <div className="my-1 mx-2 h-px bg-[#00C896]/30" />
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -162,7 +162,7 @@ export function AppSidebar() {
             className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-white hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
           >
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="bg-[#C5A059]/20 text-[#C5A059] text-xs">
+              <AvatarFallback className="bg-[#00C896]/20 text-[#00C896] text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>
