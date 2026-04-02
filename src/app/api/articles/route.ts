@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const articleSchema = z.object({
   title: z.string().min(3, 'Titulo deve ter no minimo 3 caracteres').max(200),
   content: z.string().min(1, 'Conteudo nao pode ser vazio'),

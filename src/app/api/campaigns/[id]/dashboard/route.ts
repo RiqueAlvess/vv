@@ -7,6 +7,8 @@ import { ScoreService } from '@/services/score.service';
 import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import type { RiskLevel, DimensionType } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: Promise<{ id: string }> }
 
 // ---------------------------------------------------------------------------

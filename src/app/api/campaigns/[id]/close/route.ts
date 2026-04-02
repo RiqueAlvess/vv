@@ -4,6 +4,8 @@ import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }

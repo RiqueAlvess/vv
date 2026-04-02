@@ -5,6 +5,8 @@ import { generateToken } from '@/lib/crypto';
 import { decryptEmail } from '@/lib/encryption';
 import { sendSurveyInvitation } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
