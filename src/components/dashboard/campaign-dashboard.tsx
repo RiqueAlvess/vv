@@ -130,7 +130,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
       </div>
 
       {/* ROW 2 — IGRP by dimension (full width) */}
-      {data.dimension_analysis && <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />}
+      {Array.isArray(data.dimension_analysis) && <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />}
 
       {/* ROW 3 — Donut + Stacked by dimension */}
       <div className="grid gap-6 lg:grid-cols-2">
