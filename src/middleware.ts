@@ -2,28 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const publicPaths = [
-  '/login',
-  '/survey',
-  '/feedback',
-  '/api/auth/login',
-  '/api/auth/refresh',
-  '/api/survey',
-  '/api/feedback/',
-];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
-  if (publicPaths.some(p => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  // Always allow public routes — no auth check
+  const publicPaths = [
+    '/login',
+    '/survey',
+    '/feedback',
+    '/api/auth/login',
+    '/api/auth/refresh',
+    '/api/health',
+    '/api/survey',
+    '/api/feedback',
+    '/api/campaigns/csv-template',
+  ];
 
-  // Allow static files and api health
-  if (pathname.startsWith('/_next') || pathname === '/favicon.ico') {
-    return NextResponse.next();
-  }
+  const isPublic = publicPaths.some(path => pathname.startsWith(path));
+  if (isPublic) return NextResponse.next();
 
   // Check for auth token in cookie
   const token = request.cookies.get('token')?.value;
@@ -53,5 +49,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths EXCEPT:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico
+     * - public folder files (images, fonts, icons, etc.)
+     * - api routes that must be public (health, survey, feedback)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|otf|map)).*)',
+  ],
 };
