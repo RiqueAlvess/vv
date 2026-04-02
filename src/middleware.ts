@@ -5,6 +5,11 @@ import { jwtVerify } from 'jose';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Always allow static assets — images, fonts, etc.
+  if (/\.(?:png|jpe?g|gif|webp|svg|ico|bmp|avif|woff2?|ttf|otf|eot|css|js|map)$/i.test(pathname)) {
+    return NextResponse.next();
+  }
+
   // Always allow public routes — no auth check
   const publicPaths = [
     '/login',
