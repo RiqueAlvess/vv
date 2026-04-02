@@ -14,6 +14,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# NEXT_PUBLIC_* vars must be present at build time so Next.js can inline them
+# into the client bundle.  .env.local is excluded by .dockerignore, so we
+# set sensible defaults here.  Override with --build-arg if needed.
+ARG NEXT_PUBLIC_LOGO_URL=/logo.png
+ARG NEXT_PUBLIC_AUTH_BG_IMAGE_URL=/bg.jpeg
+ENV NEXT_PUBLIC_LOGO_URL=$NEXT_PUBLIC_LOGO_URL
+ENV NEXT_PUBLIC_AUTH_BG_IMAGE_URL=$NEXT_PUBLIC_AUTH_BG_IMAGE_URL
+
 RUN mkdir -p /app/public
 RUN npx prisma generate
 RUN npm run build
@@ -27,9 +35,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# public/ copied LAST so it is never overwritten by the standalone output
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
