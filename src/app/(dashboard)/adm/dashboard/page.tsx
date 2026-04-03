@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface CompanyOption {
   id: string;
@@ -30,15 +33,6 @@ interface UserRecord {
   created_at: string;
 }
 
-interface EmployeeRecord {
-  id: string;
-  employee_name: string | null;
-  employee_email: string;
-  department: string | null;
-  position: string | null;
-  status: string;
-}
-
 interface CampaignRecord {
   id: string;
   name: string;
@@ -52,7 +46,6 @@ interface CampaignRecord {
 interface StatsSelected {
   company: CompanyOption;
   users: UserRecord[];
-  employees: EmployeeRecord[];
   campaigns: CampaignRecord[];
 }
 
@@ -77,6 +70,32 @@ function RoleBadge({ role }: { role: string }) {
   return (
     <Badge className="bg-[#1B5F75] text-white border-[#1B5F75] hover:bg-[#1B5F75]">
       {role}
+    </Badge>
+  );
+}
+
+function CampaignStatusBadge({ status }: { status: string }) {
+  if (status === 'active')
+    return (
+      <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+        Ativa
+      </Badge>
+    );
+  if (status === 'closed')
+    return (
+      <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100">
+        Encerrada
+      </Badge>
+    );
+  if (status === 'draft')
+    return (
+      <Badge className="bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-100">
+        Rascunho
+      </Badge>
+    );
+  return (
+    <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100">
+      {status}
     </Badge>
   );
 }
@@ -205,6 +224,35 @@ export default function AdmDashboardPage() {
     setSelected(null);
   }
 
+  function handleExportXLSX(data: StatsSelected, companyName: string) {
+    const usersSheet = XLSX.utils.json_to_sheet(
+      data.users.map((u) => ({
+        Nome: u.name,
+        Email: u.email,
+        Perfil: u.role,
+        Ativo: u.active ? 'Sim' : 'Não',
+        'Último Login': formatDate(u.last_login_at),
+        'Criado em': formatDate(u.created_at),
+      }))
+    );
+
+    const campaignsSheet = XLSX.utils.json_to_sheet(
+      data.campaigns.map((c) => ({
+        Nome: c.name,
+        Status: c.status === 'active' ? 'Ativa' : c.status === 'closed' ? 'Encerrada' : 'Rascunho',
+        'Total de Respostas': c.responded,
+        'Criado em': formatDate(c.created_at),
+      }))
+    );
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, usersSheet, 'Usuários');
+    XLSX.utils.book_append_sheet(wb, campaignsSheet, 'Campanhas');
+
+    const safeName = companyName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+    XLSX.writeFile(wb, `${safeName}_dados.xlsx`);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -244,177 +292,139 @@ export default function AdmDashboardPage() {
 
       {!selectedCompany && !loadingSelected && (
         <p className="text-sm text-muted-foreground">
-          Select a company to view details.
+          Selecione uma empresa para visualizar detalhes.
         </p>
       )}
 
       {selectedCompany && (
-        <Tabs defaultValue="users">
-          <TabsList>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="employees">Employees</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          </TabsList>
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-muted-foreground">
+              {selectedCompany.name}
+            </span>
+            {selected && !loadingSelected && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExportXLSX(selected, selectedCompany.name)}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Exportar XLSX
+              </Button>
+            )}
+          </div>
 
-          {/* Users Tab */}
-          <TabsContent value="users">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Active</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Created At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingSelected ? (
-                    <TableSkeleton cols={6} />
-                  ) : (selected?.users ?? []).length === 0 ? (
+          <Tabs defaultValue="users">
+            <TabsList>
+              <TabsTrigger value="users">Usuários</TabsTrigger>
+              <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+            </TabsList>
+
+            {/* Users Tab */}
+            <TabsContent value="users">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-sm text-muted-foreground py-6"
-                      >
-                        No users found.
-                      </TableCell>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Perfil</TableHead>
+                      <TableHead>Ativo</TableHead>
+                      <TableHead>Último Login</TableHead>
+                      <TableHead>Criado em</TableHead>
                     </TableRow>
-                  ) : (
-                    (selected?.users ?? []).map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {u.email}
-                        </TableCell>
-                        <TableCell>
-                          <RoleBadge role={u.role} />
-                        </TableCell>
-                        <TableCell>
-                          {u.active ? (
-                            <span className="text-green-600 text-sm">Yes</span>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              No
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(u.last_login_at)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(u.created_at)}
+                  </TableHeader>
+                  <TableBody>
+                    {loadingSelected ? (
+                      <TableSkeleton cols={6} />
+                    ) : (selected?.users ?? []).length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-sm text-muted-foreground py-6"
+                        >
+                          Nenhum usuário encontrado.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+                    ) : (
+                      (selected?.users ?? []).map((u) => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {u.email}
+                          </TableCell>
+                          <TableCell>
+                            <RoleBadge role={u.role} />
+                          </TableCell>
+                          <TableCell>
+                            {u.active ? (
+                              <span className="text-green-600 text-sm">Sim</span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">
+                                Não
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(u.last_login_at)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(u.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
 
-          {/* Employees Tab */}
-          <TabsContent value="employees">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email Hash</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Sector</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingSelected ? (
-                    <TableSkeleton cols={4} />
-                  ) : (selected?.employees ?? []).length === 0 ? (
+            {/* Campaigns Tab */}
+            <TabsContent value="campaigns">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center text-sm text-muted-foreground py-6"
-                      >
-                        No employees found.
-                      </TableCell>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Total de Respostas</TableHead>
+                      <TableHead>Criado em</TableHead>
                     </TableRow>
-                  ) : (
-                    (selected?.employees ?? []).map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">
-                          {e.employee_email}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {e.position ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {e.department ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={e.status} />
+                  </TableHeader>
+                  <TableBody>
+                    {loadingSelected ? (
+                      <TableSkeleton cols={4} />
+                    ) : (selected?.campaigns ?? []).length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-sm text-muted-foreground py-6"
+                        >
+                          Nenhuma campanha encontrada.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-
-          {/* Campaigns Tab */}
-          <TabsContent value="campaigns">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total Invited</TableHead>
-                    <TableHead className="text-right">Responded</TableHead>
-                    <TableHead className="text-right">Pending</TableHead>
-                    <TableHead>Created At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingSelected ? (
-                    <TableSkeleton cols={6} />
-                  ) : (selected?.campaigns ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-sm text-muted-foreground py-6"
-                      >
-                        No campaigns found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (selected?.campaigns ?? []).map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={c.status} />
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {c.total_invitations}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {c.responded}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {c.pending}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(c.created_at)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
+                    ) : (
+                      (selected?.campaigns ?? []).map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell>
+                            <CampaignStatusBadge status={c.status} />
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-semibold">
+                            {c.responded}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(c.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </>
       )}
     </div>
   );
