@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useApi } from '@/hooks/use-api';
+import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock, Download, Loader2, Info } from 'lucide-react';
+import { AlertTriangle, Lock, Download, Loader2, Info, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
@@ -28,6 +29,7 @@ interface CampaignDashboardProps {
 
 export function CampaignDashboard({ campaignId, campaignStatus, campaignName, unitId, sectorId }: CampaignDashboardProps) {
   const { get } = useApi();
+  const { user } = useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +115,22 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
       )}
 
       {/* Export button row */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2 flex-wrap">
+        {user?.role === 'ADM' && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              const a = document.createElement('a');
+              a.href = `/api/campaigns/${campaignId}/dashboard/export`;
+              a.download = '';
+              a.click();
+            }}
+            className="gap-2"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Exportar Planilha
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={handleExportPGR}
@@ -170,8 +187,8 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
       <Skeleton className="h-64 rounded-xl" />
       <div className="grid gap-6 lg:grid-cols-2">

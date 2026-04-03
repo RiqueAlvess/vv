@@ -126,6 +126,7 @@ export default function SurveyPage() {
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
   const [fingerprint, setFingerprint] = useState('');
+  const [campaignId, setCampaignId] = useState('');
   const [campaignInfo, setCampaignInfo] = useState<{
     campaign_name: string;
     company_name: string;
@@ -155,6 +156,13 @@ export default function SurveyPage() {
           setErrorMsg(data.error || 'QR Code inválido');
           setStep('invalid');
         } else {
+          const cid = data.campaign_id as string;
+          setCampaignId(cid);
+          // localStorage barrier — soft device-level deduplication
+          if (typeof window !== 'undefined' && localStorage.getItem(`vivamente_responded_${cid}`)) {
+            setStep('already_responded');
+            return;
+          }
           setCampaignInfo({
             campaign_name: data.campaign_name ?? '',
             company_name: data.company_name ?? '',
@@ -205,12 +213,16 @@ export default function SurveyPage() {
         return;
       }
 
+      // Mark this device as responded in localStorage
+      if (typeof window !== 'undefined' && campaignId) {
+        localStorage.setItem(`vivamente_responded_${campaignId}`, '1');
+      }
       setStep('done');
     } catch {
       setErrorMsg('Erro de conexão');
       setStep('questions');
     }
-  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, fingerprint]);
+  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, fingerprint, campaignId]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (step === 'loading') {
