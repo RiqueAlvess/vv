@@ -66,6 +66,7 @@ export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
                         <div className="h-9 rounded bg-muted flex items-center justify-center text-muted-foreground">—</div>
                       </td>
                     );
+                    // Aceitável (#A2C06A) and Moderado (#FFFF00) are light → dark text
                     const textColor = cell.nr >= 9 ? '#ffffff' : '#1e293b';
                     return (
                       <td key={row.unit} className="p-1">
@@ -87,13 +88,13 @@ export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
         <div className="flex items-center gap-3 mt-3 pt-3 border-t text-xs text-muted-foreground">
           <span className="font-medium">NR:</span>
           {[
-            { label: '1–4 Aceitável',   color: '#22c55e' },
-            { label: '5–8 Moderado',    color: '#eab308' },
-            { label: '9–12 Importante', color: '#f97316' },
-            { label: '13–16 Crítico',   color: '#ef4444' },
+            { label: '1–4 Aceitável',   color: '#A2C06A' },
+            { label: '5–8 Moderado',    color: '#FFFF00', border: true },
+            { label: '9–12 Importante', color: '#F79454' },
+            { label: '13–16 Crítico',   color: '#FF0000' },
           ].map(item => (
             <span key={item.label} className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: item.color }} />
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: item.color, border: item.border ? '1px solid #d1d5db' : undefined }} />
               {item.label}
             </span>
           ))}

@@ -25,9 +25,12 @@ const GENDER_COLORS: Record<string, string> = {
 };
 
 const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#EF4444' :
-  pct >= 30 ? '#F97316' :
-  pct >= 15 ? '#F59E0B' : '#0D3D4F';
+  pct >= 50 ? '#FF0000' :
+  pct >= 30 ? '#F79454' :
+  pct >= 15 ? '#FFFF00' : '#A2C06A';
+
+const NR_TEXT_COLOR = (pct: number) =>
+  pct >= 15 ? '#ffffff' : '#000000';
 
 interface TooltipPayload {
   payload: GenderData;
@@ -36,12 +39,6 @@ interface TooltipPayload {
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
-  if (d.suppressed) return (
-    <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs">
-      <p className="font-medium">{d.gender}</p>
-      <p className="text-muted-foreground">Dados suprimidos (menos de 5 respondentes)</p>
-    </div>
-  );
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
       <p className="font-semibold text-sm">{d.gender}</p>
@@ -61,30 +58,13 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function GenderRiskChart({ data }: { data: GenderData[] | null | undefined }) {
   if (!Array.isArray(data) || data.length === 0) return null;
-  const hasVisibleData = data.some(d => !d.suppressed && d.total_responses > 0);
-  if (!hasVisibleData) return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          Risco por Genero
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Nenhum dado demografico disponivel. Os respondentes nao informaram genero,
-          ou todos os grupos tem menos de 5 respondentes (protecao de anonimato).
-        </p>
-      </CardContent>
-    </Card>
-  );
 
   const chartData = data.map(d => ({
     ...d,
-    display_pct: d.suppressed ? 0 : d.critical_pct,
+    display_pct: d.critical_pct,
   }));
 
-  const mostAtRisk = data.filter(d => !d.suppressed).sort((a, b) => b.critical_pct - a.critical_pct)[0];
+  const mostAtRisk = data.sort((a, b) => b.critical_pct - a.critical_pct)[0];
 
   return (
     <Card>
@@ -95,7 +75,7 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
         </CardTitle>
         <CardDescription>
           % de avaliacoes em risco alto ou critico (NR maior ou igual a 9) por genero
-          {mostAtRisk && !mostAtRisk.suppressed && (
+          {mostAtRisk && mostAtRisk.total_responses > 0 && (
             <span className="block mt-1">
               Maior exposicao:{' '}
               <span className="font-medium text-foreground">{mostAtRisk.gender}</span>
@@ -131,8 +111,7 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={entry.suppressed ? '#e2e8f0' : NR_COLOR(entry.critical_pct)}
-                  opacity={entry.suppressed ? 0.5 : 1}
+                  fill={NR_COLOR(entry.critical_pct)}
                 />
               ))}
             </Bar>
@@ -144,9 +123,7 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
           {data.map(d => (
             <div
               key={d.gender}
-              className={`rounded-lg border p-2 text-xs space-y-1 ${
-                d.suppressed ? 'opacity-50' : ''
-              }`}
+              className="rounded-lg border p-2 text-xs space-y-1"
             >
               <div className="flex items-center gap-1.5">
                 <div
@@ -155,26 +132,16 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
                 />
                 <span className="font-medium truncate">{d.gender}</span>
               </div>
-              {d.suppressed ? (
-                <p className="text-muted-foreground">Suprimido (&lt;5)</p>
-              ) : (
-                <>
-                  <p className="text-muted-foreground">{d.total_responses} respostas</p>
-                  <Badge
-                    className="text-white text-[10px] px-1.5 py-0"
-                    style={{ backgroundColor: NR_COLOR(d.critical_pct) }}
-                  >
-                    {d.critical_pct}% alto risco
-                  </Badge>
-                </>
-              )}
+              <p className="text-muted-foreground">{d.total_responses} respostas</p>
+              <Badge
+                className="text-[10px] px-1.5 py-0"
+                style={{ backgroundColor: NR_COLOR(d.critical_pct), color: NR_TEXT_COLOR(d.critical_pct) }}
+              >
+                {d.critical_pct}% alto risco
+              </Badge>
             </div>
           ))}
         </div>
-
-        <p className="text-xs text-muted-foreground mt-3 border-t pt-2">
-          Grupos com menos de 5 respondentes sao suprimidos (protecao de anonimato LGPD).
-        </p>
       </CardContent>
     </Card>
   );

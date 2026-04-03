@@ -8,11 +8,11 @@ interface PositionRow {
   score_pct: number; classification: string; nr: number; n_responses: number;
 }
 
-const BADGE_COLORS: Record<string, string> = {
-  'Aceitável':  '#22c55e',
-  'Moderado':   '#eab308',
-  'Importante': '#f97316',
-  'Crítico':    '#ef4444',
+const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+  'Aceitável':  { bg: '#A2C06A', text: '#000000' },
+  'Moderado':   { bg: '#FFFF00', text: '#000000' },
+  'Importante': { bg: '#F79454', text: '#ffffff' },
+  'Crítico':    { bg: '#FF0000', text: '#ffffff' },
 };
 
 export function PositionTable({ positions }: { positions: unknown[] }) {
@@ -45,7 +45,7 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
                 <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
                 <TableCell className="text-center tabular-nums">{row.score_pct.toFixed(1)}</TableCell>
                 <TableCell>
-                  <Badge className="text-white text-xs" style={{ backgroundColor: BADGE_COLORS[row.classification] ?? '#94a3b8' }}>
+                  <Badge className="text-xs" style={{ backgroundColor: BADGE_COLORS[row.classification]?.bg ?? '#94a3b8', color: BADGE_COLORS[row.classification]?.text ?? '#ffffff' }}>
                     {row.classification}
                   </Badge>
                 </TableCell>
