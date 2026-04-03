@@ -7,19 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { CSVUploadModal } from '@/components/modals/csv-upload-modal';
+import { QRCodeModal } from '@/components/modals/qrcode-modal';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import {
-  ArrowLeft, Play, Square, Upload, Send, BarChart3,
-  Users, Mail, CheckCircle2, Clock, XCircle, ChevronDown, ChevronRight, ClipboardCheck, Download,
+  ArrowLeft, Play, Square, Upload, BarChart3,
+  Users, QrCode, ChevronDown, ChevronRight, ClipboardCheck, Download,
+  Plus, Trash2, Eye, RefreshCw,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -36,32 +35,22 @@ const statusLabels: Record<string, string> = {
   closed: 'Encerrada',
 };
 
-interface Invitation {
+interface QRCode {
   id: string;
-  status: string;
-  sent_at: string | null;
-  employee?: { email_hash: string };
+  token: string;
+  is_active: boolean;
+  created_at: string;
+  deactivated_at: string | null;
 }
 
 interface Metrics {
-  total_invited: number;
   total_responded: number;
-  response_rate: number;
-}
-
-interface Employee {
-  id: string;
-  email_hash: string;
-  has_email: boolean;
-  invited: boolean;
-  invitation_status: string | null;
-  invited_at: string | null;
 }
 
 interface Position {
   id: string;
   name: string;
-  employees: Employee[];
+  response_count: number;
 }
 
 interface Sector {
@@ -85,20 +74,28 @@ export default function CampaignDetailPage() {
   const campaignId = params.id as string;
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
-  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [activateModalOpen, setActivateModalOpen] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
-  const [sendModalOpen, setSendModalOpen] = useState(false);
-  const [sendAllModalOpen, setSendAllModalOpen] = useState(false);
+  const [newQRModalOpen, setNewQRModalOpen] = useState(false);
+  const [deactivateQRModalOpen, setDeactivateQRModalOpen] = useState(false);
+  const [qrViewModalOpen, setQrViewModalOpen] = useState(false);
+  const [selectedQRId, setSelectedQRId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  const appUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_APP_URL ?? '');
+
+  const activeQR = qrCodes.find((q) => q.is_active);
+  const surveyUrl = activeQR ? `${appUrl}/survey/${activeQR.token}` : '';
 
   const fetchCampaign = useCallback(async () => {
     try {
@@ -117,16 +114,14 @@ export default function CampaignDetailPage() {
     }
   }, [campaignId, get, notifyError, router]);
 
-  const fetchInvitations = useCallback(async () => {
+  const fetchQRCodes = useCallback(async () => {
     try {
-      const res = await get(`/api/campaigns/${campaignId}/invitations`);
+      const res = await get(`/api/campaigns/${campaignId}/qrcode`);
       if (res.ok) {
         const data = await res.json();
-        setInvitations(data.data || []);
+        setQrCodes(data.data || []);
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, [campaignId, get]);
 
   const fetchMetrics = useCallback(async () => {
@@ -136,48 +131,40 @@ export default function CampaignDetailPage() {
         const data = await res.json();
         setMetrics(data);
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, [campaignId, get]);
 
-  const fetchEmployees = useCallback(async () => {
-    setEmployeesLoading(true);
+  const fetchHierarchy = useCallback(async () => {
+    setHierarchyLoading(true);
     try {
       const res = await get(`/api/campaigns/${campaignId}/employees`);
       if (res.ok) {
         const data = await res.json();
         setUnits(data.data || []);
       }
-    } catch {
-      // ignore
-    } finally {
-      setEmployeesLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setHierarchyLoading(false); }
   }, [campaignId, get]);
 
   useEffect(() => {
     fetchCampaign();
-    fetchInvitations();
+    fetchQRCodes();
     fetchMetrics();
-  }, [fetchCampaign, fetchInvitations, fetchMetrics]);
+  }, [fetchCampaign, fetchQRCodes, fetchMetrics]);
 
   useEffect(() => {
     if (campaign?.status !== 'active') return;
-    const interval = setInterval(() => {
-      fetchMetrics();
-    }, 30_000);
+    const interval = setInterval(fetchMetrics, 30_000);
     return () => clearInterval(interval);
   }, [campaign?.status, fetchMetrics]);
 
-  const handleCSVUpload = async (rows: Array<{ unidade: string; setor: string; cargo: string; email: string }>) => {
+  const handleCSVUpload = async (rows: Array<{ unidade: string; setor: string; cargo: string }>) => {
     setActionLoading(true);
     try {
-      // Send rows as JSON — no CSV re-serialization
       const res = await post(`/api/campaigns/${campaignId}/upload-csv`, { rows });
       if (res.status === 409) {
         const data = await res.json();
-        notifyError(data.error || 'Ação não permitida no status atual da campanha');
+        notifyError(data.error || 'Ação não permitida no status atual');
         return;
       }
       if (!res.ok) {
@@ -186,21 +173,9 @@ export default function CampaignDetailPage() {
         return;
       }
       const data = await res.json();
-      if (data.emails_failed > 0) {
-        success(
-          `${data.employees} colaboradores importados`,
-          `${data.emails_sent} convites enviados, ${data.emails_failed} falhas no envio`
-        );
-      } else {
-        success(
-          `${data.employees} colaboradores importados`,
-          `${data.emails_sent} convites enviados com sucesso`
-        );
-      }
+      success('Hierarquia importada', `${data.units} unidades, ${data.sectors} setores, ${data.positions} cargos`);
       setCsvModalOpen(false);
-      fetchInvitations();
-      fetchMetrics();
-      fetchEmployees();
+      fetchHierarchy();
     } catch {
       notifyError('Erro ao importar CSV');
     } finally {
@@ -217,9 +192,12 @@ export default function CampaignDetailPage() {
         notifyError(data.error || 'Erro ao ativar campanha');
         return;
       }
-      success('Campanha ativada');
+      // Auto-create first QR code
+      await post(`/api/campaigns/${campaignId}/qrcode`);
+      success('Campanha ativada', 'QR Code gerado automaticamente');
       setActivateModalOpen(false);
       fetchCampaign();
+      fetchQRCodes();
     } catch {
       notifyError('Erro ao ativar campanha');
     } finally {
@@ -239,6 +217,7 @@ export default function CampaignDetailPage() {
       success('Campanha encerrada');
       setCloseModalOpen(false);
       fetchCampaign();
+      fetchQRCodes();
     } catch {
       notifyError('Erro ao encerrar campanha');
     } finally {
@@ -246,87 +225,55 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleSendSelected = async () => {
+  const handleCreateNewQR = async () => {
     setActionLoading(true);
     try {
-      const res = await post(`/api/campaigns/${campaignId}/send-invitations`, {
-        employee_ids: Array.from(selectedEmployees),
+      const res = await post(`/api/campaigns/${campaignId}/qrcode`);
+      if (!res.ok) {
+        const data = await res.json();
+        notifyError(data.error || 'Erro ao criar QR Code');
+        return;
+      }
+      success('Novo QR Code criado');
+      setNewQRModalOpen(false);
+      fetchQRCodes();
+    } catch {
+      notifyError('Erro ao criar QR Code');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeactivateQR = async () => {
+    if (!selectedQRId) return;
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/campaigns/${campaignId}/qrcode`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ qr_id: selectedQRId }),
       });
-      if (res.status === 409) {
-        const data = await res.json();
-        notifyError(data.error || 'Ação não permitida no status atual da campanha');
-        return;
-      }
-      if (!res.ok) {
-        const data = await res.json();
-        notifyError(data.error || 'Erro ao enviar convites');
-        return;
-      }
-      const data = await res.json();
-      success(`${data.sent} convite(s) enviado(s)${data.failed > 0 ? `, ${data.failed} falhou` : ''}`);
-      setSendModalOpen(false);
-      setSelectedEmployees(new Set());
-      fetchInvitations();
-      fetchMetrics();
-      fetchEmployees();
+      if (!res.ok) { notifyError('Erro ao desativar QR Code'); return; }
+      success('QR Code desativado');
+      setDeactivateQRModalOpen(false);
+      setSelectedQRId('');
+      fetchQRCodes();
     } catch {
-      notifyError('Erro ao enviar convites');
+      notifyError('Erro ao desativar QR Code');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleSendAll = async () => {
-    setActionLoading(true);
-    try {
-      const res = await post(`/api/campaigns/${campaignId}/send-invitations`, { send_all: true });
-      if (res.status === 409) {
-        const data = await res.json();
-        notifyError(data.error || 'Ação não permitida no status atual da campanha');
-        return;
-      }
-      if (!res.ok) {
-        const data = await res.json();
-        notifyError(data.error || 'Erro ao enviar convites');
-        return;
-      }
-      const data = await res.json();
-      success(`${data.sent} convite(s) enviado(s)${data.failed > 0 ? `, ${data.failed} falhou` : ''}`);
-      setSendAllModalOpen(false);
-      setSelectedEmployees(new Set());
-      fetchInvitations();
-      fetchMetrics();
-      fetchEmployees();
-    } catch {
-      notifyError('Erro ao enviar convites');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const toggleUnit = (id: string) =>
+    setExpandedUnits((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const toggleUnit = (unitId: string) => {
-    setExpandedUnits((prev) => {
-      const next = new Set(prev);
-      next.has(unitId) ? next.delete(unitId) : next.add(unitId);
-      return next;
-    });
-  };
-
-  const toggleSector = (sectorId: string) => {
-    setExpandedSectors((prev) => {
-      const next = new Set(prev);
-      next.has(sectorId) ? next.delete(sectorId) : next.add(sectorId);
-      return next;
-    });
-  };
-
-  const toggleEmployee = (empId: string) => {
-    setSelectedEmployees((prev) => {
-      const next = new Set(prev);
-      next.has(empId) ? next.delete(empId) : next.add(empId);
-      return next;
-    });
-  };
+  const toggleSector = (id: string) =>
+    setExpandedSectors((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   if (loading) {
     return (
@@ -340,16 +287,10 @@ export default function CampaignDetailPage() {
   if (!campaign) return null;
 
   const canManage = user?.role === 'ADM' || user?.role === 'RH';
-  const responseRate = metrics?.response_rate ?? 0;
-
-  const allSelectableEmployees = units
-    .flatMap((u) => u.sectors)
-    .flatMap((s) => s.positions)
-    .flatMap((p) => p.employees)
-    .filter((e) => e.has_email && !e.invited);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/campaigns"><ArrowLeft className="h-4 w-4" /></Link>
@@ -366,35 +307,28 @@ export default function CampaignDetailPage() {
       {/* Action Buttons */}
       {canManage && (
         <div className="flex gap-2 flex-wrap">
-          {/* Download CSV Template — always available */}
-          <Button
-            variant="outline"
-            onClick={() => { window.location.href = '/api/campaigns/csv-template'; }}
-          >
+          <Button variant="outline" onClick={() => { window.location.href = '/api/campaigns/csv-template'; }}>
             <Download className="h-4 w-4 mr-2" />
             Baixar Modelo CSV
           </Button>
 
-          {/* CSV Import — only when campaign is active */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
                   <Button
                     variant="outline"
-                    disabled={campaign.status !== 'active'}
+                    disabled={campaign.status === 'closed'}
                     onClick={() => setCsvModalOpen(true)}
-                    className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
+                    className={campaign.status === 'closed' ? 'pointer-events-none opacity-50' : ''}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Importar CSV
                   </Button>
                 </span>
               </TooltipTrigger>
-              {campaign.status !== 'active' && (
-                <TooltipContent>
-                  <p>Disponível apenas quando a campanha estiver ativa</p>
-                </TooltipContent>
+              {campaign.status === 'closed' && (
+                <TooltipContent><p>Não disponível para campanhas encerradas</p></TooltipContent>
               )}
             </Tooltip>
           </TooltipProvider>
@@ -413,7 +347,7 @@ export default function CampaignDetailPage() {
           )}
           {campaign.status === 'closed' && (
             <Button asChild>
-              <Link href={`/dashboard`}>
+              <Link href="/dashboard">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Ver Dashboard
               </Link>
@@ -430,7 +364,7 @@ export default function CampaignDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-lg font-semibold">
-              {format(new Date(campaign.start_date), 'dd/MM/yyyy')} - {format(new Date(campaign.end_date), 'dd/MM/yyyy')}
+              {format(new Date(campaign.start_date), 'dd/MM/yyyy')} – {format(new Date(campaign.end_date), 'dd/MM/yyyy')}
             </p>
           </CardContent>
         </Card>
@@ -438,35 +372,46 @@ export default function CampaignDetailPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Participantes
+              Respostas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold">{metrics?.total_invited ?? 0} convidados</p>
-            <p className="text-sm text-muted-foreground">{metrics?.total_responded ?? 0} respostas</p>
+            <p className="text-lg font-semibold">{metrics?.total_responded ?? 0} respostas</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Resposta</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              QR Code
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold">{responseRate.toFixed(1)}%</p>
-            <Progress value={responseRate} className="mt-2" />
+            {activeQR ? (
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-sm font-medium text-green-600">Ativo</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                <span className="text-sm text-muted-foreground">Inativo</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="employees" onValueChange={(v) => v === 'employees' && fetchEmployees()}>
+      <Tabs defaultValue="qrcode" onValueChange={(v) => v === 'hierarchy' && fetchHierarchy()}>
         <TabsList>
-          <TabsTrigger value="employees">
-            <Users className="h-4 w-4 mr-2" />
-            Colaboradores
+          <TabsTrigger value="qrcode">
+            <QrCode className="h-4 w-4 mr-2" />
+            QR Code
           </TabsTrigger>
-          <TabsTrigger value="invitations">
-            <Mail className="h-4 w-4 mr-2" />
-            Convites ({invitations.length})
+          <TabsTrigger value="hierarchy">
+            <Users className="h-4 w-4 mr-2" />
+            Hierarquia
           </TabsTrigger>
           <TabsTrigger value="checklist">
             <ClipboardCheck className="h-4 w-4 mr-2" />
@@ -474,264 +419,204 @@ export default function CampaignDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Colaboradores tab */}
-        <TabsContent value="employees">
+        {/* ── QR Code tab ───────────────────────────────────────────────── */}
+        <TabsContent value="qrcode">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Colaboradores</CardTitle>
-                  <CardDescription>Selecione quem receberá o convite de pesquisa</CardDescription>
+                  <CardTitle>Gerenciar QR Code</CardTitle>
+                  <CardDescription>Compartilhe com sua equipe para iniciar a pesquisa</CardDescription>
                 </div>
-                {canManage && (
-                  <div className="flex gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              variant="outline"
-                              disabled={campaign.status !== 'active' || selectedEmployees.size === 0 || actionLoading}
-                              onClick={() => setSendModalOpen(true)}
-                              className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Enviar Selecionados ({selectedEmployees.size})
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        {campaign.status !== 'active' && (
-                          <TooltipContent>
-                            <p>Disponível apenas quando a campanha estiver ativa</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              disabled={campaign.status !== 'active' || actionLoading}
-                              onClick={() => setSendAllModalOpen(true)}
-                              className={campaign.status !== 'active' ? 'pointer-events-none opacity-50' : ''}
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Enviar para Todos
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        {campaign.status !== 'active' && (
-                          <TooltipContent>
-                            <p>Disponível apenas quando a campanha estiver ativa</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                {canManage && campaign.status !== 'closed' && (
+                  <Button variant="outline" onClick={() => setNewQRModalOpen(true)} disabled={actionLoading}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {activeQR ? 'Novo QR Code' : 'Criar QR Code'}
+                  </Button>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
-              {employeesLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : units.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum colaborador importado. Use &quot;Importar CSV&quot; na aba de rascunho.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {units.map((unit) => (
-                    <div key={unit.id} className="border rounded-lg overflow-hidden">
-                      <button
-                        className="w-full flex items-center gap-2 px-4 py-3 bg-muted/40 hover:bg-muted/60 text-left font-medium text-sm"
-                        onClick={() => toggleUnit(unit.id)}
-                      >
-                        {expandedUnits.has(unit.id) ? (
-                          <ChevronDown className="h-4 w-4 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0" />
-                        )}
-                        {unit.name}
-                        <span className="ml-auto text-muted-foreground font-normal">
-                          {unit.sectors.flatMap((s) => s.positions).flatMap((p) => p.employees).length} colaborador(es)
-                        </span>
-                      </button>
-
-                      {expandedUnits.has(unit.id) && (
-                        <div className="divide-y">
-                          {unit.sectors.map((sector) => (
-                            <div key={sector.id}>
-                              <button
-                                className="w-full flex items-center gap-2 px-6 py-2 bg-background hover:bg-muted/20 text-left text-sm text-muted-foreground"
-                                onClick={() => toggleSector(sector.id)}
-                              >
-                                {expandedSectors.has(sector.id) ? (
-                                  <ChevronDown className="h-3 w-3 shrink-0" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3 shrink-0" />
-                                )}
-                                {sector.name}
-                              </button>
-
-                              {expandedSectors.has(sector.id) && (
-                                <div className="px-8 py-2 space-y-4">
-                                  {sector.positions.map((position) => (
-                                    <div key={position.id}>
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                                        {position.name}
-                                      </p>
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead className="w-10"></TableHead>
-                                            <TableHead>ID (hash)</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Convidado em</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {position.employees.map((emp) => {
-                                            const selectable = emp.has_email && !emp.invited;
-                                            return (
-                                              <TableRow key={emp.id}>
-                                                <TableCell>
-                                                  <Checkbox
-                                                    disabled={!selectable || !canManage || campaign.status !== 'active'}
-                                                    checked={selectedEmployees.has(emp.id)}
-                                                    onCheckedChange={() => toggleEmployee(emp.id)}
-                                                  />
-                                                </TableCell>
-                                                <TableCell className="font-mono text-xs">
-                                                  {emp.email_hash.slice(0, 8)}...
-                                                </TableCell>
-                                                <TableCell>
-                                                  {emp.invited ? (
-                                                    <Badge variant="default">
-                                                      {emp.invitation_status === 'responded' ? 'Respondeu' : 'Convidado'}
-                                                    </Badge>
-                                                  ) : emp.has_email ? (
-                                                    <Badge variant="secondary">Aguardando</Badge>
-                                                  ) : (
-                                                    <Badge variant="outline">Sem e-mail</Badge>
-                                                  )}
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                  {emp.invited_at
-                                                    ? format(new Date(emp.invited_at), 'dd/MM/yyyy HH:mm')
-                                                    : '-'}
-                                                </TableCell>
-                                              </TableRow>
-                                            );
-                                          })}
-                                        </TableBody>
-                                      </Table>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            <CardContent className="space-y-4">
+              {activeQR ? (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                      <p className="text-sm font-semibold">QR Code Ativo</p>
                     </div>
-                  ))}
+                    <p className="text-xs text-muted-foreground font-mono break-all">{surveyUrl}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Criado em {format(new Date(activeQR.created_at), 'dd/MM/yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => setQrViewModalOpen(true)}>
+                      <Eye className="h-4 w-4 mr-1" />
+                      Abrir
+                    </Button>
+                    {canManage && campaign.status !== 'closed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => { setSelectedQRId(activeQR.id); setDeactivateQRModalOpen(true); }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Desativar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                  <QrCode className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">
+                    {campaign.status === 'draft'
+                      ? 'O QR Code será gerado automaticamente ao ativar a campanha.'
+                      : campaign.status === 'closed'
+                      ? 'Campanha encerrada — QR Code desativado.'
+                      : 'Nenhum QR Code ativo. Clique em "Criar QR Code".'}
+                  </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Checklist NR-1 tab */}
-        <TabsContent value="checklist">
-          <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
-        </TabsContent>
-
-        {/* Convites tab */}
-        <TabsContent value="invitations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Convites da Campanha</CardTitle>
-              <CardDescription>
-                Visão agregada — status individual protegido por anonimato
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Aggregate progress */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Taxa de resposta</span>
-                  <span className="font-semibold">
-                    {metrics?.total_responded ?? 0} / {metrics?.total_invited ?? 0} responderam
-                  </span>
-                </div>
-                <Progress value={responseRate} className="h-3" />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{responseRate.toFixed(1)}% de adesão</span>
-                  <span>
-                    {(metrics?.total_invited ?? 0) - (metrics?.total_responded ?? 0)} pendentes
-                  </span>
-                </div>
-              </div>
-
-              {/* Status summary cards */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border bg-muted/30 p-3 text-center">
-                  <p className="text-2xl font-bold">{metrics?.total_invited ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Convidados</p>
-                </div>
-                <div className="rounded-lg border bg-green-500/10 border-green-500/20 p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{metrics?.total_responded ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Responderam</p>
-                </div>
-                <div className="rounded-lg border bg-orange-500/10 border-orange-500/20 p-3 text-center">
-                  <p className="text-2xl font-bold text-orange-500">
-                    {(metrics?.total_invited ?? 0) - (metrics?.total_responded ?? 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Pendentes</p>
-                </div>
-              </div>
-
-              {/* Anonymity note */}
-              <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                O status individual de cada convite é protegido por anonimato (LGPD).
-                Os dados acima são contagens agregadas e atualizadas em tempo real.
-              </div>
-
-              {/* Invitation list — show only hash and sent date, NO individual status */}
-              {invitations.length > 0 && (
-                <div className="space-y-1">
+              {/* Histórico */}
+              {qrCodes.filter((q) => !q.is_active).length > 0 && (
+                <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                    Convites enviados ({invitations.length})
+                    Histórico
                   </p>
-                  <div className="max-h-64 overflow-y-auto space-y-1 rounded-md border p-2">
-                    {invitations.slice(0, 100).map((inv) => (
+                  <div className="space-y-1">
+                    {qrCodes.filter((q) => !q.is_active).map((qr) => (
                       <div
-                        key={inv.id}
-                        className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 text-xs"
+                        key={qr.id}
+                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30 text-xs"
                       >
-                        <span className="font-mono text-muted-foreground">
-                          {inv.employee?.email_hash
-                            ? `${inv.employee.email_hash.slice(0, 16)}...`
-                            : `${inv.id.slice(0, 16)}...`
-                          }
-                        </span>
+                        <span className="font-mono text-muted-foreground">{qr.token.slice(0, 8)}…</span>
                         <span className="text-muted-foreground">
-                          {inv.sent_at
-                            ? format(new Date(inv.sent_at), 'dd/MM/yyyy HH:mm')
-                            : '—'
-                          }
+                          Desativado em{' '}
+                          {qr.deactivated_at
+                            ? format(new Date(qr.deactivated_at), 'dd/MM/yyyy HH:mm')
+                            : '—'}
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Counters */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{metrics?.total_responded ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Respostas recebidas</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{qrCodes.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">QR Codes gerados</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Hierarchy tab ─────────────────────────────────────────────── */}
+        <TabsContent value="hierarchy">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Estrutura Hierárquica</CardTitle>
+                  <CardDescription>Unidades, setores e cargos importados via CSV</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" onClick={fetchHierarchy} disabled={hierarchyLoading}>
+                  <RefreshCw className={`h-4 w-4 ${hierarchyLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {hierarchyLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : units.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma hierarquia importada. Use &quot;Importar CSV&quot; para adicionar unidades, setores e cargos.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {units.map((unit) => {
+                    const totalResponses = unit.sectors
+                      .flatMap((s) => s.positions)
+                      .reduce((sum, p) => sum + p.response_count, 0);
+                    return (
+                      <div key={unit.id} className="border rounded-lg overflow-hidden">
+                        <button
+                          className="w-full flex items-center gap-2 px-4 py-3 bg-muted/40 hover:bg-muted/60 text-left font-medium text-sm"
+                          onClick={() => toggleUnit(unit.id)}
+                        >
+                          {expandedUnits.has(unit.id) ? (
+                            <ChevronDown className="h-4 w-4 shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0" />
+                          )}
+                          {unit.name}
+                          <span className="ml-auto text-muted-foreground font-normal text-xs flex gap-3">
+                            <span>{unit.sectors.flatMap((s) => s.positions).length} cargo(s)</span>
+                            {totalResponses > 0 && (
+                              <span className="text-green-600">{totalResponses} resp.</span>
+                            )}
+                          </span>
+                        </button>
+                        {expandedUnits.has(unit.id) && (
+                          <div className="divide-y">
+                            {unit.sectors.map((sector) => (
+                              <div key={sector.id}>
+                                <button
+                                  className="w-full flex items-center gap-2 px-6 py-2 bg-background hover:bg-muted/20 text-left text-sm text-muted-foreground"
+                                  onClick={() => toggleSector(sector.id)}
+                                >
+                                  {expandedSectors.has(sector.id) ? (
+                                    <ChevronDown className="h-3 w-3 shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3 shrink-0" />
+                                  )}
+                                  {sector.name}
+                                </button>
+                                {expandedSectors.has(sector.id) && (
+                                  <div className="px-8 py-2 space-y-1">
+                                    {sector.positions.map((position) => (
+                                      <div
+                                        key={position.id}
+                                        className="flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-muted/30"
+                                      >
+                                        <span>{position.name}</span>
+                                        {position.response_count > 0 && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            {position.response_count} resp.
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Checklist tab ─────────────────────────────────────────────── */}
+        <TabsContent value="checklist">
+          <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
         </TabsContent>
       </Tabs>
 
@@ -743,11 +628,20 @@ export default function CampaignDetailPage() {
         loading={actionLoading}
       />
 
+      {activeQR && (
+        <QRCodeModal
+          open={qrViewModalOpen}
+          onOpenChange={setQrViewModalOpen}
+          surveyUrl={surveyUrl}
+          campaignName={campaign.name}
+        />
+      )}
+
       <ConfirmModal
         open={activateModalOpen}
         onOpenChange={setActivateModalOpen}
         title="Ativar Campanha"
-        description="Ao ativar a campanha, ela ficará disponível para envio de convites. Deseja continuar?"
+        description="Ao ativar, um QR Code será gerado automaticamente. Deseja continuar?"
         confirmText="Ativar"
         loading={actionLoading}
         onConfirm={handleActivate}
@@ -757,7 +651,7 @@ export default function CampaignDetailPage() {
         open={closeModalOpen}
         onOpenChange={setCloseModalOpen}
         title="Encerrar Campanha"
-        description="Ao encerrar a campanha, não será mais possível coletar respostas. Os resultados serão calculados automaticamente."
+        description="O QR Code será desativado e não será mais possível coletar respostas. Os resultados serão calculados."
         confirmText="Encerrar"
         variant="destructive"
         loading={actionLoading}
@@ -765,23 +659,28 @@ export default function CampaignDetailPage() {
       />
 
       <ConfirmModal
-        open={sendModalOpen}
-        onOpenChange={setSendModalOpen}
-        title="Enviar Convites Selecionados"
-        description={`Deseja enviar convites para os ${selectedEmployees.size} colaborador(es) selecionado(s)?`}
-        confirmText="Enviar"
+        open={newQRModalOpen}
+        onOpenChange={setNewQRModalOpen}
+        title={activeQR ? 'Criar Novo QR Code' : 'Criar QR Code'}
+        description={
+          activeQR
+            ? 'O QR Code atual será desativado e um novo será gerado. Links anteriores não funcionarão mais.'
+            : 'Um novo QR Code será criado para esta campanha.'
+        }
+        confirmText="Criar"
         loading={actionLoading}
-        onConfirm={handleSendSelected}
+        onConfirm={handleCreateNewQR}
       />
 
       <ConfirmModal
-        open={sendAllModalOpen}
-        onOpenChange={setSendAllModalOpen}
-        title="Enviar para Todos"
-        description={`Deseja enviar convites para todos os ${allSelectableEmployees.length} colaborador(es) que ainda não foram convidados?`}
-        confirmText="Enviar para Todos"
+        open={deactivateQRModalOpen}
+        onOpenChange={setDeactivateQRModalOpen}
+        title="Desativar QR Code"
+        description="O QR Code será desativado. Quem tentar acessar pelo link não conseguirá mais responder."
+        confirmText="Desativar"
+        variant="destructive"
         loading={actionLoading}
-        onConfirm={handleSendAll}
+        onConfirm={handleDeactivateQR}
       />
     </div>
   );

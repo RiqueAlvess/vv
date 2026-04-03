@@ -1,138 +1,47 @@
-import { prisma } from '@/lib/prisma';
-import { hashEmail, generateToken } from '@/lib/crypto';
-import { statusUpdateQueue } from '@/lib/queues/status-update.queue';
-
-type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+import { generateToken } from '@/lib/crypto';
 
 /**
- * Blind Drop Anonymity Protocol
+ * Anonymity helpers for the QR Code based survey flow.
  *
- * Ensures zero traceability between user identity and survey response.
- * 5-step protocol:
- * 1. Hash email with campaign-specific salt (CSV upload)
- * 2. Generate magic link with public UUID token
- * 3. On survey access: validate token → create anonymous session → DESTROY token
- * 4. On submission: save response with NO identifiers (only campaign_id + demographics)
- * 5. Schedule delayed status update (1-12h) to prevent temporal correlation
+ * In the QR code model, anonymity is guaranteed by:
+ * 1. No per-person tokens — a single QR code is shared with the entire group
+ * 2. Hierarchy is self-reported by the respondent (not derived from identity)
+ * 3. Fingerprint is a one-way device hash stored only to prevent duplicate submissions
+ * 4. SurveyResponse has NO FK to any identity record (campaign_id + session_uuid only)
  */
 export class AnonymityService {
-  // Step 1: Hash employee email with campaign salt — no PII stored
-  static hashEmployeeEmail(email: string, campaignSalt: string): string {
-    return hashEmail(email.toLowerCase().trim(), campaignSalt);
+  /** Generate a random anonymous session UUID for a survey response. */
+  static generateSessionUuid(): string {
+    return generateToken();
   }
 
-  // Step 2: Build magic link URL for survey invitation
-  static generateMagicLink(baseUrl: string, tokenPublic: string): string {
-    return `${baseUrl}/survey/${tokenPublic}`;
-  }
-
-  // Step 3: Validate token, create anonymous session, DESTROY the original token
-  // This is the critical anonymity step — the token is nullified so it can never
-  // be used to correlate an invitation to a response.
-  // Must be called inside a prisma.$transaction — all DB calls use the tx client.
-  // Throws Error('Campaign is not active') if the campaign is not in 'active' status.
-  static async validateAndDestroyToken(
-    tokenPublic: string,
-    tx: TransactionClient,
-  ): Promise<{
-    sessionUuid: string;
-    campaignId: string;
-    invitationId: string;
-  } | null> {
-    // Find invitation by token
-    const invitation = await tx.surveyInvitation.findUnique({
-      where: { token_public: tokenPublic },
-      select: {
-        id: true,
-        campaign_id: true,
-        token_used_internally: true,
-        expires_at: true,
-      },
-    });
-
-    if (!invitation) return null;
-    if (invitation.token_used_internally) return null;
-    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) return null;
-
-    // Verify campaign is still accepting responses
-    const campaign = await tx.campaign.findUnique({
-      where: { id: invitation.campaign_id },
-      select: { status: true },
-    });
-
-    if (!campaign || campaign.status !== 'active') {
-      throw new Error('Campaign is not active');
-    }
-
-    // Generate anonymous session UUID
-    const sessionUuid = generateToken();
-
-    // DESTROY the token — mark as used internally
-    // Do NOT set token_public to null — DB has NOT NULL constraint.
-    // token_used_internally=true is the authoritative "used" flag; the token
-    // remains in DB but is rejected before any lookup can succeed.
-    await tx.surveyInvitation.update({
-      where: { id: invitation.id },
-      data: {
-        token_used_internally: true,
-      },
-    });
-
-    return {
-      sessionUuid,
-      campaignId: invitation.campaign_id,
-      invitationId: invitation.id,
-    };
-  }
-
-  // Step 4: Build an anonymous response payload — strip ALL identifiers
+  /** Build an anonymous response payload — strip ALL identifiers */
   static buildAnonymousResponse(
     campaignId: string,
     sessionUuid: string,
     responses: Record<string, number>,
-    demographics: { gender?: string | null; ageRange?: string | null },
+    demographics: {
+      gender?: string | null;
+      ageRange?: string | null;
+      unitId?: string | null;
+      sectorId?: string | null;
+      positionId?: string | null;
+      fingerprint?: string | null;
+    },
     consentAccepted: boolean
   ) {
     return {
       campaign_id: campaignId,
       session_uuid: sessionUuid,
+      unit_id: demographics.unitId ?? null,
+      sector_id: demographics.sectorId ?? null,
+      position_id: demographics.positionId ?? null,
+      fingerprint: demographics.fingerprint ?? null,
       gender: demographics.gender ?? null,
       age_range: demographics.ageRange ?? null,
       consent_accepted: consentAccepted,
       consent_accepted_at: new Date(),
       responses,
-      // NO employee_id, NO invitation_id, NO email — anonymity guaranteed
     };
-  }
-
-  // Step 5: Calculate random delay for status update (1-12 hours)
-  // Prevents temporal correlation between response submission and invitation status change
-  static calculateRandomDelay(): number {
-    const minHours = 1;
-    const maxHours = 12;
-    const hours = minHours + Math.random() * (maxHours - minHours);
-    return Math.floor(hours * 60 * 60 * 1000);
-  }
-
-  // Schedule the delayed status update
-  static async scheduleStatusUpdate(invitationId: string, delayMs: number): Promise<void> {
-    const scheduledAt = new Date(Date.now() + delayMs);
-    await prisma.surveyInvitation.update({
-      where: { id: invitationId },
-      data: {
-        status_update_scheduled_at: scheduledAt,
-      },
-    });
-
-    const millisUntilScheduledAt = scheduledAt.getTime() - Date.now();
-    await statusUpdateQueue.add(
-      'process-status-update',
-      { invitationId, scheduledAt },
-      {
-        delay: millisUntilScheduledAt,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-      }
-    );
   }
 }

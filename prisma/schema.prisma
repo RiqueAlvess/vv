@@ -90,7 +90,7 @@ model Campaign {
   company     Company          @relation(fields: [company_id], references: [id], onDelete: Cascade)
   creator     User?            @relation("CampaignCreator", fields: [created_by], references: [id], onDelete: SetNull)
   units       CampaignUnit[]
-  invitations SurveyInvitation[]
+  qr_codes    CampaignQRCode[]
   responses   SurveyResponse[]
   metrics     CampaignMetrics?
   facts       FactResponse[]
@@ -107,8 +107,9 @@ model CampaignUnit {
   name        String
   created_at  DateTime @default(now()) @db.Timestamptz()
 
-  campaign Campaign        @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-  sectors  CampaignSector[]
+  campaign  Campaign        @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  sectors   CampaignSector[]
+  responses SurveyResponse[]
 
   @@map("campaign_units")
   @@schema("survey")
@@ -122,6 +123,7 @@ model CampaignSector {
 
   unit      CampaignUnit       @relation(fields: [unit_id], references: [id], onDelete: Cascade)
   positions CampaignPosition[]
+  responses SurveyResponse[]
 
   @@map("campaign_sectors")
   @@schema("survey")
@@ -133,55 +135,39 @@ model CampaignPosition {
   name       String
   created_at DateTime @default(now()) @db.Timestamptz()
 
-  sector    CampaignSector     @relation(fields: [sector_id], references: [id], onDelete: Cascade)
-  employees CampaignEmployee[]
+  sector    CampaignSector   @relation(fields: [sector_id], references: [id], onDelete: Cascade)
+  responses SurveyResponse[]
 
   @@map("campaign_positions")
   @@schema("survey")
 }
 
-model CampaignEmployee {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  position_id     String   @db.Uuid
-  email_hash      String
-  email_encrypted String?  // AES-256-GCM encrypted — deleted after first send
-  created_at      DateTime @default(now()) @db.Timestamptz()
+/// QR code for campaign — multiple codes can exist; only is_active=true are usable
+model CampaignQRCode {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id    String    @db.Uuid
+  token          String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  deactivated_at DateTime? @db.Timestamptz()
 
-  position    CampaignPosition   @relation(fields: [position_id], references: [id], onDelete: Cascade)
-  invitations SurveyInvitation[]
-
-  @@unique([position_id, email_hash], map: "uq_employee_position_email")
-  @@map("campaign_employees")
-  @@schema("survey")
-}
-
-model SurveyInvitation {
-  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaign_id                String    @db.Uuid
-  employee_id                String    @db.Uuid
-  token_public               String?   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  token_used                 Boolean   @default(false)
-  token_used_internally      Boolean   @default(false)
-  status                     String    @default("pending") @db.VarChar(20)
-  status_update_scheduled_at DateTime? @db.Timestamptz()
-  sent_at                    DateTime? @db.Timestamptz()
-  expires_at                 DateTime? @db.Timestamptz()
-  created_at                 DateTime  @default(now()) @db.Timestamptz()
-
-  campaign Campaign         @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-  employee CampaignEmployee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@index([campaign_id])
-  @@index([status])
-  @@map("survey_invitations")
+  @@map("campaign_qr_codes")
   @@schema("survey")
 }
 
-/// NO FK to invitations or employees — anonymity guarantee
+/// NO FK to QR code or any identifying record — anonymity guarantee
+/// fingerprint = SHA-256 hash of device characteristics (deduplication only, per-campaign)
 model SurveyResponse {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaign_id         String    @db.Uuid
   session_uuid        String    @db.Uuid
+  unit_id             String?   @db.Uuid
+  sector_id           String?   @db.Uuid
+  position_id         String?   @db.Uuid
+  fingerprint         String?   @db.VarChar(64)
   gender              String?   @db.VarChar(1)
   age_range           String?   @db.VarChar(20)
   consent_accepted    Boolean   @default(true)
@@ -189,10 +175,14 @@ model SurveyResponse {
   responses           Json
   created_at          DateTime  @default(now()) @db.Timestamptz()
 
-  campaign Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  campaign Campaign         @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  unit     CampaignUnit?    @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  sector   CampaignSector?  @relation(fields: [sector_id], references: [id], onDelete: SetNull)
+  position CampaignPosition? @relation(fields: [position_id], references: [id], onDelete: SetNull)
   facts    FactResponse[]
 
   @@index([campaign_id])
+  @@index([campaign_id, fingerprint])
   @@map("survey_responses")
   @@schema("survey")
 }

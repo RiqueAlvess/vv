@@ -42,31 +42,17 @@ export async function GET(request: Request, { params }: RouteParams) {
               select: {
                 id: true,
                 name: true,
-                employees: {
-                  select: {
-                    id: true,
-                    email_hash: true,
-                    invitations: {
-                      select: {
-                        id: true,
-                        status: true,
-                        sent_at: true,
-                        token_used: true,
-                      },
-                      orderBy: { sent_at: 'desc' },
-                      take: 1,
-                    },
-                  },
-                },
+                _count: { select: { responses: true } },
               },
+              orderBy: { name: 'asc' },
             },
           },
+          orderBy: { name: 'asc' },
         },
       },
       orderBy: { name: 'asc' },
     });
 
-    // Transform: never expose email_encrypted value, only presence as boolean
     const result = units.map((unit) => ({
       id: unit.id,
       name: unit.name,
@@ -76,24 +62,14 @@ export async function GET(request: Request, { params }: RouteParams) {
         positions: sector.positions.map((position) => ({
           id: position.id,
           name: position.name,
-          employees: position.employees.map((emp) => ({
-            id: emp.id,
-            email_hash: emp.email_hash,
-            // has_email: true means the employee was already invited (email sent at upload time)
-            // has_email: false means this employee record exists but no invitation was ever created
-            has_email: emp.invitations.length > 0,
-            invited: emp.invitations.length > 0,
-            invitation_status: emp.invitations[0]?.status ?? null,
-            token_used: emp.invitations[0]?.token_used ?? false,
-            invited_at: emp.invitations[0]?.sent_at ?? null,
-          })),
+          response_count: position._count.responses,
         })),
       })),
     }));
 
     return NextResponse.json({ data: result });
   } catch (err) {
-    console.error('List employees error:', err);
+    console.error('List hierarchy error:', err);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

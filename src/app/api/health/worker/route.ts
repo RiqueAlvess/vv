@@ -1,17 +1,6 @@
 import { NextResponse } from 'next/server';
-import { statusUpdateQueue } from '@/lib/queue';
 
+// Worker health check — background worker removed in QR code model.
 export async function GET() {
-  try {
-    const workers = await statusUpdateQueue.getWorkers();
-    const count = workers.length;
-
-    if (count > 0) {
-      return NextResponse.json({ status: 'ok', workers: count });
-    }
-
-    return NextResponse.json({ status: 'degraded', workers: 0 }, { status: 503 });
-  } catch {
-    return NextResponse.json({ status: 'degraded', workers: 0 }, { status: 503 });
-  }
+  return NextResponse.json({ status: 'ok', workers: 0, note: 'No background workers in QR code model' });
 }
