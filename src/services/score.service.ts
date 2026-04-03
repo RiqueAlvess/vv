@@ -46,10 +46,10 @@ export class ScoreService {
 
   // Interpret NR value (scale 1–16)
   static interpretNR(nr: number): { label: string; color: string } {
-    if (nr <= 4)  return { label: 'Aceitável',  color: '#22c55e' };
-    if (nr <= 8)  return { label: 'Moderado',   color: '#eab308' };
-    if (nr <= 12) return { label: 'Importante', color: '#f97316' };
-    return           { label: 'Crítico',    color: '#ef4444' };
+    if (nr <= 4)  return { label: 'Aceitável',  color: '#A2C06A' };
+    if (nr <= 8)  return { label: 'Moderado',   color: '#FFFF00' };
+    if (nr <= 12) return { label: 'Importante', color: '#F79454' };
+    return           { label: 'Crítico',    color: '#FF0000' };
   }
 
   // Calculate IGRP = mean of all 7 dimension NR values (range 1–16)

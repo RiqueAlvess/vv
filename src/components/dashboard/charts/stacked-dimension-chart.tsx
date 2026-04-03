@@ -32,10 +32,10 @@ export function StackedDimensionChart({ data }: { data: unknown[] }) {
             <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#6B7280' }} width={80} />
             <Tooltip formatter={(val: unknown) => `${val}%`} />
             <Legend iconSize={10} formatter={(v) => <span className="text-xs">{v}</span>} />
-            <Bar dataKey="Aceitável"  stackId="a" fill="#0D3D4F" />
-            <Bar dataKey="Moderado"   stackId="a" fill="#F59E0B" />
-            <Bar dataKey="Importante" stackId="a" fill="#F97316" />
-            <Bar dataKey="Crítico"    stackId="a" fill="#EF4444" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="Aceitável"  stackId="a" fill="#A2C06A" />
+            <Bar dataKey="Moderado"   stackId="a" fill="#FFFF00" />
+            <Bar dataKey="Importante" stackId="a" fill="#F79454" />
+            <Bar dataKey="Crítico"    stackId="a" fill="#FF0000" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

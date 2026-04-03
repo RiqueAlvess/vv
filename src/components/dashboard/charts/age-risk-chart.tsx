@@ -18,9 +18,12 @@ interface AgeData {
 }
 
 const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#EF4444' :
-  pct >= 30 ? '#F97316' :
-  pct >= 15 ? '#F59E0B' : '#0D3D4F';
+  pct >= 50 ? '#FF0000' :
+  pct >= 30 ? '#F79454' :
+  pct >= 15 ? '#FFFF00' : '#A2C06A';
+
+const NR_TEXT_COLOR = (pct: number) =>
+  pct >= 15 ? '#ffffff' : '#000000';
 
 interface TooltipPayload {
   payload: AgeData;
@@ -29,12 +32,6 @@ interface TooltipPayload {
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
-  if (d.suppressed) return (
-    <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs">
-      <p className="font-medium">{d.age_range} anos</p>
-      <p className="text-muted-foreground">Dados suprimidos (menos de 5 respondentes)</p>
-    </div>
-  );
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
       <p className="font-semibold text-sm">{d.age_range} anos</p>
@@ -55,37 +52,18 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
   if (!Array.isArray(data) || data.length === 0) return null;
-  const hasVisibleData = data.some(d => !d.suppressed && d.total_responses > 0);
-  if (!hasVisibleData) return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          Risco por Faixa Etaria
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Nenhum dado demografico disponivel. Os respondentes nao informaram faixa etaria,
-          ou todos os grupos tem menos de 5 respondentes (protecao de anonimato).
-        </p>
-      </CardContent>
-    </Card>
-  );
 
   const visible = data.filter(d => d.age_range !== 'Nao informado' || d.total_responses > 0);
   const chartData = visible.map(d => ({
     ...d,
     label: d.age_range === 'Nao informado' ? 'N/I' : d.age_range,
-    display_pct: d.suppressed ? 0 : d.critical_pct,
+    display_pct: d.critical_pct,
   }));
 
   const mostAtRisk = visible
-    .filter(d => !d.suppressed)
     .sort((a, b) => b.critical_pct - a.critical_pct)[0];
 
   const mostResponders = visible
-    .filter(d => !d.suppressed)
     .sort((a, b) => b.total_responses - a.total_responses)[0];
 
   return (
@@ -138,8 +116,7 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={entry.suppressed ? '#e2e8f0' : NR_COLOR(entry.critical_pct)}
-                  opacity={entry.suppressed ? 0.5 : 1}
+                  fill={NR_COLOR(entry.critical_pct)}
                 />
               ))}
             </Bar>
@@ -167,29 +144,21 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
                     {d.total_responses}
                   </td>
                   <td className="px-3 py-2 text-center">
-                    {d.suppressed ? (
-                      <span className="text-muted-foreground text-[10px]">suprimido</span>
-                    ) : (
-                      <Badge
-                        className="text-white text-[10px] px-1.5 py-0"
-                        style={{ backgroundColor: NR_COLOR(d.critical_pct) }}
-                      >
-                        {d.critical_pct}%
-                      </Badge>
-                    )}
+                    <Badge
+                      className="text-[10px] px-1.5 py-0"
+                      style={{ backgroundColor: NR_COLOR(d.critical_pct), color: NR_TEXT_COLOR(d.critical_pct) }}
+                    >
+                      {d.critical_pct}%
+                    </Badge>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {d.suppressed ? '—' : (d.worst_dimension ?? '—')}
+                    {d.worst_dimension ?? '—'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        <p className="text-xs text-muted-foreground mt-2">
-          Grupos com menos de 5 respondentes sao suprimidos (LGPD). Baseado nos dados demograficos informados voluntariamente no inicio do questionario.
-        </p>
       </CardContent>
     </Card>
   );

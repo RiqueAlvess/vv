@@ -45,9 +45,9 @@ export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
                 'Risco',
               ] as [string, string]}
             />
-            <ReferenceLine y={4}  stroke="#F59E0B" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#F59E0B' }} />
-            <ReferenceLine y={8}  stroke="#F97316" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#F97316' }} />
-            <ReferenceLine y={12} stroke="#EF4444" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#EF4444' }} />
+            <ReferenceLine y={4}  stroke="#A2C06A" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#A2C06A' }} />
+            <ReferenceLine y={8}  stroke="#FFFF00" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#888800' }} />
+            <ReferenceLine y={12} stroke="#F79454" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#F79454' }} />
             <Bar dataKey="nr" radius={[4, 4, 0, 0]}>
               {data.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />
