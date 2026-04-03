@@ -36,8 +36,6 @@ function buildPGRHtml(params: {
     probability: number; severity: number; nr: number; nrLabel: string; color: string;
   }>;
 }): string {
-  const MIN_RESPONDENTS = 5;
-
   const dimRows = params.campaignDimensions.map(d => `
     <tr>
       <td>${d.name}</td>
@@ -58,11 +56,11 @@ function buildPGRHtml(params: {
           <div class="sector-header">Setor: ${sector.name}</div>
           ${sector.positions.map(position => {
             const hasDims = Object.keys(position.dimensions).length > 0;
-            if (!hasDims || params.totalResponded < MIN_RESPONDENTS) {
+            if (!hasDims) {
               return `
                 <div class="position">
                   <div class="position-header">Cargo: ${position.name}</div>
-                  <div class="suppressed">Dados suprimidos — menos de ${MIN_RESPONDENTS} respondentes (proteção de anonimato LGPD)</div>
+                  <div class="suppressed">Sem dados de resposta para este cargo</div>
                 </div>`;
             }
             return `
@@ -153,16 +151,7 @@ function buildPGRHtml(params: {
   <p><strong>${params.companyName}</strong> — CNPJ: ${params.cnpj}</p>
   <p>Campanha: ${params.campaignName} &nbsp;|&nbsp; Período: ${params.startDate} a ${params.endDate}</p>
   <p>Gerado em: ${params.generatedAt} &nbsp;|&nbsp; Instrumento: HSE-IT (35 questões, 7 dimensões)</p>
-  <p>Respondentes: ${params.totalResponded} de ${params.totalInvited} convidados</p>
-</div>
-
-<!-- ANONYMITY NOTE -->
-<div class="section">
-  <div class="anonymity-note">
-    <strong>Nota de anonimato (LGPD Art. 12):</strong> Os scores são calculados sobre o total de ${params.totalResponded} respondentes da campanha.
-    Por garantia técnica de anonimato (arquitetura Blind-Drop), não é possível vincular respostas individuais a cargos específicos.
-    Cargos com menos de ${MIN_RESPONDENTS} respondentes têm dados suprimidos.
-  </div>
+  <p>Respondentes: ${params.totalResponded}</p>
 </div>
 
 <!-- SCORING MATRIX -->
@@ -329,7 +318,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         name: sector.name,
         positions: sector.positions.map(position => ({
           name: position.name,
-          dimensions: totalResponded >= 5 ? dimensionMap : {},
+          dimensions: dimensionMap,
         })),
       })),
     }));
