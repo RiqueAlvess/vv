@@ -216,8 +216,8 @@ export async function GET(request: Request, { params }: RouteParams) {
           critical_pct: criticalPct,
           worst_dimension: worstDim?.name ?? null,
           worst_dimension_nr: worstDim ? Math.round(worstDim.avgNR * 10) / 10 : 0,
-          suppressed: g.total < 5,
-          dimensions: g.total < 5 ? null : Object.fromEntries(
+          suppressed: false,
+          dimensions: Object.fromEntries(
             Object.entries(g.byDimension).map(([key, d]) => [
               key,
               d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,
@@ -247,8 +247,8 @@ export async function GET(request: Request, { params }: RouteParams) {
           critical_pct: criticalPct,
           worst_dimension: worstDim?.name ?? null,
           worst_dimension_nr: worstDim ? Math.round(worstDim.avgNR * 10) / 10 : 0,
-          suppressed: g.total < 5,
-          dimensions: g.total < 5 ? null : Object.fromEntries(
+          suppressed: false,
+          dimensions: Object.fromEntries(
             Object.entries(g.byDimension).map(([key, d]) => [
               key,
               d.count > 0 ? Math.round((d.sum / d.count) * 10) / 10 : 0,

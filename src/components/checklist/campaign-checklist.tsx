@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Check, Save, Upload, X, FileText,
-  ChevronDown, ChevronUp, Paperclip,
+  ChevronDown, ChevronUp, Paperclip, Download,
 } from 'lucide-react';
 
 interface Evidence {
@@ -176,7 +176,7 @@ export function CampaignChecklist({ campaignId, canEdit }: CampaignChecklistProp
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span
                 className="text-xl font-bold"
                 style={{
@@ -186,6 +186,14 @@ export function CampaignChecklist({ campaignId, canEdit }: CampaignChecklistProp
               >
                 {progressPct}%
               </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(`/api/campaigns/${campaignId}/checklist/pdf`, '_blank')}
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Exportar PDF
+              </Button>
               {canEdit && (
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   <Save className="h-3.5 w-3.5 mr-1.5" />
