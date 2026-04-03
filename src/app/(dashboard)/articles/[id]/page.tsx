@@ -57,7 +57,7 @@ export default function ArticleViewPage() {
       .replace(/\n/g, '<br/>');
 
   if (loading) return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4">
       <Skeleton className="h-8 w-32" />
       <Skeleton className="h-64 w-full" />
       <Skeleton className="h-6 w-3/4" />
@@ -68,7 +68,7 @@ export default function ArticleViewPage() {
   if (!article) return null;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.push('/articles')}>
           <ArrowLeft className="h-4 w-4" />
