@@ -17,8 +17,8 @@ import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Play, Square, Upload, BarChart3,
-  Users, QrCode, ChevronDown, ChevronRight, ClipboardCheck, Download,
-  Plus, Trash2, Eye, RefreshCw,
+  Users, QrCode, ClipboardCheck, Download,
+  Plus, Trash2, Eye, RefreshCw, FileSpreadsheet, FileText,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -77,8 +77,8 @@ export default function CampaignDetailPage() {
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
-  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
+  const [respondentsPage, setRespondentsPage] = useState(1);
+  const RESPONDENTS_PAGE_SIZE = 15;
   const [loading, setLoading] = useState(true);
   const [hierarchyLoading, setHierarchyLoading] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
@@ -269,11 +269,17 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const toggleUnit = (id: string) =>
-    setExpandedUnits((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const toggleSector = (id: string) =>
-    setExpandedSectors((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // Flatten hierarchy into a list of rows for the respondents tab
+  const respondentRows = units.flatMap(unit =>
+    unit.sectors.flatMap(sector =>
+      sector.positions.map(pos => ({
+        unit: unit.name,
+        sector: sector.name,
+        position: pos.name,
+        response_count: pos.response_count,
+      }))
+    )
+  ).sort((a, b) => b.response_count - a.response_count);
 
   if (loading) {
     return (
@@ -346,12 +352,40 @@ export default function CampaignDetailPage() {
             </Button>
           )}
           {campaign.status === 'closed' && (
-            <Button asChild>
-              <Link href="/dashboard">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Ver Dashboard
-              </Link>
-            </Button>
+            <>
+              <Button asChild>
+                <Link href="/dashboard">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Ver Dashboard
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = `/api/campaigns/${campaignId}/report/pdf`;
+                  a.target = '_blank';
+                  a.click();
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Exportar PDF
+              </Button>
+              {user?.role === 'ADM' && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = `/api/campaigns/${campaignId}/dashboard/export`;
+                    a.download = '';
+                    a.click();
+                  }}
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Exportar Planilha
+                </Button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -411,7 +445,7 @@ export default function CampaignDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="hierarchy">
             <Users className="h-4 w-4 mr-2" />
-            Hierarquia
+            Respondentes
           </TabsTrigger>
           <TabsTrigger value="checklist">
             <ClipboardCheck className="h-4 w-4 mr-2" />
@@ -520,14 +554,14 @@ export default function CampaignDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* ── Hierarchy tab ─────────────────────────────────────────────── */}
+        {/* ── Respondents tab ───────────────────────────────────────────── */}
         <TabsContent value="hierarchy">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Estrutura Hierárquica</CardTitle>
-                  <CardDescription>Unidades, setores e cargos importados via CSV</CardDescription>
+                  <CardTitle>Respondentes por Cargo</CardTitle>
+                  <CardDescription>Cargos com respostas registradas, agrupados por unidade e setor</CardDescription>
                 </div>
                 <Button variant="ghost" size="sm" onClick={fetchHierarchy} disabled={hierarchyLoading}>
                   <RefreshCw className={`h-4 w-4 ${hierarchyLoading ? 'animate-spin' : ''}`} />
@@ -539,76 +573,71 @@ export default function CampaignDetailPage() {
                 <div className="space-y-2">
                   <Skeleton className="h-8 w-full" />
                   <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
                 </div>
-              ) : units.length === 0 ? (
+              ) : respondentRows.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   Nenhuma hierarquia importada. Use &quot;Importar CSV&quot; para adicionar unidades, setores e cargos.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {units.map((unit) => {
-                    const totalResponses = unit.sectors
-                      .flatMap((s) => s.positions)
-                      .reduce((sum, p) => sum + p.response_count, 0);
-                    return (
-                      <div key={unit.id} className="border rounded-lg overflow-hidden">
-                        <button
-                          className="w-full flex items-center gap-2 px-4 py-3 bg-muted/40 hover:bg-muted/60 text-left font-medium text-sm"
-                          onClick={() => toggleUnit(unit.id)}
-                        >
-                          {expandedUnits.has(unit.id) ? (
-                            <ChevronDown className="h-4 w-4 shrink-0" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          )}
-                          {unit.name}
-                          <span className="ml-auto text-muted-foreground font-normal text-xs flex gap-3">
-                            <span>{unit.sectors.flatMap((s) => s.positions).length} cargo(s)</span>
-                            {totalResponses > 0 && (
-                              <span className="text-green-600">{totalResponses} resp.</span>
-                            )}
-                          </span>
-                        </button>
-                        {expandedUnits.has(unit.id) && (
-                          <div className="divide-y">
-                            {unit.sectors.map((sector) => (
-                              <div key={sector.id}>
-                                <button
-                                  className="w-full flex items-center gap-2 px-6 py-2 bg-background hover:bg-muted/20 text-left text-sm text-muted-foreground"
-                                  onClick={() => toggleSector(sector.id)}
-                                >
-                                  {expandedSectors.has(sector.id) ? (
-                                    <ChevronDown className="h-3 w-3 shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="h-3 w-3 shrink-0" />
-                                  )}
-                                  {sector.name}
-                                </button>
-                                {expandedSectors.has(sector.id) && (
-                                  <div className="px-8 py-2 space-y-1">
-                                    {sector.positions.map((position) => (
-                                      <div
-                                        key={position.id}
-                                        className="flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-muted/30"
-                                      >
-                                        <span>{position.name}</span>
-                                        {position.response_count > 0 && (
-                                          <Badge variant="secondary" className="text-xs">
-                                            {position.response_count} resp.
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
+                <>
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unidade</th>
+                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Setor</th>
+                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
+                          <th className="text-center px-4 py-3 font-medium text-muted-foreground">Respostas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {respondentRows
+                          .slice((respondentsPage - 1) * RESPONDENTS_PAGE_SIZE, respondentsPage * RESPONDENTS_PAGE_SIZE)
+                          .map((row, i) => (
+                            <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.unit}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.sector}</td>
+                              <td className="px-4 py-2.5 font-medium">{row.position}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                {row.response_count > 0 ? (
+                                  <Badge variant="secondary">{row.response_count}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
                                 )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Pagination */}
+                  {respondentRows.length > RESPONDENTS_PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4">
+                      <p className="text-xs text-muted-foreground">
+                        {(respondentsPage - 1) * RESPONDENTS_PAGE_SIZE + 1}–{Math.min(respondentsPage * RESPONDENTS_PAGE_SIZE, respondentRows.length)} de {respondentRows.length} cargos
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={respondentsPage === 1}
+                          onClick={() => setRespondentsPage(p => p - 1)}
+                        >
+                          Anterior
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={respondentsPage * RESPONDENTS_PAGE_SIZE >= respondentRows.length}
+                          onClick={() => setRespondentsPage(p => p + 1)}
+                        >
+                          Próximo
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
