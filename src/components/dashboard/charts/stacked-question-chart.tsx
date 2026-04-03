@@ -28,34 +28,34 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
           <div style={{ minWidth: 700 }}>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F4" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 9, fill: '#333333' }}
+                  tick={{ fontSize: 9, fill: '#6B7280' }}
                   angle={-45}
                   textAnchor="end"
                   interval={0}
                 />
-                <YAxis tick={{ fontSize: 10, fill: '#333333' }} unit="%" domain={[0, 100]} />
+                <YAxis tick={{ fontSize: 10, fill: '#6B7280' }} unit="%" domain={[0, 100]} />
                 <Tooltip
                   formatter={(val: unknown) => `${val}%`}
                   labelFormatter={(label, payload) =>
                     payload?.[0] ? `${label} — ${(payload[0].payload as { dim: string }).dim}` : label
                   }
                 />
-                <Bar dataKey="Aceitável"  stackId="a" fill="#002B49" />
-                <Bar dataKey="Moderado"   stackId="a" fill="#C5A059" />
-                <Bar dataKey="Importante" stackId="a" fill="#D4AF37" />
-                <Bar dataKey="Crítico"    stackId="a" fill="#8C6A2A" />
+                <Bar dataKey="Aceitável"  stackId="a" fill="#0D3D4F" />
+                <Bar dataKey="Moderado"   stackId="a" fill="#F59E0B" />
+                <Bar dataKey="Importante" stackId="a" fill="#F97316" />
+                <Bar dataKey="Crítico"    stackId="a" fill="#EF4444" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="flex gap-4 justify-center mt-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#002B49] inline-block"/> Aceitável</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#C5A059] inline-block"/> Moderado</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#D4AF37] inline-block"/> Importante</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#8C6A2A] inline-block"/> Crítico</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#0D3D4F] inline-block"/> Aceitável</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F59E0B] inline-block"/> Moderado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F97316] inline-block"/> Importante</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#EF4444] inline-block"/> Crítico</span>
         </div>
       </CardContent>
     </Card>
