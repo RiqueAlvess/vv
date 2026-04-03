@@ -50,9 +50,8 @@ export default function LoginPage() {
     <div className="flex flex-col justify-center w-full max-w-sm px-2">
       {/* Logo */}
       <div className="flex flex-col items-center mb-10">
-        <Logo size={56} />
-        <h1 className="text-2xl font-bold text-foreground tracking-tight mt-4">vivamente360</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <Logo size={44} variant="dark" />
+        <p className="text-sm text-muted-foreground mt-3">
           Plataforma de Riscos Psicossociais NR-1
         </p>
       </div>
