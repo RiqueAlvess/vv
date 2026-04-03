@@ -15,7 +15,6 @@ interface CSVRow {
   unidade: string;
   setor: string;
   cargo: string;
-  email: string;
 }
 
 interface CSVUploadModalProps {
@@ -42,7 +41,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
       const header = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
 
       const errs: string[] = [];
-      const required = ['unidade', 'setor', 'cargo', 'email'];
+      const required = ['unidade', 'setor', 'cargo'];
       for (const col of required) {
         if (!header.includes(col)) errs.push(`Coluna "${col}" não encontrada`);
       }
@@ -59,8 +58,8 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         const row: Record<string, string> = {};
         header.forEach((h, idx) => { row[h] = cols[idx] || ''; });
 
-        if (!row.email?.includes('@')) {
-          errs.push(`Linha ${i + 1}: email inválido "${row.email}"`);
+        if (!row.unidade?.trim() || !row.setor?.trim() || !row.cargo?.trim()) {
+          errs.push(`Linha ${i + 1}: unidade, setor e cargo são obrigatórios`);
           continue;
         }
 
@@ -68,7 +67,6 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
           unidade: row.unidade,
           setor: row.setor,
           cargo: row.cargo,
-          email: row.email,
         });
       }
 
@@ -92,9 +90,9 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Upload de Colaboradores (CSV)</DialogTitle>
+          <DialogTitle>Importar Hierarquia (CSV)</DialogTitle>
           <DialogDescription>
-            O arquivo deve conter as colunas: unidade, setor, cargo, email (separado por vírgula ou ponto-e-vírgula)
+            O arquivo deve conter as colunas: <strong>unidade</strong>, <strong>setor</strong>, <strong>cargo</strong> (separado por vírgula ou ponto-e-vírgula)
           </DialogDescription>
         </DialogHeader>
 
@@ -133,10 +131,9 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[22%]">Unidade</TableHead>
-                          <TableHead className="w-[18%]">Setor</TableHead>
-                          <TableHead className="w-[20%]">Cargo</TableHead>
-                          <TableHead className="w-[40%]">Email</TableHead>
+                          <TableHead className="w-[33%]">Unidade</TableHead>
+                          <TableHead className="w-[33%]">Setor</TableHead>
+                          <TableHead className="w-[34%]">Cargo</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -150,9 +147,6 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
                             </TableCell>
                             <TableCell className="text-sm max-w-0">
                               <span className="block truncate" title={row.cargo}>{row.cargo}</span>
-                            </TableCell>
-                            <TableCell className="text-sm max-w-0">
-                              <span className="block truncate font-mono text-xs" title={row.email}>{row.email}</span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -175,7 +169,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancelar</Button>
           <Button onClick={handleUpload} disabled={rows.length === 0 || loading}>
-            {loading ? 'Importando e enviando convites...' : `Importar e enviar ${rows.length} convites`}
+            {loading ? 'Importando...' : `Importar ${rows.length} registros`}
           </Button>
         </DialogFooter>
       </DialogContent>

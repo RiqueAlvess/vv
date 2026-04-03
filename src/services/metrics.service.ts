@@ -43,11 +43,9 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     created_at: r.created_at.toISOString(),
   })) as SurveyResponse[];
 
-  const totalInvited = await prisma.surveyInvitation.count({
-    where: { campaign_id: campaignId },
-  });
+  const totalInvited = 0; // QR code model — no fixed invited pool
   const totalResponded = responses.length;
-  const responseRate = totalInvited ? (totalResponded / totalInvited) * 100 : 0;
+  const responseRate = totalResponded > 0 ? 100 : 0;
 
   const dimensionScores = DashboardService.getDimensionScores(responses);
   const igrp = ScoreService.calculateIGRP(

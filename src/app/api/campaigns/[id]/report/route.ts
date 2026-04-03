@@ -61,7 +61,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Query 1: full hierarchy in one shot — units → sectors → positions → employees
+    // Query 1: full hierarchy — units → sectors → positions
     const units = await prisma.campaignUnit.findMany({
       where: { campaign_id: id },
       orderBy: { name: 'asc' },
@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: RouteParams) {
             positions: {
               orderBy: { name: 'asc' },
               include: {
-                employees: { select: { id: true } },
+                _count: { select: { responses: true } },
               },
             },
           },
@@ -101,8 +101,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Pre-compute campaign-wide dimension scores once from all responses.
-    // SurveyResponse has no FK to positions (Blind-Drop anonymity guarantee),
-    // so the same aggregate scores apply to every position that has employees.
+    // SurveyResponse hierarchy is self-reported — same aggregate applies per position.
     const campaignDimensions = computeDimensions(
       allResponses.map((r) => r.responses as Record<string, number>)
     );
@@ -114,8 +113,8 @@ export async function POST(request: Request, { params }: RouteParams) {
         name: sector.name,
         positions: sector.positions.map((position) => ({
           name: position.name,
-          // Positions with no employees get empty dimensions (no respondents possible)
-          dimensions: position.employees.length > 0 ? campaignDimensions : {},
+          // Show dimensions only for positions that have at least one response
+          dimensions: position._count.responses > 0 ? campaignDimensions : {},
         })),
       })),
     }));

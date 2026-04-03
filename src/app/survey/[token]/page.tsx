@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,79 +15,100 @@ import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const QUESTIONS = [
-  // CARGO/FUNÇÃO (positive) — questions: 1, 4, 11, 13, 17
   { id: 1,  text: 'Tenho clareza sobre o que se espera do meu trabalho' },
-  // CONTROLE (positive) — questions: 2, 10, 15, 19, 25, 30
   { id: 2,  text: 'Posso decidir quando fazer uma pausa' },
-  // DEMANDAS (negative) — questions: 3, 6, 9, 12, 16, 18, 20, 22
   { id: 3,  text: 'As exigências de trabalho feitas por colegas e supervisores são difíceis de combinar' },
-  // CARGO
   { id: 4,  text: 'Eu sei como fazer o meu trabalho' },
-  // RELACIONAMENTOS (negative) — questions: 5, 14, 21, 34
   { id: 5,  text: 'Falam ou se comportam comigo de forma dura' },
-  // DEMANDAS
   { id: 6,  text: 'Tenho prazos inatingíveis' },
-  // APOIO DOS COLEGAS (positive) — questions: 7, 24, 27, 31
   { id: 7,  text: 'Quando o trabalho se torna difícil, posso contar com ajuda dos colegas' },
-  // APOIO DA CHEFIA (positive) — questions: 8, 23, 29, 33, 35
   { id: 8,  text: 'Recebo informações e suporte que me ajudam no trabalho que eu faço' },
-  // DEMANDAS
   { id: 9,  text: 'Devo trabalhar muito intensamente' },
-  // CONTROLE
   { id: 10, text: 'Consideram a minha opinião sobre a velocidade do meu trabalho' },
-  // CARGO
   { id: 11, text: 'Estão claras as minhas tarefas e responsabilidades' },
-  // DEMANDAS
   { id: 12, text: 'Eu não faço algumas tarefas porque tenho muita coisa para fazer' },
-  // CARGO
   { id: 13, text: 'Os objetivos e metas do meu setor são claros para mim' },
-  // RELACIONAMENTOS
   { id: 14, text: 'Existem conflitos entre os colegas' },
-  // CONTROLE
   { id: 15, text: 'Tenho liberdade de escolha de como fazer meu trabalho' },
-  // DEMANDAS
   { id: 16, text: 'Não tenho possibilidade de fazer pausas suficientes' },
-  // CARGO
   { id: 17, text: 'Eu vejo como o meu trabalho se encaixa nos objetivos da empresa' },
-  // DEMANDAS
   { id: 18, text: 'Recebo pressão para trabalhar em outro horário' },
-  // CONTROLE
   { id: 19, text: 'Tenho liberdade de escolha para decidir o que fazer no meu trabalho' },
-  // DEMANDAS
   { id: 20, text: 'Tenho que fazer meu trabalho com muita rapidez' },
-  // RELACIONAMENTOS
   { id: 21, text: 'Sinto que sou perseguido no trabalho' },
-  // DEMANDAS
   { id: 22, text: 'As pausas temporárias são impossíveis de cumprir' },
-  // APOIO DA CHEFIA
   { id: 23, text: 'Posso confiar no meu chefe quando eu tiver problemas no trabalho' },
-  // APOIO DOS COLEGAS
   { id: 24, text: 'Meus colegas me ajudam e me dão apoio quando eu preciso' },
-  // CONTROLE
   { id: 25, text: 'Minhas sugestões são consideradas sobre como fazer meu trabalho' },
-  // COMUNICAÇÃO E MUDANÇAS (positive) — questions: 26, 28, 32
   { id: 26, text: 'Tenho oportunidades para pedir explicações ao chefe sobre as mudanças relacionadas ao meu trabalho' },
-  // APOIO DOS COLEGAS
   { id: 27, text: 'No trabalho os meus colegas demonstram o respeito que mereço' },
-  // COMUNICAÇÃO E MUDANÇAS
   { id: 28, text: 'As pessoas são sempre consultadas sobre as mudanças no trabalho' },
-  // APOIO DA CHEFIA
   { id: 29, text: 'Quando algo no trabalho me perturba ou irrita posso falar com meu chefe' },
-  // CONTROLE
   { id: 30, text: 'O meu horário de trabalho pode ser flexível' },
-  // APOIO DOS COLEGAS
   { id: 31, text: 'Os colegas estão disponíveis para escutar os meus problemas de trabalho' },
-  // COMUNICAÇÃO E MUDANÇAS
   { id: 32, text: 'Quando há mudanças, faço o meu trabalho com o mesmo carinho' },
-  // APOIO DA CHEFIA
   { id: 33, text: 'Tenho suportado trabalhos emocionalmente exigentes' },
-  // RELACIONAMENTOS
   { id: 34, text: 'As relações no trabalho são tensas' },
-  // APOIO DA CHEFIA
   { id: 35, text: 'Meu chefe me incentiva no trabalho' },
 ] as const;
 
-type SurveyStep = 'loading' | 'invalid' | 'consent' | 'demographics' | 'questions' | 'submitting' | 'done';
+interface HierarchyPosition { id: string; name: string; }
+interface HierarchySector { id: string; name: string; positions: HierarchyPosition[]; }
+interface HierarchyUnit { id: string; name: string; sectors: HierarchySector[]; }
+
+type SurveyStep =
+  | 'loading'
+  | 'invalid'
+  | 'already_responded'
+  | 'consent'
+  | 'hierarchy'
+  | 'demographics'
+  | 'questions'
+  | 'submitting'
+  | 'done';
+
+// ── Device fingerprinting ────────────────────────────────────────────────────
+async function generateFingerprint(): Promise<string> {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Asta🔒', 2, 15);
+      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+      ctx.fillText('Asta🔒', 4, 17);
+    }
+    const canvasHash = canvas.toDataURL();
+
+    const raw = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width + 'x' + screen.height,
+      screen.colorDepth,
+      new Date().getTimezoneOffset(),
+      navigator.hardwareConcurrency ?? 0,
+      canvasHash.slice(0, 200),
+    ].join('|');
+
+    // SHA-256 via SubtleCrypto
+    const encoded = new TextEncoder().encode(raw);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // Fallback: random ID stored in sessionStorage (weaker but won't break flow)
+    const key = 'asta_fp';
+    const stored = sessionStorage.getItem(key);
+    if (stored) return stored;
+    const fallback = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem(key, fallback);
+    return fallback;
+  }
+}
 
 export default function SurveyPage() {
   const params = useParams();
@@ -96,10 +117,15 @@ export default function SurveyPage() {
   const [step, setStep] = useState<SurveyStep>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [selectedSectorId, setSelectedSectorId] = useState('');
+  const [selectedPositionId, setSelectedPositionId] = useState('');
   const [gender, setGender] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
+  const [fingerprint, setFingerprint] = useState('');
   const [campaignInfo, setCampaignInfo] = useState<{
     campaign_name: string;
     company_name: string;
@@ -112,13 +138,21 @@ export default function SurveyPage() {
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / QUESTIONS.length) * 100;
 
+  const availableSectors = hierarchy.find(u => u.id === selectedUnitId)?.sectors ?? [];
+  const availablePositions = availableSectors.find(s => s.id === selectedSectorId)?.positions ?? [];
+
+  // Generate fingerprint on mount
+  useEffect(() => {
+    generateFingerprint().then(setFingerprint);
+  }, []);
+
   useEffect(() => {
     const validate = async () => {
       try {
         const res = await fetch(`/api/survey/${token}`);
         const data = await res.json();
         if (!res.ok || !data.valid) {
-          setErrorMsg(data.error || 'Token inválido');
+          setErrorMsg(data.error || 'QR Code inválido');
           setStep('invalid');
         } else {
           setCampaignInfo({
@@ -126,17 +160,18 @@ export default function SurveyPage() {
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
           });
+          setHierarchy(data.hierarchy ?? []);
           setStep('consent');
         }
       } catch {
-        setErrorMsg('Erro ao validar convite');
+        setErrorMsg('Erro ao validar QR Code');
         setStep('invalid');
       }
     };
     validate();
   }, [token]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (answeredCount < QUESTIONS.length) {
       setErrorMsg('Por favor, responda todas as questões');
       return;
@@ -151,12 +186,20 @@ export default function SurveyPage() {
           responses,
           gender: gender || undefined,
           age_range: ageRange || undefined,
+          unit_id: selectedUnitId || undefined,
+          sector_id: selectedSectorId || undefined,
+          position_id: selectedPositionId || undefined,
+          fingerprint: fingerprint || undefined,
           consent_accepted: true,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
+        if (res.status === 409 && data.error?.includes('já participou')) {
+          setStep('already_responded');
+          return;
+        }
         setErrorMsg(data.error || 'Erro ao enviar respostas');
         setStep('questions');
         return;
@@ -167,8 +210,9 @@ export default function SurveyPage() {
       setErrorMsg('Erro de conexão');
       setStep('questions');
     }
-  };
+  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, fingerprint]);
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (step === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -185,14 +229,31 @@ export default function SurveyPage() {
     );
   }
 
+  // ── Invalid / already responded / done ───────────────────────────────────
   if (step === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-md text-center">
           <CardContent className="py-12">
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Convite Inválido</h2>
+            <h2 className="text-xl font-semibold mb-2">QR Code Inválido</h2>
             <p className="text-muted-foreground">{errorMsg}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 'already_responded') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardContent className="py-12">
+            <CheckCircle2 className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Participação Registrada</h2>
+            <p className="text-muted-foreground">
+              Este dispositivo já participou desta pesquisa. Obrigado pela sua contribuição!
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -230,7 +291,7 @@ export default function SurveyPage() {
           <p className="text-xs text-muted-foreground">Instrumento HSE-IT · NR-1</p>
         </div>
 
-        {/* Consent Step */}
+        {/* Step 1: Consent */}
         {step === 'consent' && (
           <Card>
             <CardHeader>
@@ -257,22 +318,17 @@ export default function SurveyPage() {
                     <strong className="text-foreground">{campaignInfo?.company_name ?? '[EMPRESA]'}</strong>,
                     inscrita sob CNPJ{' '}
                     <strong className="text-foreground">{campaignInfo?.company_cnpj ?? '[CNPJ]'}</strong>,
-                    como parte do cumprimento das obrigações da NR-1, que exige a identificação e gestão de
-                    riscos psicossociais no ambiente de trabalho. A plataforma utilizada é o{' '}
-                    <strong className="text-foreground">Vivamente360</strong>, que opera como operador de dados nos
-                    termos do artigo 5º, inciso VII da LGPD.
+                    como parte do cumprimento das obrigações da NR-1. A plataforma utilizada é o{' '}
+                    <strong className="text-foreground">Vivamente360</strong>.
                   </p>
                 </div>
 
                 <div className="space-y-1">
                   <h3 className="font-semibold text-foreground">2. Por que esta pesquisa está sendo realizada</h3>
                   <p className="text-muted-foreground">
-                    A NR-1, com as alterações introduzidas pela Portaria MTE nº 1.419/2024, tornou obrigatório
-                    que as empresas identifiquem os riscos psicossociais presentes no ambiente de trabalho. Esta
-                    pesquisa utiliza o instrumento HSE-IT, composto por 35 questões organizadas em 7 dimensões:
-                    Demandas, Controle, Apoio da Chefia, Apoio dos Colegas, Relacionamentos, Cargo e Comunicação
-                    e Mudanças. Os resultados serão usados exclusivamente para elaborar relatórios de diagnóstico
-                    e planos de ação para compliance com a NR-1.{' '}
+                    A NR-1 tornou obrigatório que as empresas identifiquem os riscos psicossociais. Esta pesquisa
+                    utiliza o instrumento HSE-IT (35 questões, 7 dimensões). Os resultados serão usados
+                    exclusivamente para diagnóstico e planos de ação.{' '}
                     <strong className="text-foreground">
                       Não serão usados para avaliação de desempenho individual ou processos disciplinares.
                     </strong>
@@ -282,19 +338,11 @@ export default function SurveyPage() {
                 <div className="space-y-1">
                   <h3 className="font-semibold text-foreground">3. Como sua anonimidade é garantida</h3>
                   <p className="text-muted-foreground">
-                    Este sistema foi construído com uma arquitetura chamada{' '}
-                    <strong className="text-foreground">Blind-Drop</strong>, que torna sua participação
-                    estruturalmente anônima — não apenas por política, mas por{' '}
-                    <strong className="text-foreground">impossibilidade técnica de vinculação</strong>. O convite
-                    que você recebeu e a resposta que você vai enviar são armazenados em locais completamente
-                    separados no banco de dados, sem nenhum campo em comum entre eles. Nem o RH, nem a TI, nem
-                    os administradores da plataforma conseguem descobrir quem respondeu o quê. O link recebido é
-                    invalidado com atraso aleatório após a sua resposta, impedindo correlação temporal.
-                  </p>
-                  <p className="text-muted-foreground mt-2">
-                    <strong className="text-foreground">Seu cargo não é coletado</strong> junto com suas
-                    respostas — decisão arquitetural deliberada. Resultados de grupos com menos de 5 respondentes
-                    nunca são exibidos, mesmo de forma agregada.
+                    A pesquisa é acessada via QR Code compartilhado — não há nenhum link individual que
+                    identifique você. As respostas são armazenadas sem nenhum dado pessoal identificável.
+                    A seleção de unidade, setor e cargo é{' '}
+                    <strong className="text-foreground">feita por você</strong>, não capturada do sistema.
+                    O resultado final é sempre apresentado de forma agregada.
                   </p>
                 </div>
 
@@ -302,13 +350,13 @@ export default function SurveyPage() {
                   <h3 className="font-semibold text-foreground">4. O que será coletado</h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Respostas às 35 perguntas do questionário HSE-IT</li>
+                    <li>Unidade, setor e cargo (selecionados por você, opcionais)</li>
                     <li>Faixa etária e gênero (opcionais, para análise estatística agregada)</li>
                     <li>Registro do aceite deste termo (data/hora, sem vínculo com identidade)</li>
                   </ul>
                   <p className="text-muted-foreground mt-2">
                     <strong className="text-foreground">Não será coletado:</strong> nome, e-mail, CPF, matrícula,
-                    cargo, endereço, telefone, localização, IP ou qualquer dado que permita identificação
-                    individual.
+                    endereço, telefone, localização, IP ou qualquer dado que permita identificação individual.
                   </p>
                 </div>
 
@@ -321,32 +369,17 @@ export default function SurveyPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">6. Seus direitos como titular</h3>
+                  <h3 className="font-semibold text-foreground">6. Retenção e voluntariedade</h3>
                   <p className="text-muted-foreground">
-                    Conforme o art. 18 da LGPD: confirmar tratamento, acessar dados, solicitar correção,
-                    eliminação, portabilidade, revogar consentimento, opor-se ao tratamento e reclamar perante
-                    a ANPD. Contato: canais de comunicação interna da{' '}
-                    {campaignInfo?.company_name ?? 'empresa'}.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">7. Retenção e voluntariedade</h3>
-                  <p className="text-muted-foreground">
-                    Dados mantidos pelo período necessário à análise e elaboração dos relatórios NR-1, após o
-                    que serão eliminados ou anonimizados (art. 15 LGPD). Participação{' '}
-                    <strong className="text-foreground">completamente voluntária</strong> — recusar ou
-                    interromper não acarreta qualquer consequência trabalhista ou disciplinar.
+                    Participação <strong className="text-foreground">completamente voluntária</strong> — recusar
+                    não acarreta qualquer consequência trabalhista. Dados mantidos pelo período necessário à análise.
                   </p>
                 </div>
 
                 <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
-                  <p>
-                    Versão 2.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)
-                  </p>
+                  <p>Versão 2.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)</p>
                   <p className="mt-1">
-                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} — CNPJ:{' '}
-                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: Vivamente360
+                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} · Operador: Vivamente360
                   </p>
                 </div>
               </div>
@@ -360,25 +393,18 @@ export default function SurveyPage() {
                 />
                 <Label htmlFor="consent" className="text-sm cursor-pointer leading-relaxed">
                   Li e compreendi todas as informações deste termo. Participo voluntariamente e autorizo o
-                  tratamento dos meus dados conforme descrito acima. Estou ciente de que minha identidade
-                  não será revelada em nenhuma circunstância, por garantia técnica.
+                  tratamento dos meus dados conforme descrito acima.
                 </Label>
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    window.close();
-                  }}
-                >
+                <Button variant="outline" className="flex-1" onClick={() => window.close()}>
                   Não aceito — sair
                 </Button>
                 <Button
                   className="flex-1"
                   disabled={!consentAccepted}
-                  onClick={() => setStep('demographics')}
+                  onClick={() => setStep('hierarchy')}
                 >
                   Aceito e desejo participar →
                 </Button>
@@ -387,7 +413,81 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* Demographics Step */}
+        {/* Step 2: Hierarchy selection */}
+        {step === 'hierarchy' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Identificação Hierárquica</CardTitle>
+              <CardDescription>
+                Selecione sua unidade, setor e cargo para análise por área (opcional — não identifica você)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={selectedUnitId}
+                  onValueChange={(v) => {
+                    setSelectedUnitId(v);
+                    setSelectedSectorId('');
+                    setSelectedPositionId('');
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    {hierarchy.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Setor</Label>
+                <Select
+                  value={selectedSectorId}
+                  onValueChange={(v) => {
+                    setSelectedSectorId(v);
+                    setSelectedPositionId('');
+                  }}
+                  disabled={!selectedUnitId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSectors.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cargo</Label>
+                <Select
+                  value={selectedPositionId}
+                  onValueChange={setSelectedPositionId}
+                  disabled={!selectedSectorId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
+                  <SelectContent>
+                    {availablePositions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => setStep('consent')}>Voltar</Button>
+                <Button className="flex-1" onClick={() => setStep('demographics')}>
+                  Continuar →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3: Demographics */}
         {step === 'demographics' && (
           <Card>
             <CardHeader>
@@ -418,16 +518,16 @@ export default function SurveyPage() {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep('consent')}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep('hierarchy')}>Voltar</Button>
                 <Button className="flex-1" onClick={() => setStep('questions')}>
-                  Iniciar Pesquisa
+                  Iniciar Pesquisa →
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Questions Step */}
+        {/* Step 4: Questions */}
         {(step === 'questions' || step === 'submitting') && (
           <>
             <div className="space-y-2">
