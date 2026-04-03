@@ -259,7 +259,7 @@ export default function SurveyPage() {
                     <strong className="text-foreground">{campaignInfo?.company_cnpj ?? '[CNPJ]'}</strong>,
                     como parte do cumprimento das obrigações da NR-1, que exige a identificação e gestão de
                     riscos psicossociais no ambiente de trabalho. A plataforma utilizada é o{' '}
-                    <strong className="text-foreground">vivamente360</strong>, que opera como operador de dados nos
+                    <strong className="text-foreground">Vivamente360</strong>, que opera como operador de dados nos
                     termos do artigo 5º, inciso VII da LGPD.
                   </p>
                 </div>
@@ -346,7 +346,7 @@ export default function SurveyPage() {
                   </p>
                   <p className="mt-1">
                     Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} — CNPJ:{' '}
-                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: vivamente360
+                    {campaignInfo?.company_cnpj ?? '[CNPJ]'} · Operador: Vivamente360
                   </p>
                 </div>
               </div>
