@@ -1,13 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="96" viewBox="0 0 320 96" role="img" aria-labelledby="title desc">
-  <title id="title">Asta</title>
-  <desc id="desc">Marca padrão da aplicação Asta.</desc>
-  <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#2563eb"/>
-    </linearGradient>
-  </defs>
-  <rect x="4" y="8" rx="18" ry="18" width="80" height="80" fill="url(#g)"/>
-  <path d="M44 26 58 70H50l-3.4-10.8H32.8L29.5 70H22l14-44Zm-4.3 26.7h10.1L44.7 36z" fill="#fff"/>
-  <text x="102" y="60" fill="#0f172a" font-size="42" font-family="Inter, Segoe UI, Arial, sans-serif" font-weight="700" letter-spacing=".5">Asta</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 56" width="340" height="56" role="img" aria-label="Vivamente360">
+  <text
+    x="0" y="44"
+    font-family="Arial, Helvetica, sans-serif"
+    font-weight="800"
+    font-size="46"
+    letter-spacing="-1"
+  >
+    <tspan fill="#FFFFFF">Vivamente</tspan><tspan fill="#00C896">360</tspan>
+  </text>
 </svg>

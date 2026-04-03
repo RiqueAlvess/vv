@@ -16,7 +16,7 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'vivamente360 — Saude Psicossocial NR-1',
+  title: 'Vivamente360 — Saude Psicossocial NR-1',
   description: 'Plataforma SaaS de analise de riscos psicossociais baseada no HSE-IT e NR-1',
 };
 
