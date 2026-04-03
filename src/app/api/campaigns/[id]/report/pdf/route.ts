@@ -278,7 +278,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       select: { responses: true },
     });
 
-    const totalInvited = await prisma.surveyInvitation.count({ where: { campaign_id: id } });
+    const totalInvited = 0; // QR code model — no fixed invited pool
     const totalResponded = allResponses.length;
 
     if (totalResponded === 0) {

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { claimNextJob, completeJob, failJob } from '@/lib/jobs';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
-import { sendInvitationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,21 +37,7 @@ export async function POST(request: Request) {
       }
 
       case 'send_invitation_email': {
-        const payload = job.payload as {
-          to: string;
-          campaign_name: string;
-          company_name: string;
-          token: string;
-          expires_at: string;
-        };
-        const sent = await sendInvitationEmail({
-          to: payload.to,
-          campaignName: payload.campaign_name,
-          companyName: payload.company_name,
-          token: payload.token,
-          expiresAt: new Date(payload.expires_at),
-        });
-        if (!sent) throw new Error(`Resend failed for token ${payload.token}`);
+        // Email invitations removed — QR code model. Silently skip.
         break;
       }
 

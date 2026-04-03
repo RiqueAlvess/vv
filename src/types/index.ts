@@ -55,25 +55,23 @@ export interface CampaignPosition {
   name: string;
 }
 
-export interface CampaignEmployee {
-  id: string;
-  position_id: string;
-  email_hash: string;
-}
-
-export interface SurveyInvitation {
+export interface CampaignQRCode {
   id: string;
   campaign_id: string;
-  employee_id: string;
-  status: string;
-  sent_at: string;
-  expires_at: string;
+  token: string;
+  is_active: boolean;
+  created_at: string;
+  deactivated_at: string | null;
 }
 
 export interface SurveyResponse {
   id: string;
   campaign_id: string;
   session_uuid: string;
+  unit_id: string | null;
+  sector_id: string | null;
+  position_id: string | null;
+  fingerprint: string | null;
   gender: string | null;
   age_range: string | null;
   consent_accepted: boolean;
@@ -141,10 +139,9 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface CSVRow {
-  unit: string;
-  sector: string;
-  position: string;
-  email: string;
+  unidade: string;
+  setor: string;
+  cargo: string;
 }
 
 export interface DashboardData {

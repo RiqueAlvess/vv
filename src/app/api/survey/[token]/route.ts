@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { surveyResponseSchema } from '@/lib/validations';
-import { AnonymityService } from '@/services/anonymity.service';
 import { persistFactResponses } from '@/actions/survey.actions';
+import { generateToken } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,43 +10,60 @@ interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
+// GET — validate QR code token, return campaign info + hierarchy for self-selection
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
 
-    const invitation = await prisma.surveyInvitation.findUnique({
-      where: { token_public: token },
+    const qrCode = await prisma.campaignQRCode.findUnique({
+      where: { token },
       select: {
         id: true,
-        campaign_id: true,
-        token_used_internally: true,
-        expires_at: true,
-        campaign: { select: { status: true, name: true, company: { select: { name: true, cnpj: true } } } },
+        is_active: true,
+        campaign: {
+          select: {
+            id: true,
+            status: true,
+            name: true,
+            company: { select: { name: true, cnpj: true } },
+            units: {
+              select: {
+                id: true,
+                name: true,
+                sectors: {
+                  select: {
+                    id: true,
+                    name: true,
+                    positions: {
+                      select: { id: true, name: true },
+                      orderBy: { name: 'asc' },
+                    },
+                  },
+                  orderBy: { name: 'asc' },
+                },
+              },
+              orderBy: { name: 'asc' },
+            },
+          },
+        },
       },
     });
 
-    if (!invitation) {
+    if (!qrCode) {
       return NextResponse.json(
-        { valid: false, error: 'Link inválido ou já utilizado' },
+        { valid: false, error: 'QR Code inválido' },
         { status: 404 }
       );
     }
 
-    if (invitation.token_used_internally) {
+    if (!qrCode.is_active) {
       return NextResponse.json(
-        { valid: false, error: 'Este convite já foi utilizado' },
+        { valid: false, error: 'Este QR Code foi desativado' },
         { status: 410 }
       );
     }
 
-    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
-      return NextResponse.json(
-        { valid: false, error: 'Este convite expirou' },
-        { status: 410 }
-      );
-    }
-
-    if (invitation.campaign.status !== 'active') {
+    if (qrCode.campaign.status !== 'active') {
       return NextResponse.json(
         { valid: false, error: 'Esta campanha não está mais ativa' },
         { status: 410 }
@@ -55,13 +72,14 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({
       valid: true,
-      campaign_id: invitation.campaign_id,
-      campaign_name: invitation.campaign.name,
-      company_name: invitation.campaign.company.name,
-      company_cnpj: invitation.campaign.company.cnpj,
+      campaign_id: qrCode.campaign.id,
+      campaign_name: qrCode.campaign.name,
+      company_name: qrCode.campaign.company.name,
+      company_cnpj: qrCode.campaign.company.cnpj,
+      hierarchy: qrCode.campaign.units,
     });
   } catch (err) {
-    console.error('Validate survey token error:', err);
+    console.error('Validate QR code error:', err);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -69,11 +87,11 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
+// POST — submit survey response via QR code
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
 
-    // Validate body before opening the transaction — request.json() is one-shot
     const body = await request.json();
     const parsed = surveyResponseSchema.safeParse(body);
     if (!parsed.success) {
@@ -83,54 +101,72 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { responses, gender, age_range, consent_accepted } = parsed.data;
+    const { responses, gender, age_range, unit_id, sector_id, position_id, fingerprint, consent_accepted } = parsed.data;
 
-    // Blind Drop Protocol Steps 3 & 4 — atomic: token consumption + response insert.
-    // If the INSERT fails the transaction rolls back, so the token is never consumed.
-    let session: { sessionUuid: string; campaignId: string; invitationId: string; surveyResponseId: string } | null;
-    try {
-      session = await prisma.$transaction(async (tx) => {
-        const s = await AnonymityService.validateAndDestroyToken(token, tx);
-        if (!s) return null;
+    // Validate QR code is still active and campaign is active
+    const qrCode = await prisma.campaignQRCode.findUnique({
+      where: { token },
+      select: {
+        is_active: true,
+        campaign: { select: { id: true, status: true } },
+      },
+    });
 
-        const anonymousData = AnonymityService.buildAnonymousResponse(
-          s.campaignId,
-          s.sessionUuid,
-          responses,
-          { gender, ageRange: age_range },
-          consent_accepted
-        );
-
-        const surveyResponse = await tx.surveyResponse.create({ data: anonymousData, select: { id: true } });
-        return { ...s, surveyResponseId: surveyResponse.id };
-      });
-    } catch (txErr) {
-      if (txErr instanceof Error && txErr.message === 'Campaign is not active') {
-        return NextResponse.json(
-          { error: 'This survey is no longer accepting responses' },
-          { status: 409 }
-        );
-      }
-      throw txErr;
-    }
-
-    if (!session) {
+    if (!qrCode || !qrCode.is_active) {
       return NextResponse.json(
-        { error: 'Token inválido, expirado ou já utilizado' },
+        { error: 'QR Code inválido ou desativado' },
         { status: 410 }
       );
     }
 
-    // Persist analytics fact rows — non-fatal: user's response is already saved
+    if (qrCode.campaign.status !== 'active') {
+      return NextResponse.json(
+        { error: 'Esta campanha não está aceitando respostas' },
+        { status: 409 }
+      );
+    }
+
+    const campaignId = qrCode.campaign.id;
+
+    // Check fingerprint deduplication (one response per device per campaign)
+    if (fingerprint) {
+      const existing = await prisma.surveyResponse.findFirst({
+        where: { campaign_id: campaignId, fingerprint },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: 'Você já participou desta pesquisa neste dispositivo' },
+          { status: 409 }
+        );
+      }
+    }
+
+    const sessionUuid = generateToken();
+
+    const surveyResponse = await prisma.surveyResponse.create({
+      data: {
+        campaign_id: campaignId,
+        session_uuid: sessionUuid,
+        unit_id: unit_id ?? null,
+        sector_id: sector_id ?? null,
+        position_id: position_id ?? null,
+        fingerprint: fingerprint ?? null,
+        gender: gender ?? null,
+        age_range: age_range ?? null,
+        consent_accepted,
+        consent_accepted_at: new Date(),
+        responses,
+      },
+      select: { id: true },
+    });
+
+    // Persist analytics fact rows — non-fatal
     try {
-      await persistFactResponses(session.surveyResponseId, session.campaignId, responses);
+      await persistFactResponses(surveyResponse.id, campaignId, responses);
     } catch (error) {
       console.error('[FactResponse]', error);
     }
-
-    // Blind Drop Protocol Step 5: Schedule delayed status update (outside transaction)
-    const delayMs = AnonymityService.calculateRandomDelay();
-    await AnonymityService.scheduleStatusUpdate(session.invitationId, delayMs);
 
     return NextResponse.json({
       success: true,

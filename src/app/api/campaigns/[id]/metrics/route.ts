@@ -42,25 +42,15 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [totalInvited, totalResponded] = await Promise.all([
-      prisma.surveyInvitation.count({
-        where: { campaign_id: id },
-      }),
-      prisma.surveyResponse.count({
-        where: { campaign_id: id },
-      }),
-    ]);
+    const totalResponded = await prisma.surveyResponse.count({
+      where: { campaign_id: id },
+    });
 
-    const responseRate = totalInvited > 0 ? Math.round((totalResponded / totalInvited) * 10000) / 100 : 0;
-
-    // For active campaigns, only show aggregated totals
-    // Don't expose individual invitation statuses to RH
     return NextResponse.json({
       campaign_id: id,
       status: campaign.status,
-      total_invited: totalInvited,
       total_responded: totalResponded,
-      response_rate: responseRate,
+      response_rate: 0, // No fixed pool of invited users in QR code model
     });
   } catch (err) {
     console.error('Metrics error:', err);
