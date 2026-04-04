@@ -167,26 +167,25 @@ export async function GET(request: Request, { params }: RouteParams) {
     let workersHighRisk = 0;
     let workersCritical = 0;
     for (const resp of responses) {
-      let maxNR = 0;
-      for (const dim of HSE_DIMENSIONS) {
-        const { nr } = getResponseDimensionRisk(resp, dim);
-        if (nr > maxNR) maxNR = nr;
-      }
-      if (maxNR >= 9) workersHighRisk++;
-      if (maxNR >= 13) workersCritical++;
+      const respondentNRs = HSE_DIMENSIONS.map((dim) => getResponseDimensionRisk(resp, dim).nr);
+      const respondentIGRP = respondentNRs.reduce((sum, nr) => sum + nr, 0) / respondentNRs.length;
+      if (respondentIGRP >= 9) workersHighRisk++;
+      if (respondentIGRP >= 13) workersCritical++;
     }
     const workersHighRiskPct = Math.round((workersHighRisk / totalResponded) * 100);
     const workersCriticalPct = Math.round((workersCritical / totalResponded) * 100);
 
     const genderGroups: Record<string, {
       total: number;
-      highRiskRespondents: number;
+      highRiskEvaluations: number;
+      totalEvaluations: number;
       byDimension: Record<string, { nrSum: number; count: number }>;
     }> = {};
 
     const ageGroups: Record<string, {
       total: number;
-      highRiskRespondents: number;
+      highRiskEvaluations: number;
+      totalEvaluations: number;
       byDimension: Record<string, { nrSum: number; count: number }>;
     }> = {};
 
@@ -195,20 +194,23 @@ export async function GET(request: Request, { params }: RouteParams) {
       const ageKey = resp.age_range && AGE_RANGES.includes(resp.age_range) ? resp.age_range : 'Não informado';
 
       if (!genderGroups[genderKey]) {
-        genderGroups[genderKey] = { total: 0, highRiskRespondents: 0, byDimension: {} };
+        genderGroups[genderKey] = { total: 0, highRiskEvaluations: 0, totalEvaluations: 0, byDimension: {} };
       }
       if (!ageGroups[ageKey]) {
-        ageGroups[ageKey] = { total: 0, highRiskRespondents: 0, byDimension: {} };
+        ageGroups[ageKey] = { total: 0, highRiskEvaluations: 0, totalEvaluations: 0, byDimension: {} };
       }
 
       genderGroups[genderKey].total++;
       ageGroups[ageKey].total++;
 
-      let hasHighRiskDimension = false;
-
       for (const dim of HSE_DIMENSIONS) {
         const { nr } = getResponseDimensionRisk(resp, dim);
-        if (nr >= 9) hasHighRiskDimension = true;
+        genderGroups[genderKey].totalEvaluations += 1;
+        ageGroups[ageKey].totalEvaluations += 1;
+        if (nr >= 9) {
+          genderGroups[genderKey].highRiskEvaluations += 1;
+          ageGroups[ageKey].highRiskEvaluations += 1;
+        }
 
         if (!genderGroups[genderKey].byDimension[dim.key]) {
           genderGroups[genderKey].byDimension[dim.key] = { nrSum: 0, count: 0 };
@@ -222,17 +224,14 @@ export async function GET(request: Request, { params }: RouteParams) {
         ageGroups[ageKey].byDimension[dim.key].nrSum += nr;
         ageGroups[ageKey].byDimension[dim.key].count += 1;
       }
-
-      if (hasHighRiskDimension) {
-        genderGroups[genderKey].highRiskRespondents += 1;
-        ageGroups[ageKey].highRiskRespondents += 1;
-      }
     }
 
     const genderChartData = Object.entries(genderGroups)
       .filter(([, g]) => g.total > 0)
       .map(([gender, g]) => {
-        const criticalPct = Math.round((g.highRiskRespondents / g.total) * 100);
+        const criticalPct = g.totalEvaluations > 0
+          ? Math.round((g.highRiskEvaluations / g.totalEvaluations) * 100)
+          : 0;
         const worstDim = Object.entries(g.byDimension)
           .map(([key, d]) => ({
             key,
@@ -258,7 +257,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     const ageChartData = Object.entries(ageGroups)
       .filter(([, g]) => g.total > 0)
       .map(([ageRange, g]) => {
-        const criticalPct = Math.round((g.highRiskRespondents / g.total) * 100);
+        const criticalPct = g.totalEvaluations > 0
+          ? Math.round((g.highRiskEvaluations / g.totalEvaluations) * 100)
+          : 0;
         const worstDim = Object.entries(g.byDimension)
           .map(([key, d]) => ({
             key,
