@@ -166,14 +166,21 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     let workersHighRisk = 0;
     let workersCritical = 0;
+    let workersEvaluated = 0;
     for (const resp of responses) {
-      const respondentNRs = HSE_DIMENSIONS.map((dim) => getResponseDimensionRisk(resp, dim).nr);
-      const respondentIGRP = respondentNRs.reduce((sum, nr) => sum + nr, 0) / respondentNRs.length;
-      if (respondentIGRP >= 9) workersHighRisk++;
-      if (respondentIGRP >= 13) workersCritical++;
+      for (const dim of HSE_DIMENSIONS) {
+        const { nr } = getResponseDimensionRisk(resp, dim);
+        workersEvaluated += 1;
+        if (nr >= 9) workersHighRisk++;
+        if (nr >= 13) workersCritical++;
+      }
     }
-    const workersHighRiskPct = Math.round((workersHighRisk / totalResponded) * 100);
-    const workersCriticalPct = Math.round((workersCritical / totalResponded) * 100);
+    const workersHighRiskPct = workersEvaluated > 0
+      ? Math.round((workersHighRisk / workersEvaluated) * 100)
+      : 0;
+    const workersCriticalPct = workersEvaluated > 0
+      ? Math.round((workersCritical / workersEvaluated) * 100)
+      : 0;
 
     const genderGroups: Record<string, {
       total: number;
