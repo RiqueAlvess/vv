@@ -1,7 +1,9 @@
 'use client';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 interface PositionRow {
   position: string; sector: string; unit: string;
@@ -17,6 +19,15 @@ const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
 
 export function PositionTable({ positions }: { positions: unknown[] }) {
   const rows = positions as PositionRow[];
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = useMemo(
+    () => rows.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [rows, safePage],
+  );
 
   return (
     <Card>
@@ -38,7 +49,7 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, i) => (
+            {pageRows.map((row, i) => (
               <TableRow key={i}>
                 <TableCell className="font-medium">{row.position}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{row.sector}</TableCell>
@@ -62,6 +73,36 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
             )}
           </TableBody>
         </Table>
+        {rows.length > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+            <p className="text-muted-foreground">
+              {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, rows.length)} de {rows.length} cargos
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <span className="text-muted-foreground">
+                Página {safePage} de {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Próxima
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

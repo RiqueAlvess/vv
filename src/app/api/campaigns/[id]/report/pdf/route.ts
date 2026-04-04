@@ -264,7 +264,10 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const allResponses = await prisma.surveyResponse.findMany({
       where: { campaign_id: id },
-      select: { responses: true },
+      select: {
+        responses: true,
+        position_id: true,
+      },
     });
 
     const totalInvited = 0; // QR code model — no fixed invited pool
@@ -274,32 +277,37 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Nenhuma resposta encontrada para esta campanha' }, { status: 404 });
     }
 
-    const campaignDimensions = HSE_DIMENSIONS.map(dim => {
-      let total = 0;
-      let count = 0;
-      for (const resp of allResponses) {
-        const answers = resp.responses as Record<string, number>;
-        for (const qn of dim.questionNumbers) {
-          const val = answers[`q${qn}`];
-          if (val !== undefined) { total += val; count++; }
-        }
-      }
-      const score = count > 0 ? Math.round((total / count) * 100) / 100 : 0;
-      const riskLevel = ScoreService.getRiskLevel(score, dim.type) as RiskLevel;
-      const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
-      const probability = probabilityMap[riskLevel];
-      const severity = probability;
-      const nr = probability * severity;
-      const { label: nrLabel, color } = ScoreService.interpretNR(nr);
-      return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel, color };
-    });
+    const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
+    const responsesWithAnswers = allResponses.map((resp) => ({
+      position_id: resp.position_id,
+      answers: (resp.responses ?? {}) as Record<string, number>,
+    }));
 
-    const dimensionMap = Object.fromEntries(
-      campaignDimensions.map(d => [d.key, {
-        score: d.score, riskLevel: d.riskLevel, probability: d.probability,
-        severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
-      }])
-    );
+    const calculateDimensionsForAnswers = (answersList: Array<Record<string, number>>) => {
+      return HSE_DIMENSIONS.map((dim) => {
+        let scoreSum = 0;
+        let scoreCount = 0;
+        const riskCount = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 } satisfies Record<RiskLevel, number>;
+
+        for (const answers of answersList) {
+          const score = ScoreService.calculateDimensionScore(answers, dim.key);
+          const riskLevel = ScoreService.getRiskLevel(score, dim.type) as RiskLevel;
+          scoreSum += score;
+          scoreCount++;
+          riskCount[riskLevel] += 1;
+        }
+
+        const score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 100) / 100 : 0;
+        const riskLevel = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
+        const probability = probabilityMap[riskLevel];
+        const severity = probability;
+        const nr = probability * severity;
+        const { label: nrLabel, color } = ScoreService.interpretNR(nr);
+        return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel, color };
+      });
+    };
+
+    const campaignDimensions = calculateDimensionsForAnswers(responsesWithAnswers.map((resp) => resp.answers));
 
     const units = await prisma.campaignUnit.findMany({
       where: { campaign_id: id },
@@ -316,10 +324,34 @@ export async function GET(request: Request, { params }: RouteParams) {
       name: unit.name,
       sectors: unit.sectors.map(sector => ({
         name: sector.name,
-        positions: sector.positions.map(position => ({
-          name: position.name,
-          dimensions: dimensionMap,
-        })),
+          positions: sector.positions.map(position => {
+            const positionAnswers = responsesWithAnswers
+              .filter((resp) => resp.position_id === position.id)
+              .map((resp) => resp.answers);
+
+            if (positionAnswers.length === 0) {
+              return {
+                name: position.name,
+                dimensions: {},
+              };
+            }
+
+            const positionDimensions = calculateDimensionsForAnswers(positionAnswers);
+            return {
+              name: position.name,
+              dimensions: Object.fromEntries(
+                positionDimensions.map((d) => [d.key, {
+                  score: d.score,
+                  riskLevel: d.riskLevel,
+                  probability: d.probability,
+                  severity: d.severity,
+                  nr: d.nr,
+                  nrLabel: d.nrLabel,
+                  color: d.color,
+                }]),
+              ),
+            };
+          }),
       })),
     }));
 
