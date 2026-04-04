@@ -166,32 +166,56 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     let workersHighRisk = 0;
     let workersCritical = 0;
-    let workersEvaluated = 0;
+    let highRiskEvaluations = 0;
+    let criticalEvaluations = 0;
+    let totalEvaluations = 0;
     for (const resp of responses) {
+      let workerHasHighRisk = false;
+      let workerHasCriticalRisk = false;
       for (const dim of HSE_DIMENSIONS) {
         const { nr } = getResponseDimensionRisk(resp, dim);
-        workersEvaluated += 1;
-        if (nr >= 9) workersHighRisk++;
-        if (nr >= 13) workersCritical++;
+        totalEvaluations += 1;
+        if (nr >= 9) {
+          highRiskEvaluations++;
+          workerHasHighRisk = true;
+        }
+        if (nr >= 13) {
+          criticalEvaluations++;
+          workerHasCriticalRisk = true;
+        }
       }
+      if (workerHasHighRisk) workersHighRisk++;
+      if (workerHasCriticalRisk) workersCritical++;
     }
-    const workersHighRiskPct = workersEvaluated > 0
-      ? Math.round((workersHighRisk / workersEvaluated) * 100)
+    const workersHighRiskPct = totalResponded > 0
+      ? Math.round((workersHighRisk / totalResponded) * 100)
       : 0;
-    const workersCriticalPct = workersEvaluated > 0
-      ? Math.round((workersCritical / workersEvaluated) * 100)
+    const workersCriticalPct = totalResponded > 0
+      ? Math.round((workersCritical / totalResponded) * 100)
+      : 0;
+    const workersHighRiskEvalPct = totalEvaluations > 0
+      ? Math.round((highRiskEvaluations / totalEvaluations) * 100)
+      : 0;
+    const workersCriticalEvalPct = totalEvaluations > 0
+      ? Math.round((criticalEvaluations / totalEvaluations) * 100)
       : 0;
 
     const genderGroups: Record<string, {
       total: number;
+      highRiskWorkers: number;
+      criticalWorkers: number;
       highRiskEvaluations: number;
+      criticalEvaluations: number;
       totalEvaluations: number;
       byDimension: Record<string, { nrSum: number; count: number }>;
     }> = {};
 
     const ageGroups: Record<string, {
       total: number;
+      highRiskWorkers: number;
+      criticalWorkers: number;
       highRiskEvaluations: number;
+      criticalEvaluations: number;
       totalEvaluations: number;
       byDimension: Record<string, { nrSum: number; count: number }>;
     }> = {};
@@ -201,14 +225,35 @@ export async function GET(request: Request, { params }: RouteParams) {
       const ageKey = resp.age_range && AGE_RANGES.includes(resp.age_range) ? resp.age_range : 'Não informado';
 
       if (!genderGroups[genderKey]) {
-        genderGroups[genderKey] = { total: 0, highRiskEvaluations: 0, totalEvaluations: 0, byDimension: {} };
+        genderGroups[genderKey] = {
+          total: 0,
+          highRiskWorkers: 0,
+          criticalWorkers: 0,
+          highRiskEvaluations: 0,
+          criticalEvaluations: 0,
+          totalEvaluations: 0,
+          byDimension: {},
+        };
       }
       if (!ageGroups[ageKey]) {
-        ageGroups[ageKey] = { total: 0, highRiskEvaluations: 0, totalEvaluations: 0, byDimension: {} };
+        ageGroups[ageKey] = {
+          total: 0,
+          highRiskWorkers: 0,
+          criticalWorkers: 0,
+          highRiskEvaluations: 0,
+          criticalEvaluations: 0,
+          totalEvaluations: 0,
+          byDimension: {},
+        };
       }
 
       genderGroups[genderKey].total++;
       ageGroups[ageKey].total++;
+
+      let genderWorkerHasHighRisk = false;
+      let genderWorkerHasCritical = false;
+      let ageWorkerHasHighRisk = false;
+      let ageWorkerHasCritical = false;
 
       for (const dim of HSE_DIMENSIONS) {
         const { nr } = getResponseDimensionRisk(resp, dim);
@@ -217,6 +262,14 @@ export async function GET(request: Request, { params }: RouteParams) {
         if (nr >= 9) {
           genderGroups[genderKey].highRiskEvaluations += 1;
           ageGroups[ageKey].highRiskEvaluations += 1;
+          genderWorkerHasHighRisk = true;
+          ageWorkerHasHighRisk = true;
+        }
+        if (nr >= 13) {
+          genderGroups[genderKey].criticalEvaluations += 1;
+          ageGroups[ageKey].criticalEvaluations += 1;
+          genderWorkerHasCritical = true;
+          ageWorkerHasCritical = true;
         }
 
         if (!genderGroups[genderKey].byDimension[dim.key]) {
@@ -231,12 +284,23 @@ export async function GET(request: Request, { params }: RouteParams) {
         ageGroups[ageKey].byDimension[dim.key].nrSum += nr;
         ageGroups[ageKey].byDimension[dim.key].count += 1;
       }
+
+      if (genderWorkerHasHighRisk) genderGroups[genderKey].highRiskWorkers += 1;
+      if (genderWorkerHasCritical) genderGroups[genderKey].criticalWorkers += 1;
+      if (ageWorkerHasHighRisk) ageGroups[ageKey].highRiskWorkers += 1;
+      if (ageWorkerHasCritical) ageGroups[ageKey].criticalWorkers += 1;
     }
 
     const genderChartData = Object.entries(genderGroups)
       .filter(([, g]) => g.total > 0)
       .map(([gender, g]) => {
-        const criticalPct = g.totalEvaluations > 0
+        const highRiskWorkerPct = g.total > 0
+          ? Math.round((g.highRiskWorkers / g.total) * 100)
+          : 0;
+        const criticalWorkerPct = g.total > 0
+          ? Math.round((g.criticalWorkers / g.total) * 100)
+          : 0;
+        const highRiskEvalPct = g.totalEvaluations > 0
           ? Math.round((g.highRiskEvaluations / g.totalEvaluations) * 100)
           : 0;
         const worstDim = Object.entries(g.byDimension)
@@ -250,7 +314,10 @@ export async function GET(request: Request, { params }: RouteParams) {
         return {
           gender,
           total_responses: g.total,
-          critical_pct: criticalPct,
+          critical_pct: highRiskWorkerPct,
+          high_risk_worker_pct: highRiskWorkerPct,
+          critical_worker_pct: criticalWorkerPct,
+          high_risk_eval_pct: highRiskEvalPct,
           worst_dimension: worstDim?.name ?? null,
           worst_dimension_nr: worstDim ? Number(worstDim.avgNR.toFixed(1)) : 0,
           suppressed: false,
@@ -264,7 +331,13 @@ export async function GET(request: Request, { params }: RouteParams) {
     const ageChartData = Object.entries(ageGroups)
       .filter(([, g]) => g.total > 0)
       .map(([ageRange, g]) => {
-        const criticalPct = g.totalEvaluations > 0
+        const highRiskWorkerPct = g.total > 0
+          ? Math.round((g.highRiskWorkers / g.total) * 100)
+          : 0;
+        const criticalWorkerPct = g.total > 0
+          ? Math.round((g.criticalWorkers / g.total) * 100)
+          : 0;
+        const highRiskEvalPct = g.totalEvaluations > 0
           ? Math.round((g.highRiskEvaluations / g.totalEvaluations) * 100)
           : 0;
         const worstDim = Object.entries(g.byDimension)
@@ -278,7 +351,10 @@ export async function GET(request: Request, { params }: RouteParams) {
         return {
           age_range: ageRange,
           total_responses: g.total,
-          critical_pct: criticalPct,
+          critical_pct: highRiskWorkerPct,
+          high_risk_worker_pct: highRiskWorkerPct,
+          critical_worker_pct: criticalWorkerPct,
+          high_risk_eval_pct: highRiskEvalPct,
           worst_dimension: worstDim?.name ?? null,
           worst_dimension_nr: worstDim ? Number(worstDim.avgNR.toFixed(1)) : 0,
           suppressed: false,
@@ -487,6 +563,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       igrp_color: igrpInterp.color,
       workers_high_risk_pct: workersHighRiskPct,
       workers_critical_pct: workersCriticalPct,
+      workers_high_risk_eval_pct: workersHighRiskEvalPct,
+      workers_critical_eval_pct: workersCriticalEvalPct,
       dimension_analysis: dimensionAnalysis,
       stacked_by_dimension: stackedByDimension,
       stacked_by_question: stackedByQuestion,
@@ -525,6 +603,8 @@ export async function GET(request: Request, { params }: RouteParams) {
             igrp_color: igrpInterp.color,
             workers_high_risk_pct: workersHighRiskPct,
             workers_critical_pct: workersCriticalPct,
+            workers_high_risk_eval_pct: workersHighRiskEvalPct,
+            workers_critical_eval_pct: workersCriticalEvalPct,
             stacked_by_dimension: stackedByDimension,
             stacked_by_question: stackedByQuestion,
           },
@@ -556,6 +636,8 @@ export async function GET(request: Request, { params }: RouteParams) {
             igrp_color: igrpInterp.color,
             workers_high_risk_pct: workersHighRiskPct,
             workers_critical_pct: workersCriticalPct,
+            workers_high_risk_eval_pct: workersHighRiskEvalPct,
+            workers_critical_eval_pct: workersCriticalEvalPct,
             stacked_by_dimension: stackedByDimension,
             stacked_by_question: stackedByQuestion,
           },

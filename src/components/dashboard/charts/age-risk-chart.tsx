@@ -12,6 +12,7 @@ interface AgeData {
   age_range: string;
   total_responses: number;
   critical_pct: number;
+  high_risk_eval_pct?: number;
   worst_dimension: string | null;
   worst_dimension_nr: number;
   suppressed: boolean;
@@ -37,8 +38,13 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
       <p className="font-semibold text-sm">{d.age_range} anos</p>
       <p className="text-muted-foreground">{d.total_responses} respondentes</p>
       <p style={{ color: NR_COLOR(d.critical_pct) }}>
-        {d.critical_pct}% em risco alto/critico
+        {d.critical_pct}% de respondentes com risco alto/critico
       </p>
+      {typeof d.high_risk_eval_pct === 'number' && (
+        <p className="text-muted-foreground">
+          {d.high_risk_eval_pct}% das avaliações (respondente × dimensão) em NR ≥ 9
+        </p>
+      )}
       {d.worst_dimension && (
         <p className="text-muted-foreground">
           Dimensao mais critica:{' '}
@@ -74,7 +80,7 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
           Risco por Faixa Etaria
         </CardTitle>
         <CardDescription>
-          Distribuicao de risco alto/critico por faixa etaria dos respondentes
+          Distribuicao de respondentes com ao menos 1 dimensão em risco alto/critico por faixa etaria
           {mostAtRisk && (
             <span className="block mt-1">
               Faixa mais exposta:{' '}
