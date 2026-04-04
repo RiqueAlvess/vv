@@ -116,7 +116,7 @@ export default function LoginPage() {
       <p className="text-center text-xs text-muted-foreground mt-10">
         Acesso restrito a usuários autorizados
       </p>
-      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.2</p>
+      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.3</p>
     </div>
   );
 }

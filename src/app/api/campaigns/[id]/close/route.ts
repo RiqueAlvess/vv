@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
+import { enqueueJob } from '@/lib/jobs';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,12 +58,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     });
 
     try {
-      await calculateAndStoreCampaignMetrics(id);
-      console.log(`[Close] Metrics calculated for campaign ${id}`);
+      const jobId = await enqueueJob('calculate_campaign_metrics', { campaign_id: id });
+      console.log(`[Close] Metrics job enqueued for campaign ${id}: ${jobId}`);
     } catch (metricsErr) {
-      // Non-fatal: log but don't fail the close operation
-      // Dashboard will fall back to on-the-fly calculation
-      console.error(`[Close] Metrics calculation failed (non-fatal):`, metricsErr);
+      console.error(`[Close] Metrics enqueue failed (non-fatal):`, metricsErr);
     }
 
     return NextResponse.json(updated);

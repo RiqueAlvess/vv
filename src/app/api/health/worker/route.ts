@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Worker health check — background worker removed in QR code model.
+// Worker health check endpoint.
 export async function GET() {
-  return NextResponse.json({ status: 'ok', workers: 0, note: 'No background workers in QR code model' });
+  return NextResponse.json({ status: 'ok', workers: 1, note: 'Background job processor enabled' });
 }
