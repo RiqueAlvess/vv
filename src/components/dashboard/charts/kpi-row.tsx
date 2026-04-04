@@ -57,7 +57,7 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
           <p className="text-3xl font-bold text-orange-500">
             {data.workers_high_risk_pct as number}%
           </p>
-          <p className="text-xs text-muted-foreground mt-1">trabalhadores NR ≥ 9</p>
+          <p className="text-xs text-muted-foreground mt-1">respondentes com ao menos 1 dimensão NR ≥ 9</p>
         </CardContent>
       </Card>
     </div>

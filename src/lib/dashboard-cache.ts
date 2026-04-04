@@ -5,7 +5,7 @@
 import { prisma } from '@/lib/prisma';
 
 export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-export const DASHBOARD_CACHE_VERSION = 2;
+export const DASHBOARD_CACHE_VERSION = 3;
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
@@ -66,6 +66,8 @@ export function buildPayloadFromCache(
     igrp_color: rd.igrp_color ?? null,
     workers_high_risk_pct: rd.workers_high_risk_pct ?? 0,
     workers_critical_pct: rd.workers_critical_pct ?? 0,
+    workers_high_risk_eval_pct: rd.workers_high_risk_eval_pct ?? rd.workers_high_risk_pct ?? 0,
+    workers_critical_eval_pct: rd.workers_critical_eval_pct ?? rd.workers_critical_pct ?? 0,
     dimension_analysis: cached.dimension_scores ?? [],
     stacked_by_dimension: rd.stacked_by_dimension ?? [],
     stacked_by_question: rd.stacked_by_question ?? [],
