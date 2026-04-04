@@ -7,7 +7,10 @@ export class ScoreService {
     const dim = HSE_DIMENSIONS.find(d => d.key === dimension);
     if (!dim) return 0;
     const questionKeys = dim.questionNumbers.map(n => `q${n}`);
-    const values = questionKeys.map(k => responses[k] ?? 0);
+    const values = questionKeys
+      .map((k) => responses[k])
+      .filter((value): value is number => typeof value === 'number');
+    if (values.length === 0) return 0;
     const sum = values.reduce((a, b) => a + b, 0);
     return Number((sum / values.length).toFixed(2));
   }
