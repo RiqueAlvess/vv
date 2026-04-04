@@ -120,7 +120,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div ref={menuRef} className="relative p-2">
-          <p className="text-[10px] text-white/25 text-center pb-1">v1.0.3</p>
+          <p className="text-[10px] text-white/25 text-center pb-1">v1.0.4</p>
 
           {/* Floating menu — appears above the button */}
           {menuOpen && (

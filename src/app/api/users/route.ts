@@ -45,6 +45,7 @@ export async function GET(request: Request) {
           email: true,
           role: true,
           company_id: true,
+          company: { select: { name: true } },
           sector_id: true,
           active: true,
           created_at: true,
@@ -56,8 +57,13 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
+    const normalizedUsers = users.map(({ company, ...u }) => ({
+      ...u,
+      company_name: company.name,
+    }));
+
     return NextResponse.json({
-      data: users,
+      data: normalizedUsers,
       pagination: {
         page,
         limit: pageLimit,
