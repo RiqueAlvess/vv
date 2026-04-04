@@ -15,6 +15,7 @@ export interface Company {
 export interface User {
   id: string;
   company_id: string;
+  company_name?: string;
   name: string;
   email: string;
   role: 'ADM' | 'RH' | 'LIDERANCA';

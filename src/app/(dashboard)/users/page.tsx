@@ -167,6 +167,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Empresa</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -177,6 +178,7 @@ export default function UsersPage() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.company_name ?? '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{roleLabels[u.role] || u.role}</Badge>
                     </TableCell>
