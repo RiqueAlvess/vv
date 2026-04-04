@@ -31,7 +31,14 @@ export async function GET(request: Request) {
     });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const requestUrl = new URL(request.url);
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const host = request.headers.get('host');
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    ?? (forwardedHost
+      ? `${forwardedProto ?? requestUrl.protocol.replace(':', '')}://${forwardedHost}`
+      : `${requestUrl.protocol}//${host ?? requestUrl.host}`);
   const unreadCount = await prisma.anonymousFeedback.count({
     where: { channel_id: channel.id, read: false },
   });
