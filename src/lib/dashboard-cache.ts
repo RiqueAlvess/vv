@@ -5,6 +5,7 @@
 import { prisma } from '@/lib/prisma';
 
 export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+export const DASHBOARD_CACHE_VERSION = 2;
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
@@ -29,6 +30,7 @@ function hasCompatibleDashboardShape(cached: NonNullable<StoredMetrics>): boolea
 
   const rd = cached.risk_distribution;
   if (!isObject(rd)) return false;
+  if (rd.payload_version !== DASHBOARD_CACHE_VERSION) return false;
   if (!isArray(rd.stacked_by_dimension)) return false;
   if (!isArray(rd.stacked_by_question)) return false;
 
