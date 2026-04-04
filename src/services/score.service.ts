@@ -2,13 +2,22 @@ import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
+  static getQuestionAnswer(responses: Record<string, number>, questionNumber: number): number | undefined {
+    const prefixed = responses[`q${questionNumber}`];
+    if (typeof prefixed === 'number') return prefixed;
+
+    const raw = responses[String(questionNumber)];
+    if (typeof raw === 'number') return raw;
+
+    return undefined;
+  }
+
   // Calculate score for a single dimension from a response's answers
   static calculateDimensionScore(responses: Record<string, number>, dimension: DimensionType): number {
     const dim = HSE_DIMENSIONS.find(d => d.key === dimension);
     if (!dim) return 0;
-    const questionKeys = dim.questionNumbers.map(n => `q${n}`);
-    const values = questionKeys
-      .map((k) => responses[k])
+    const values = dim.questionNumbers
+      .map((questionNumber) => this.getQuestionAnswer(responses, questionNumber))
       .filter((value): value is number => typeof value === 'number');
     if (values.length === 0) return 0;
     const sum = values.reduce((a, b) => a + b, 0);

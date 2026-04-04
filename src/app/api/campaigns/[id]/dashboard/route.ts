@@ -4,7 +4,7 @@ import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { AGE_RANGES, HSE_DIMENSIONS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
-import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
+import { DASHBOARD_CACHE_VERSION, getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import type { DimensionType, RiskLevel } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -314,7 +314,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         let answered = 0;
 
         for (const resp of responses) {
-          const val = resp.responses[`q${qn}`];
+          const val = ScoreService.getQuestionAnswer(resp.responses, qn);
           if (typeof val !== 'number') continue;
           const risk = ScoreService.getRiskLevel(val, dim.type);
           counts[risk]++;
@@ -511,6 +511,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           igrp,
           dimension_scores: dimensionAnalysis,
           risk_distribution: {
+            payload_version: DASHBOARD_CACHE_VERSION,
             campaign_name: campaign.name,
             igrp_label: igrpInterp.label,
             igrp_color: igrpInterp.color,
@@ -541,6 +542,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           igrp,
           dimension_scores: dimensionAnalysis,
           risk_distribution: {
+            payload_version: DASHBOARD_CACHE_VERSION,
             campaign_name: campaign.name,
             igrp_label: igrpInterp.label,
             igrp_color: igrpInterp.color,
