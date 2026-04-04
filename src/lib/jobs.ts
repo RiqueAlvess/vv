@@ -1,8 +1,11 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 
 export type JobType =
   | 'calculate_campaign_metrics'
-  | 'send_invitation_email';
+  | 'send_invitation_email'
+  | 'generate_dashboard_xlsx'
+  | 'generate_campaign_pgr_html';
 
 export interface JobPayload {
   calculate_campaign_metrics: { campaign_id: string };
@@ -11,8 +14,10 @@ export interface JobPayload {
     campaign_name: string;
     company_name: string;
     token: string;
-    expires_at: string; // ISO string
+    expires_at: string;
   };
+  generate_dashboard_xlsx: { campaign_id: string; requester_user_id: string };
+  generate_campaign_pgr_html: { campaign_id: string; requester_user_id: string };
 }
 
 export async function enqueueJob<T extends JobType>(
@@ -38,7 +43,6 @@ export async function claimNextJob(): Promise<{
   type: string;
   payload: Record<string, unknown>;
 } | null> {
-  // Atomic claim: find pending job and mark as processing in one query
   const result = await prisma.$queryRaw<{ id: string; type: string; payload: unknown }[]>`
     UPDATE core.jobs
     SET
@@ -65,10 +69,14 @@ export async function claimNextJob(): Promise<{
   };
 }
 
-export async function completeJob(id: string): Promise<void> {
+export async function completeJob(id: string, payload?: Record<string, unknown>): Promise<void> {
   await prisma.job.update({
     where: { id },
-    data: { status: 'done', completed_at: new Date() },
+    data: {
+      status: 'done',
+      completed_at: new Date(),
+      ...(payload ? { payload: payload as Prisma.InputJsonValue } : {}),
+    },
   });
 }
 
@@ -80,4 +88,8 @@ export async function failJob(id: string, error: string): Promise<void> {
       error: error.slice(0, 2000),
     },
   });
+}
+
+export async function getJobById(id: string) {
+  return prisma.job.findUnique({ where: { id } });
 }
