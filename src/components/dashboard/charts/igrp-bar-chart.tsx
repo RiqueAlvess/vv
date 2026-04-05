@@ -41,7 +41,7 @@ export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
             <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#6B7280' }} />
             <Tooltip
               formatter={(val: unknown, _: unknown, props: { payload?: { label: string; score: number } }) => [
-                `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score.toFixed(2) ?? ''}`,
+                `NR: ${val} (${props.payload?.label ?? ''}) | Score: ${props.payload?.score?.toFixed(2) ?? ''}`,
                 'Risco',
               ] as [string, string]}
             />

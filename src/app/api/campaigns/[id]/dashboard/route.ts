@@ -156,7 +156,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     const responseRate = totalInvited > 0 ? (totalResponded / totalInvited) * 100 : 0;
 
     if (totalResponded === 0) {
-      return NextResponse.json({ error: 'Nenhuma resposta encontrada' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Nenhuma resposta encontrada para esta campanha.' },
+        { status: 200 },
+      );
     }
 
     const responses = rawResponses.map(toParsedResponse);
