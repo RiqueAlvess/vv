@@ -71,7 +71,7 @@ export const RISK_THRESHOLDS_POSITIVE: { max: number; level: RiskLevel }[] = [
   { max: 1.0, level: 'critico' },
   { max: 2.0, level: 'importante' },
   { max: 3.0, level: 'moderado' },
-  { max: 5, level: 'aceitavel' },
+  { max: 4, level: 'aceitavel' },
 ];
 
 // ============================================================

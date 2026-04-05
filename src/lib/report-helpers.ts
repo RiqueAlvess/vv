@@ -5,20 +5,14 @@
 import {
   HSE_DIMENSIONS,
   RISK_THRESHOLDS_NEGATIVE,
-  RISK_THRESHOLDS_POSITIVE,
   NR_MATRIX,
 } from '@/lib/constants';
 import type { RiskLevel } from '@/types';
 
 export function getRiskLevel(score: number, type: 'positive' | 'negative'): RiskLevel {
-  if (type === 'negative') {
-    for (const threshold of RISK_THRESHOLDS_NEGATIVE) {
-      if (score >= threshold.min) return threshold.level;
-    }
-    return 'aceitavel';
-  }
-  for (const threshold of RISK_THRESHOLDS_POSITIVE) {
-    if (score <= threshold.max) return threshold.level;
+  const normalized = type === 'positive' ? 4 - score : score;
+  for (const threshold of RISK_THRESHOLDS_NEGATIVE) {
+    if (normalized >= threshold.min) return threshold.level;
   }
   return 'aceitavel';
 }
@@ -47,7 +41,9 @@ export function computeDimensions(
       for (const qn of dim.questionNumbers) {
         const key = `q${qn}`;
         if (response[key] !== undefined) {
-          totalScore += response[key];
+          const raw = response[key];
+          const normalizedLikert = raw > 4 ? raw - 1 : raw;
+          totalScore += normalizedLikert;
           count++;
         }
       }
