@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,24 +10,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { DataTable } from '@/components/companies/companies-data-table';
 import type { ColumnDef } from '@/components/companies/companies-data-table';
-import {
-  useCompanies,
-  useCreateCompany,
-  useUpdateCompany,
-  useDeleteCompany,
-} from '@/hooks/use-companies';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
-import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Search } from 'lucide-react';
 import type { Company } from '@/types';
 
-// ─── Column definitions ────────────────────────────────────────────────────
-//
-// Defined outside the component so the array reference is stable across
-// renders. If columns were defined inside the component body, a new array
-// would be created on every render, causing unnecessary re-renders of the
-// DataTable. Any per-row handlers (edit, delete) are injected via closure
-// through a factory function that receives the relevant callbacks.
+const PAGE_SIZE = 20;
 
 function buildColumns(
   onEdit: (company: Company) => void,
@@ -77,34 +67,58 @@ function buildColumns(
   ];
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────────
-
 export default function CompaniesPage() {
+  const { get, post, put, del } = useApi();
   const { user } = useAuth();
   const { success, error: notifyError } = useNotifications();
 
-  // ── Data ────────────────────────────────────────────────────────────────
-  // useCompanies() returns the TanStack Query result. Any other component
-  // in the tree that also calls useCompanies() gets the SAME cache bucket
-  // — no second network request is fired.
-  const { data: companies = [], isLoading } = useCompanies();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
-  // ── Mutations ───────────────────────────────────────────────────────────
-  const createCompany = useCreateCompany();
-  const updateCompany = useUpdateCompany();
-  const deleteCompany = useDeleteCompany();
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  // ── Local UI state ──────────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Company | null>(null);
   const [form, setForm] = useState({ name: '', cnpj: '', cnae: '' });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (user?.role !== 'ADM') {
     return <p className="text-muted-foreground">Acesso restrito a administradores.</p>;
   }
 
-  // ── Handlers ────────────────────────────────────────────────────────────
+  const fetchCompanies = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (search) qs.set('search', search);
+      const res = await get(`/api/companies?${qs}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCompanies(data.data ?? []);
+      setTotalPages(data.pagination?.totalPages ?? 1);
+      setTotal(data.pagination?.total ?? 0);
+    } catch {
+      notifyError('Erro ao carregar empresas');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [get, page, search, notifyError]);
+
+  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
   function openCreate() {
     setSelected(null);
@@ -123,73 +137,66 @@ export default function CompaniesPage() {
     setDeleteOpen(true);
   }
 
-  // ── Save (create or update) ─────────────────────────────────────────────
-
-  function handleSave() {
-    if (selected) {
-      // UPDATE
-      updateCompany.mutate(
-        { id: selected.id, name: form.name, cnae: form.cnae || undefined },
-        {
-          onSuccess: () => {
-            success('Empresa atualizada');
-            setFormOpen(false);
-          },
-          onError: (e: Error) => notifyError(e.message),
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (selected) {
+        const res = await put(`/api/companies/${selected.id}`, {
+          name: form.name,
+          cnae: form.cnae || undefined,
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          notifyError(data.error || 'Erro ao atualizar empresa');
+          return;
         }
-      );
-    } else {
-      // CREATE
-      //
-      // Cache update flow (see use-companies.ts for full explanation):
-      //   1. mutationFn POSTs to /api/companies, server returns the created Company
-      //   2. onSuccess (in the hook) calls setQueryData → new row appears instantly
-      //   3. onSuccess (in the hook) calls invalidateQueries → background refetch
-      //      confirms server state; UI does NOT flash because setQueryData already ran
-      //   4. The onSuccess below (call-site callback) shows the toast and closes the modal
-      //
-      // The call-site onSuccess fires AFTER the hook-level onSuccess, so by the time
-      // the toast appears the table is already up to date — no ghost state, no delay.
-      createCompany.mutate(
-        { name: form.name, cnpj: form.cnpj, cnae: form.cnae || undefined },
-        {
-          onSuccess: () => {
-            success('Empresa criada');
-            setFormOpen(false);
-          },
-          onError: (e: Error) => notifyError(e.message),
+        success('Empresa atualizada');
+      } else {
+        const res = await post('/api/companies', {
+          name: form.name,
+          cnpj: form.cnpj,
+          cnae: form.cnae || undefined,
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          notifyError(data.error || 'Erro ao criar empresa');
+          return;
         }
-      );
+        success('Empresa criada');
+      }
+      setFormOpen(false);
+      fetchCompanies();
+    } catch {
+      notifyError('Erro ao salvar empresa');
+    } finally {
+      setSaving(false);
     }
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────
-
-  function handleDelete() {
+  async function handleDelete() {
     if (!selected) return;
-    deleteCompany.mutate(selected.id, {
-      onSuccess: () => {
-        success('Empresa excluída');
-        setDeleteOpen(false);
-      },
-      onError: (e: Error) => notifyError(e.message),
-    });
+    setDeleting(true);
+    try {
+      const res = await del(`/api/companies/${selected.id}`);
+      if (!res.ok) {
+        const data = await res.json();
+        notifyError(data.error || 'Erro ao excluir empresa');
+        return;
+      }
+      success('Empresa excluída');
+      setDeleteOpen(false);
+      fetchCompanies();
+    } catch {
+      notifyError('Erro ao excluir empresa');
+    } finally {
+      setDeleting(false);
+    }
   }
 
-  // ── Columns ─────────────────────────────────────────────────────────────
-  // Recreated only when the handler references change (they don't, since
-  // openEdit / openDelete are defined in the same render scope but are
-  // stable function identities — good enough at this scale).
   const columns = buildColumns(openEdit, openDelete);
-
-  const isMutating =
-    createCompany.isPending || updateCompany.isPending || deleteCompany.isPending;
-
-  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Empresas</h1>
@@ -201,38 +208,42 @@ export default function CompaniesPage() {
         </Button>
       </div>
 
-      {/* Table card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            {/* Show count only once data has loaded — avoids "0 empresas" flash */}
-            {!isLoading && (
-              <>
-                {companies.length} empresa{companies.length !== 1 ? 's' : ''}
-              </>
-            )}
-          </CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              {!isLoading && <>{total} empresa{total !== 1 ? 's' : ''}</>}
+            </CardTitle>
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou CNPJ..."
+                className="pl-8"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {/*
-            DataTable handles all three states internally:
-              isLoading=true  → skeleton rows (same column layout — no shift)
-              data=[]         → empty state message
-              data=[…]        → populated rows
-          */}
           <DataTable
             columns={columns}
             data={companies}
             isLoading={isLoading}
             skeletonRows={5}
-            emptyMessage="Nenhuma empresa cadastrada"
+            emptyMessage={search ? 'Nenhuma empresa encontrada para esta busca' : 'Nenhuma empresa cadastrada'}
             getRowKey={(c) => c.id}
+          />
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setPage}
           />
         </CardContent>
       </Card>
 
-      {/* Create / Edit dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
           <DialogHeader>
@@ -247,7 +258,6 @@ export default function CompaniesPage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
-            {/* CNPJ is only editable on create; editing CNPJ is a business-rule violation */}
             {!selected && (
               <div className="space-y-2">
                 <Label htmlFor="cnpj">CNPJ</Label>
@@ -269,20 +279,19 @@ export default function CompaniesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={isMutating}>
+            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isMutating || !form.name || (!selected && !form.cnpj)}
+              disabled={saving || !form.name || (!selected && !form.cnpj)}
             >
-              {isMutating ? 'Salvando...' : 'Salvar'}
+              {saving ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <ConfirmModal
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -290,7 +299,7 @@ export default function CompaniesPage() {
         description={`Deseja realmente excluir "${selected?.name}"? Esta ação não pode ser desfeita.`}
         confirmText="Excluir"
         variant="destructive"
-        loading={deleteCompany.isPending}
+        loading={deleting}
         onConfirm={handleDelete}
       />
     </div>

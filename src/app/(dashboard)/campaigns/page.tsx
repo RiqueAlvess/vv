@@ -12,12 +12,15 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
 import { Plus, FileBarChart2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Campaign, Company } from '@/types';
+
+const PAGE_SIZE = 20;
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho',
@@ -38,6 +41,9 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -49,20 +55,24 @@ export default function CampaignsPage() {
   });
 
   const fetchCampaigns = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await get('/api/campaigns');
+      const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      const res = await get(`/api/campaigns?${qs}`);
       const data = await res.json();
       setCampaigns(data.data || []);
+      setTotalPages(data.pagination?.totalPages ?? 1);
+      setTotal(data.pagination?.total ?? 0);
     } catch {
       notifyError('Erro ao carregar campanhas');
     } finally {
       setLoading(false);
     }
-  }, [get, notifyError]);
+  }, [get, notifyError, page]);
 
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await get('/api/companies');
+      const res = await get('/api/companies?limit=100');
       const data = await res.json();
       setCompanies(data.data || []);
     } catch {
@@ -128,13 +138,13 @@ export default function CampaignsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileBarChart2 className="h-5 w-5" />
-            {campaigns.length} campanha{campaigns.length !== 1 ? 's' : ''}
+            {!loading && <>{total} campanha{total !== 1 ? 's' : ''}</>}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="space-y-3">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           ) : campaigns.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nenhuma campanha cadastrada</p>
@@ -172,6 +182,12 @@ export default function CampaignsPage() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
 

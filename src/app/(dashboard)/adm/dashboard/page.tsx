@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import {
   Table,
   TableBody,
@@ -16,6 +17,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FileSpreadsheet } from 'lucide-react';
+
+const TAB_PAGE_SIZE = 10;
 
 interface CompanyOption {
   id: string;
@@ -100,44 +103,6 @@ function CampaignStatusBadge({ status }: { status: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === 'responded')
-    return (
-      <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-        respondido
-      </Badge>
-    );
-  if (status === 'sent')
-    return (
-      <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">
-        enviado
-      </Badge>
-    );
-  if (status === 'active')
-    return (
-      <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-        ativo
-      </Badge>
-    );
-  if (status === 'closed')
-    return (
-      <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100">
-        encerrado
-      </Badge>
-    );
-  if (status === 'draft')
-    return (
-      <Badge className="bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-100">
-        rascunho
-      </Badge>
-    );
-  return (
-    <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100">
-      {status}
-    </Badge>
-  );
-}
-
 function TableSkeleton({ cols }: { cols: number }) {
   return (
     <>
@@ -158,13 +123,17 @@ export default function AdmDashboardPage() {
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
-    null
-  );
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(null);
   const [selected, setSelected] = useState<StatsSelected | null>(null);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [loadingSelected, setLoadingSelected] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Tab search + pagination state
+  const [userSearch, setUserSearch] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [campaignSearch, setCampaignSearch] = useState('');
+  const [campaignPage, setCampaignPage] = useState(1);
 
   // Load company list on mount
   useEffect(() => {
@@ -183,6 +152,11 @@ export default function AdmDashboardPage() {
       return;
     }
     setLoadingSelected(true);
+    // Reset tab state when switching company
+    setUserSearch('');
+    setUserPage(1);
+    setCampaignSearch('');
+    setCampaignPage(1);
     fetch(`/api/adm/stats?companyId=${selectedCompany.id}`, {
       credentials: 'include',
     })
@@ -253,6 +227,26 @@ export default function AdmDashboardPage() {
     XLSX.writeFile(wb, `${safeName}_dados.xlsx`);
   }
 
+  // Client-side filtering + pagination for tabs
+  const allUsers = selected?.users ?? [];
+  const filteredUsers = userSearch
+    ? allUsers.filter(u =>
+        u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(userSearch.toLowerCase())
+      )
+    : allUsers;
+  const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / TAB_PAGE_SIZE));
+  const pagedUsers = filteredUsers.slice((userPage - 1) * TAB_PAGE_SIZE, userPage * TAB_PAGE_SIZE);
+
+  const allCampaigns = selected?.campaigns ?? [];
+  const filteredCampaigns = campaignSearch
+    ? allCampaigns.filter(c =>
+        c.name.toLowerCase().includes(campaignSearch.toLowerCase())
+      )
+    : allCampaigns;
+  const campaignTotalPages = Math.max(1, Math.ceil(filteredCampaigns.length / TAB_PAGE_SIZE));
+  const pagedCampaigns = filteredCampaigns.slice((campaignPage - 1) * TAB_PAGE_SIZE, campaignPage * TAB_PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       <div>
@@ -316,12 +310,22 @@ export default function AdmDashboardPage() {
 
           <Tabs defaultValue="users">
             <TabsList>
-              <TabsTrigger value="users">Usuários</TabsTrigger>
-              <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+              <TabsTrigger value="users">
+                Usuários {!loadingSelected && `(${filteredUsers.length})`}
+              </TabsTrigger>
+              <TabsTrigger value="campaigns">
+                Campanhas {!loadingSelected && `(${filteredCampaigns.length})`}
+              </TabsTrigger>
             </TabsList>
 
             {/* Users Tab */}
-            <TabsContent value="users">
+            <TabsContent value="users" className="space-y-3">
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={userSearch}
+                onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
+                className="max-w-sm"
+              />
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -337,17 +341,17 @@ export default function AdmDashboardPage() {
                   <TableBody>
                     {loadingSelected ? (
                       <TableSkeleton cols={6} />
-                    ) : (selected?.users ?? []).length === 0 ? (
+                    ) : pagedUsers.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={6}
                           className="text-center text-sm text-muted-foreground py-6"
                         >
-                          Nenhum usuário encontrado.
+                          {userSearch ? 'Nenhum usuário encontrado para esta busca.' : 'Nenhum usuário encontrado.'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      (selected?.users ?? []).map((u) => (
+                      pagedUsers.map((u) => (
                         <TableRow key={u.id}>
                           <TableCell className="font-medium">{u.name}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
@@ -360,9 +364,7 @@ export default function AdmDashboardPage() {
                             {u.active ? (
                               <span className="text-green-600 text-sm">Sim</span>
                             ) : (
-                              <span className="text-muted-foreground text-sm">
-                                Não
-                              </span>
+                              <span className="text-muted-foreground text-sm">Não</span>
                             )}
                           </TableCell>
                           <TableCell className="text-sm">
@@ -377,10 +379,22 @@ export default function AdmDashboardPage() {
                   </TableBody>
                 </Table>
               </div>
+              <PaginationControls
+                page={userPage}
+                totalPages={userTotalPages}
+                total={filteredUsers.length}
+                onPageChange={setUserPage}
+              />
             </TabsContent>
 
             {/* Campaigns Tab */}
-            <TabsContent value="campaigns">
+            <TabsContent value="campaigns" className="space-y-3">
+              <Input
+                placeholder="Buscar por nome da campanha..."
+                value={campaignSearch}
+                onChange={(e) => { setCampaignSearch(e.target.value); setCampaignPage(1); }}
+                className="max-w-sm"
+              />
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -394,17 +408,17 @@ export default function AdmDashboardPage() {
                   <TableBody>
                     {loadingSelected ? (
                       <TableSkeleton cols={4} />
-                    ) : (selected?.campaigns ?? []).length === 0 ? (
+                    ) : pagedCampaigns.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={4}
                           className="text-center text-sm text-muted-foreground py-6"
                         >
-                          Nenhuma campanha encontrada.
+                          {campaignSearch ? 'Nenhuma campanha encontrada para esta busca.' : 'Nenhuma campanha encontrada.'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      (selected?.campaigns ?? []).map((c) => (
+                      pagedCampaigns.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.name}</TableCell>
                           <TableCell>
@@ -422,6 +436,12 @@ export default function AdmDashboardPage() {
                   </TableBody>
                 </Table>
               </div>
+              <PaginationControls
+                page={campaignPage}
+                totalPages={campaignTotalPages}
+                total={filteredCampaigns.length}
+                onPageChange={setCampaignPage}
+              />
             </TabsContent>
           </Tabs>
         </>
