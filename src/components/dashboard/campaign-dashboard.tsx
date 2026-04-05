@@ -62,6 +62,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
 
     setLoading(true);
     setData(null);
+    setError(null);
 
     get(`/api/campaigns/${campaignId}/dashboard${qs ? `?${qs}` : ''}`)
       .then(res => res.json())
