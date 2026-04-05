@@ -97,13 +97,13 @@ export function KpiCards({ metrics }: KpiCardsProps) {
 // ─── Pure helpers ──────────────────────────────────────────────────────────
 
 /**
- * Maps IGRP (mean NR value across dimensions) to a risk tier.
- * Range with fixed severity=2: min 2 (all aceitável) to max 8 (all crítico).
+ * Maps IGRP (mean NR value across 7 dimensions, scale 1–16) to a risk tier.
+ * Mirrors NR faixa final: 1–4 Aceitável, 5–8 Moderado, 9–12 Importante, 13–16 Crítico.
  */
 function igrpToRiskLevel(igrp: number): RiskLevel {
-  if (igrp >= 7) return 'critico';
-  if (igrp >= 5) return 'importante';
-  if (igrp >= 3) return 'moderado';
+  if (igrp > 12) return 'critico';
+  if (igrp > 8)  return 'importante';
+  if (igrp > 4)  return 'moderado';
   return 'aceitavel';
 }
 

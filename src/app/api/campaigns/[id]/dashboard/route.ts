@@ -72,8 +72,9 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
     }
 
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
-    const dominantRisk = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
-    const nr = ScoreService.calculateNR(dominantRisk);
+    // Classify by average score (consistent with heatmap and scoring.ts aggregateHSEITScores)
+    const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
+    const nr = ScoreService.calculateNR(riskLevel);
     const interp = ScoreService.interpretNR(nr);
 
     return {
@@ -81,12 +82,13 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
       name: dim.name,
       type: dim.type,
       avg_score: avgScore,
-      risk_level: dominantRisk,
-      probability: RISK_LEVEL_WEIGHT[dominantRisk],
-      severity: RISK_LEVEL_WEIGHT[dominantRisk],
+      risk_level: riskLevel,
+      probability: RISK_LEVEL_WEIGHT[riskLevel],
+      severity: RISK_LEVEL_WEIGHT[riskLevel],
       nr,
       nr_label: interp.label,
       nr_color: interp.color,
+      risk_distribution: riskCount,
       sample_size: scoreCount,
     };
   });
