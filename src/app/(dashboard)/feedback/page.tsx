@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useApi } from '@/hooks/use-api';
 import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
@@ -13,6 +14,8 @@ import { Copy, MessageSquare, CheckCheck, Filter, ExternalLink } from 'lucide-re
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+
+const PAGE_SIZE = 20;
 
 interface FeedbackItem {
   id: string; type: string; category: string | null;
@@ -45,6 +48,8 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchChannel = useCallback(async () => {
     try {
@@ -56,20 +61,28 @@ export default function FeedbackPage() {
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (typeFilter !== 'all') params.set('type', typeFilter);
       const res = await get(`/api/feedback/messages?${params}`);
       if (res.ok) {
         const data = await res.json();
         setFeedbacks(data.data);
         setTotal(data.total);
+        const tp = data.totalPages ?? Math.ceil((data.total ?? 0) / PAGE_SIZE);
+        setTotalPages(tp || 1);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [get, typeFilter]);
+  }, [get, typeFilter, page]);
 
   useEffect(() => { fetchChannel(); }, [fetchChannel]);
   useEffect(() => { fetchFeedbacks(); }, [fetchFeedbacks]);
+
+  // Reset page when filter changes
+  const handleTypeFilter = (value: string) => {
+    setTypeFilter(value);
+    setPage(1);
+  };
 
   const copyLink = () => {
     if (!channel) return;
@@ -137,7 +150,7 @@ export default function FeedbackPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={handleTypeFilter}>
           <SelectTrigger className="w-44">
             <SelectValue />
           </SelectTrigger>
@@ -168,56 +181,65 @@ export default function FeedbackPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {feedbacks.map(fb => {
-            const typeInfo = TYPE_LABELS[fb.type] ?? { label: fb.type, color: '#94a3b8' };
-            return (
-              <Card
-                key={fb.id}
-                className={fb.read ? 'opacity-70' : 'border-l-4'}
-                style={!fb.read ? { borderLeftColor: typeInfo.color } : {}}
-              >
-                <CardContent className="pt-4 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge
-                        className="text-white text-xs"
-                        style={{ backgroundColor: typeInfo.color }}
-                      >
-                        {typeInfo.label}
-                      </Badge>
-                      {fb.category && (
-                        <Badge variant="outline" className="text-xs">
-                          {CATEGORY_LABELS[fb.category] ?? fb.category}
-                        </Badge>
-                      )}
-                      {!fb.read && (
-                        <Badge variant="secondary" className="text-xs">Nova</Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(fb.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                      {!fb.read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => markAsRead(fb.id)}
+        <>
+          <div className="space-y-3">
+            {feedbacks.map(fb => {
+              const typeInfo = TYPE_LABELS[fb.type] ?? { label: fb.type, color: '#94a3b8' };
+              return (
+                <Card
+                  key={fb.id}
+                  className={fb.read ? 'opacity-70' : 'border-l-4'}
+                  style={!fb.read ? { borderLeftColor: typeInfo.color } : {}}
+                >
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          className="text-white text-xs"
+                          style={{ backgroundColor: typeInfo.color }}
                         >
-                          <CheckCheck className="h-3.5 w-3.5 mr-1" />
-                          Lida
-                        </Button>
-                      )}
+                          {typeInfo.label}
+                        </Badge>
+                        {fb.category && (
+                          <Badge variant="outline" className="text-xs">
+                            {CATEGORY_LABELS[fb.category] ?? fb.category}
+                          </Badge>
+                        )}
+                        {!fb.read && (
+                          <Badge variant="secondary" className="text-xs">Nova</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(fb.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                        {!fb.read && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => markAsRead(fb.id)}
+                          >
+                            <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                            Lida
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <p className="mt-2 text-sm text-foreground leading-relaxed">{fb.message}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                    <p className="mt-2 text-sm text-foreground leading-relaxed">{fb.message}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

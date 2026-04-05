@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
-import { Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Search } from 'lucide-react';
 import type { User, Company } from '@/types';
+
+const PAGE_SIZE = 20;
 
 const roleLabels: Record<string, string> = {
   ADM: 'Administrador',
@@ -24,34 +27,57 @@ const roleLabels: Record<string, string> = {
   LIDERANCA: 'Liderança',
 };
 
+interface UserPage {
+  data: User[];
+  pagination: { page: number; totalPages: number; total: number; limit: number };
+}
+
 export default function UsersPage() {
   const { get, post, put, del } = useApi();
   const { user: authUser } = useAuth();
   const { success, error: notifyError } = useNotifications();
   const queryClient = useQueryClient();
+
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'RH', company_id: '' });
 
-  const { data: users = [], isLoading: loadingUsers } = useQuery<User[]>({
-    queryKey: ['users'],
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data: usersPage, isLoading: loadingUsers } = useQuery<UserPage>({
+    queryKey: ['users', page, search],
     queryFn: async () => {
-      const res = await get('/api/users');
+      const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (search) qs.set('search', search);
+      const res = await get(`/api/users?${qs}`);
       if (res.status === 429) {
         notifyError('Muitas requisições', 'Aguarde alguns segundos e tente novamente.');
         throw new Error('429');
       }
       if (!res.ok) throw new Error('Failed to fetch users');
-      const data = await res.json();
-      return data.data || [];
+      return res.json();
     },
   });
+
+  const users = usersPage?.data ?? [];
+  const pagination = usersPage?.pagination;
 
   const { data: companies = [] } = useQuery<Company[]>({
     queryKey: ['companies'],
     queryFn: async () => {
-      const res = await get('/api/companies');
+      const res = await get('/api/companies?limit=100');
       if (res.status === 429) throw new Error('429');
       if (!res.ok) throw new Error('Failed to fetch companies');
       const data = await res.json();
@@ -132,7 +158,6 @@ export default function UsersPage() {
   };
 
   const saving = saveMutation.isPending || deleteMutation.isPending;
-  const loading = loadingUsers;
 
   return (
     <div className="space-y-6">
@@ -149,18 +174,33 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            {users.length} usuário{users.length !== 1 ? 's' : ''}
-          </CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {!loadingUsers && pagination && (
+                <>{pagination.total} usuário{pagination.total !== 1 ? 's' : ''}</>
+              )}
+            </CardTitle>
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                className="pl-8"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loadingUsers ? (
             <div className="space-y-3">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           ) : users.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</p>
+            <p className="text-center text-muted-foreground py-8">
+              {search ? 'Nenhum usuário encontrado para esta busca' : 'Nenhum usuário cadastrado'}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -201,6 +241,14 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {pagination && (
+            <PaginationControls
+              page={page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              onPageChange={setPage}
+            />
           )}
         </CardContent>
       </Card>
