@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const pageLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * pageLimit;
+    const search = searchParams.get('search')?.trim() ?? '';
 
     const where: Record<string, unknown> = { active: true };
 
@@ -35,6 +36,13 @@ export async function GET(request: Request) {
       where.company_id = user.company_id;
     }
     // ADM sees all users
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [users, count] = await Promise.all([
       prisma.user.findMany({

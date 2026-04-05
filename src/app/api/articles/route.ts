@@ -31,9 +31,13 @@ export async function GET(request: Request) {
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
   const limit = Math.min(50, parseInt(searchParams.get('limit') ?? '12'));
   const offset = (page - 1) * limit;
+  const search = searchParams.get('search')?.trim() ?? '';
 
   // ADM sees all (including unpublished), others see only published
-  const where = user.role === 'ADM' ? {} : { published: true };
+  const baseWhere = user.role === 'ADM' ? {} : { published: true };
+  const where = search
+    ? { ...baseWhere, title: { contains: search, mode: 'insensitive' as const } }
+    : baseWhere;
 
   const [articles, total] = await Promise.all([
     prisma.article.findMany({

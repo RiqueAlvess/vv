@@ -26,8 +26,12 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const pageLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const offset = (page - 1) * pageLimit;
+    const search = searchParams.get('search')?.trim() ?? '';
 
-    const where = user.role !== 'ADM' ? { company_id: user.company_id } : {};
+    const baseWhere = user.role !== 'ADM' ? { company_id: user.company_id } : {};
+    const where = search
+      ? { ...baseWhere, name: { contains: search, mode: 'insensitive' as const } }
+      : baseWhere;
 
     const [campaigns, count] = await Promise.all([
       prisma.campaign.findMany({
