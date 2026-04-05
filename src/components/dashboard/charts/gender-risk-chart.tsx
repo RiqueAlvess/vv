@@ -2,7 +2,7 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, LabelList,
+  Tooltip, ResponsiveContainer, Cell, LabelList, ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ interface GenderData {
   worst_dimension: string | null;
   worst_dimension_nr: number;
   suppressed: boolean;
+  dimensions: Record<string, number>;
 }
 
 const GENDER_COLORS: Record<string, string> = {
@@ -25,16 +26,28 @@ const GENDER_COLORS: Record<string, string> = {
   'Nao informado': '#94a3b8',
 };
 
-const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#FF0000' :
-  pct >= 30 ? '#F79454' :
-  pct >= 15 ? '#FFFF00' : '#A2C06A';
+function igrpFromDimensions(dimensions: Record<string, number>): number {
+  const vals = Object.values(dimensions);
+  if (vals.length === 0) return 0;
+  return Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
+}
 
-const NR_TEXT_COLOR = (pct: number) =>
-  pct >= 15 ? '#ffffff' : '#000000';
+function igrpColor(igrp: number): string {
+  if (igrp > 12) return '#cc0000';
+  if (igrp > 8)  return '#cc7722';
+  if (igrp > 4)  return '#d4b000';
+  return '#8ba800';
+}
+
+function igrpLabel(igrp: number): string {
+  if (igrp > 12) return 'Crítico';
+  if (igrp > 8)  return 'Importante';
+  if (igrp > 4)  return 'Moderado';
+  return 'Aceitável';
+}
 
 interface TooltipPayload {
-  payload: GenderData;
+  payload: GenderData & { igrp: number };
 }
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
@@ -44,50 +57,47 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
       <p className="font-semibold text-sm">{d.gender}</p>
       <p className="text-muted-foreground">{d.total_responses} respondentes</p>
-      <p style={{ color: NR_COLOR(d.critical_pct) }}>
-        {d.critical_pct}% de respondentes com risco alto/critico
+      <p style={{ color: igrpColor(d.igrp) }}>
+        IGRP {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
       </p>
-      {typeof d.high_risk_eval_pct === 'number' && (
-        <p className="text-muted-foreground">
-          {d.high_risk_eval_pct}% das avaliações (respondente × dimensão) em NR ≥ 9
-        </p>
-      )}
       {d.worst_dimension && (
         <p className="text-muted-foreground">
-          Dimensao critica: <span className="font-medium text-foreground">{d.worst_dimension}</span>
-          {' '}(NR {d.worst_dimension_nr})
+          Dimensão de maior risco: <span className="font-medium text-foreground">{d.worst_dimension}</span>
+          {' '}(NR médio {d.worst_dimension_nr})
         </p>
       )}
     </div>
   );
 }
 
-export function GenderRiskChart({ data }: { data: GenderData[] | null | undefined }) {
-  if (!Array.isArray(data) || data.length === 0) return null;
+export function GenderRiskChart({ data }: { data: unknown[] | null | undefined }) {
+  const rawData = (Array.isArray(data) ? data : []) as GenderData[];
+  if (rawData.length === 0) return null;
 
-  const chartData = data.map(d => ({
+  const chartData = rawData.map(d => ({
     ...d,
-    display_pct: d.critical_pct,
+    igrp: igrpFromDimensions(d.dimensions ?? {}),
+    display_pct: igrpFromDimensions(d.dimensions ?? {}),
   }));
 
-  const mostAtRisk = data.sort((a, b) => b.critical_pct - a.critical_pct)[0];
+  const mostAtRisk = [...chartData].sort((a, b) => b.igrp - a.igrp)[0];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Users className="h-4 w-4" />
-          Risco por Genero
+          Risco por Gênero
         </CardTitle>
         <CardDescription>
-          % de respondentes com ao menos 1 dimensão em risco alto/critico (NR maior ou igual a 9) por genero
+          IGRP médio por grupo (Nível de Risco, escala 1–16)
           {mostAtRisk && mostAtRisk.total_responses > 0 && (
             <span className="block mt-1">
-              Maior exposicao:{' '}
+              Maior exposição:{' '}
               <span className="font-medium text-foreground">{mostAtRisk.gender}</span>
-              {' '}— {mostAtRisk.critical_pct}% em risco alto
+              {' '}— IGRP {mostAtRisk.igrp.toFixed(1)} ({igrpLabel(mostAtRisk.igrp)})
               {mostAtRisk.worst_dimension && (
-                <span className="text-muted-foreground"> (dimensao: {mostAtRisk.worst_dimension})</span>
+                <span className="text-muted-foreground"> · dimensão: {mostAtRisk.worst_dimension}</span>
               )}
             </span>
           )}
@@ -102,22 +112,25 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
               tick={{ fontSize: 11, fill: '#6B7280' }}
             />
             <YAxis
-              domain={[0, 100]}
+              domain={[0, 16]}
+              ticks={[0, 4, 8, 12, 16]}
               tick={{ fontSize: 10, fill: '#6B7280' }}
-              unit="%"
             />
+            <ReferenceLine y={4}  stroke="#8ba800" strokeDasharray="4 3" label={{ value: 'Aceitável', position: 'insideRight', fontSize: 9, fill: '#8ba800' }} />
+            <ReferenceLine y={8}  stroke="#d4b000" strokeDasharray="4 3" label={{ value: 'Moderado',  position: 'insideRight', fontSize: 9, fill: '#d4b000' }} />
+            <ReferenceLine y={12} stroke="#cc7722" strokeDasharray="4 3" label={{ value: 'Importante', position: 'insideRight', fontSize: 9, fill: '#cc7722' }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="display_pct" radius={[6, 6, 0, 0]} maxBarSize={72}>
               <LabelList
                 dataKey="display_pct"
                 position="top"
-                formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? `${v}%` : '—'}
+                formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? v.toFixed(1) : '—'}
                 style={{ fontSize: 11, fontWeight: 600 }}
               />
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={NR_COLOR(entry.critical_pct)}
+                  fill={igrpColor(entry.igrp)}
                 />
               ))}
             </Bar>
@@ -126,7 +139,7 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
 
         {/* Legend / detail cards */}
         <div className="grid grid-cols-2 gap-2 mt-3 sm:grid-cols-4">
-          {data.map(d => (
+          {chartData.map(d => (
             <div
               key={d.gender}
               className="rounded-lg border p-2 text-xs space-y-1"
@@ -141,9 +154,9 @@ export function GenderRiskChart({ data }: { data: GenderData[] | null | undefine
               <p className="text-muted-foreground">{d.total_responses} respostas</p>
               <Badge
                 className="text-[10px] px-1.5 py-0"
-                style={{ backgroundColor: NR_COLOR(d.critical_pct), color: NR_TEXT_COLOR(d.critical_pct) }}
+                style={{ backgroundColor: igrpColor(d.igrp), color: '#ffffff' }}
               >
-                {d.critical_pct}% alto risco
+                IGRP {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
               </Badge>
             </div>
           ))}
