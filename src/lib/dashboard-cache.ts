@@ -5,7 +5,7 @@
 import { prisma } from '@/lib/prisma';
 
 export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-export const DASHBOARD_CACHE_VERSION = 3;
+export const DASHBOARD_CACHE_VERSION = 4;
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
@@ -25,6 +25,11 @@ function hasCompatibleDashboardShape(cached: NonNullable<StoredMetrics>): boolea
   if (!isArray(cached.dimension_scores)) return false;
   if (!isArray(cached.heatmap_data)) return false;
   if (!isArray(cached.top_critical_groups)) return false;
+  // Validate that position rows have the current field shape (avg_hse_score, not legacy score_pct)
+  if (cached.top_critical_groups.length > 0) {
+    const first = cached.top_critical_groups[0];
+    if (!isObject(first) || typeof first.avg_hse_score !== 'number') return false;
+  }
   if (!isArray(cached.scores_by_gender)) return false;
   if (!isArray(cached.scores_by_age)) return false;
 
