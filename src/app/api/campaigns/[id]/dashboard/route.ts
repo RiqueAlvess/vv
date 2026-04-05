@@ -518,13 +518,15 @@ export async function GET(request: Request, { params }: RouteParams) {
         const posDimensions = aggregateDimensionAnalysis(positionResponses);
         const posNR = Number((posDimensions.reduce((sum, d) => sum + d.nr, 0) / posDimensions.length).toFixed(1));
         const { label } = ScoreService.interpretNR(posNR);
-        const scoreAsPct = Number(((posNR / 16) * 100).toFixed(1));
+        const avgHSEScore = Number(
+          (posDimensions.reduce((sum, d) => sum + d.avg_score, 0) / posDimensions.length).toFixed(2)
+        );
 
         return {
           position: pos.name,
           sector: pos.sector.name,
           unit: pos.sector.unit.name,
-          score_pct: scoreAsPct,
+          avg_hse_score: avgHSEScore,
           classification: label,
           nr: posNR,
           n_responses: positionResponses.length,

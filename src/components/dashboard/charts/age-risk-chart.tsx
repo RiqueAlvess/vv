@@ -2,7 +2,7 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, LabelList,
+  Tooltip, ResponsiveContainer, Cell, LabelList, ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,18 +16,31 @@ interface AgeData {
   worst_dimension: string | null;
   worst_dimension_nr: number;
   suppressed: boolean;
+  dimensions: Record<string, number>;
 }
 
-const NR_COLOR = (pct: number) =>
-  pct >= 50 ? '#FF0000' :
-  pct >= 30 ? '#F79454' :
-  pct >= 15 ? '#FFFF00' : '#A2C06A';
+function igrpFromDimensions(dimensions: Record<string, number>): number {
+  const vals = Object.values(dimensions);
+  if (vals.length === 0) return 0;
+  return Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
+}
 
-const NR_TEXT_COLOR = (pct: number) =>
-  pct >= 15 ? '#ffffff' : '#000000';
+function igrpColor(igrp: number): string {
+  if (igrp > 12) return '#cc0000';
+  if (igrp > 8)  return '#cc7722';
+  if (igrp > 4)  return '#d4b000';
+  return '#8ba800';
+}
+
+function igrpLabel(igrp: number): string {
+  if (igrp > 12) return 'Crítico';
+  if (igrp > 8)  return 'Importante';
+  if (igrp > 4)  return 'Moderado';
+  return 'Aceitável';
+}
 
 interface TooltipPayload {
-  payload: AgeData;
+  payload: AgeData & { igrp: number };
 }
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
@@ -35,94 +48,87 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   const d = payload[0].payload;
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
-      <p className="font-semibold text-sm">{d.age_range} anos</p>
+      <p className="font-semibold text-sm">{d.age_range}{d.age_range !== 'Não informado' ? ' anos' : ''}</p>
       <p className="text-muted-foreground">{d.total_responses} respondentes</p>
-      <p style={{ color: NR_COLOR(d.critical_pct) }}>
-        {d.critical_pct}% de respondentes com risco alto/critico
+      <p style={{ color: igrpColor(d.igrp) }}>
+        IGRP {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
       </p>
-      {typeof d.high_risk_eval_pct === 'number' && (
-        <p className="text-muted-foreground">
-          {d.high_risk_eval_pct}% das avaliações (respondente × dimensão) em NR ≥ 9
-        </p>
-      )}
       {d.worst_dimension && (
         <p className="text-muted-foreground">
-          Dimensao mais critica:{' '}
-          <span className="font-medium text-foreground">{d.worst_dimension}</span>
-          {' '}(NR {d.worst_dimension_nr})
+          Dimensão de maior risco: <span className="font-medium text-foreground">{d.worst_dimension}</span>
+          {' '}(NR médio {d.worst_dimension_nr})
         </p>
       )}
     </div>
   );
 }
 
-export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
-  if (!Array.isArray(data) || data.length === 0) return null;
+export function AgeRiskChart({ data }: { data: unknown[] | null | undefined }) {
+  const rawData = (Array.isArray(data) ? data : []) as AgeData[];
+  if (rawData.length === 0) return null;
 
-  const visible = data.filter(d => d.age_range !== 'Nao informado' || d.total_responses > 0);
+  const visible = rawData.filter(d => d.age_range !== 'Não informado' || d.total_responses > 0);
+
   const chartData = visible.map(d => ({
     ...d,
-    label: d.age_range === 'Nao informado' ? 'N/I' : d.age_range,
-    display_pct: d.critical_pct,
+    label: d.age_range === 'Não informado' ? 'N/I' : d.age_range,
+    igrp: igrpFromDimensions(d.dimensions ?? {}),
+    display_pct: igrpFromDimensions(d.dimensions ?? {}),
   }));
 
-  const mostAtRisk = visible
-    .sort((a, b) => b.critical_pct - a.critical_pct)[0];
-
-  const mostResponders = visible
-    .sort((a, b) => b.total_responses - a.total_responses)[0];
+  const mostAtRisk = [...chartData].sort((a, b) => b.igrp - a.igrp)[0];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <TrendingUp className="h-4 w-4" />
-          Risco por Faixa Etaria
+          Risco por Faixa Etária
         </CardTitle>
         <CardDescription>
-          Distribuicao de respondentes com ao menos 1 dimensão em risco alto/critico por faixa etaria
-          {mostAtRisk && (
+          IGRP médio por grupo (Nível de Risco, escala 1–16)
+          {mostAtRisk && mostAtRisk.total_responses > 0 && (
             <span className="block mt-1">
-              Faixa mais exposta:{' '}
-              <span className="font-medium text-foreground">{mostAtRisk.age_range} anos</span>
-              {' '}— {mostAtRisk.critical_pct}% em risco alto
+              Maior exposição:{' '}
+              <span className="font-medium text-foreground">
+                {mostAtRisk.age_range}{mostAtRisk.age_range !== 'Não informado' ? ' anos' : ''}
+              </span>
+              {' '}— IGRP {mostAtRisk.igrp.toFixed(1)} ({igrpLabel(mostAtRisk.igrp)})
               {mostAtRisk.worst_dimension && (
-                <span className="text-muted-foreground"> (dimensao: {mostAtRisk.worst_dimension})</span>
+                <span className="text-muted-foreground"> · dimensão: {mostAtRisk.worst_dimension}</span>
               )}
-            </span>
-          )}
-          {mostResponders && (
-            <span className="block text-muted-foreground">
-              Maior participacao: {mostResponders.age_range} anos ({mostResponders.total_responses} respostas)
             </span>
           )}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chartData} margin={{ top: 20, right: 8, bottom: 4, left: 0 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 4, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             <XAxis
               dataKey="label"
               tick={{ fontSize: 10, fill: '#6B7280' }}
             />
             <YAxis
-              domain={[0, 100]}
+              domain={[0, 16]}
+              ticks={[0, 4, 8, 12, 16]}
               tick={{ fontSize: 10, fill: '#6B7280' }}
-              unit="%"
             />
+            <ReferenceLine y={4}  stroke="#8ba800" strokeDasharray="4 3" label={{ value: 'Aceitável', position: 'insideRight', fontSize: 9, fill: '#8ba800' }} />
+            <ReferenceLine y={8}  stroke="#d4b000" strokeDasharray="4 3" label={{ value: 'Moderado',  position: 'insideRight', fontSize: 9, fill: '#d4b000' }} />
+            <ReferenceLine y={12} stroke="#cc7722" strokeDasharray="4 3" label={{ value: 'Importante', position: 'insideRight', fontSize: 9, fill: '#cc7722' }} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="display_pct" radius={[5, 5, 0, 0]} maxBarSize={60}>
+            <Bar dataKey="display_pct" radius={[6, 6, 0, 0]} maxBarSize={60}>
               <LabelList
                 dataKey="display_pct"
                 position="top"
-                formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? `${v}%` : '—'}
+                formatter={(v: unknown) => (typeof v === 'number' && v > 0) ? v.toFixed(1) : '—'}
                 style={{ fontSize: 10, fontWeight: 600 }}
               />
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={NR_COLOR(entry.critical_pct)}
+                  fill={igrpColor(entry.igrp)}
                 />
               ))}
             </Bar>
@@ -136,15 +142,15 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
               <tr className="border-b bg-muted/50">
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Faixa</th>
                 <th className="text-center px-3 py-2 font-medium text-muted-foreground">Respostas</th>
-                <th className="text-center px-3 py-2 font-medium text-muted-foreground">Risco Alto</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Dimensao Critica</th>
+                <th className="text-center px-3 py-2 font-medium text-muted-foreground">IGRP</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Dimensão Crítica</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((d, i) => (
+              {chartData.map((d, i) => (
                 <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-3 py-2 font-medium">
-                    {d.age_range}{d.age_range !== 'Nao informado' ? ' anos' : ''}
+                    {d.age_range}{d.age_range !== 'Não informado' ? ' anos' : ''}
                   </td>
                   <td className="px-3 py-2 text-center text-muted-foreground">
                     {d.total_responses}
@@ -152,9 +158,9 @@ export function AgeRiskChart({ data }: { data: AgeData[] | null | undefined }) {
                   <td className="px-3 py-2 text-center">
                     <Badge
                       className="text-[10px] px-1.5 py-0"
-                      style={{ backgroundColor: NR_COLOR(d.critical_pct), color: NR_TEXT_COLOR(d.critical_pct) }}
+                      style={{ backgroundColor: igrpColor(d.igrp), color: '#ffffff' }}
                     >
-                      {d.critical_pct}%
+                      {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
                     </Badge>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
