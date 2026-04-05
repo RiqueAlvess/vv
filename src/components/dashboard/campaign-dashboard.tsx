@@ -152,8 +152,8 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
       {/* ROW 3 — Donut + Stacked by dimension */}
       <div className="grid gap-6 lg:grid-cols-2">
         <WorkersRiskDonut
-          highRiskPct={(data.workers_high_risk_eval_pct as number) ?? (data.workers_high_risk_pct as number)}
-          criticalPct={(data.workers_critical_eval_pct as number) ?? (data.workers_critical_pct as number)}
+          highRiskPct={(data.workers_high_risk_pct as number) ?? 0}
+          criticalPct={(data.workers_critical_pct as number) ?? 0}
           totalResponded={data.total_responded as number}
         />
         <StackedDimensionChart data={data.stacked_by_dimension as unknown[]} />

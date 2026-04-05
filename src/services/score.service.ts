@@ -1,13 +1,25 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, NR_MATRIX } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
+  private static normalizeLikertValue(value: number): number {
+    if (!Number.isFinite(value)) return value;
+    // Compatibilidade com bases legadas 1–5: desloca para 0–4.
+    if (value > 4) return value - 1;
+    return value;
+  }
+
+  private static normalizeScoreByPolarity(score: number, dimensionType: 'positive' | 'negative'): number {
+    // Normaliza interpretação para "quanto maior, pior".
+    return dimensionType === 'positive' ? 4 - score : score;
+  }
+
   static getQuestionAnswer(responses: Record<string, number>, questionNumber: number): number | undefined {
     const prefixed = responses[`q${questionNumber}`];
-    if (typeof prefixed === 'number') return prefixed;
+    if (typeof prefixed === 'number') return this.normalizeLikertValue(prefixed);
 
     const raw = responses[String(questionNumber)];
-    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'number') return this.normalizeLikertValue(raw);
 
     return undefined;
   }
@@ -35,19 +47,13 @@ export class ScoreService {
 
   // Get risk level for a score given dimension type
   static getRiskLevel(score: number, dimensionType: 'positive' | 'negative'): RiskLevel {
-    if (dimensionType === 'negative') {
-      // High score = high risk for negative dimensions
-      for (const t of RISK_THRESHOLDS_NEGATIVE) {
-        if (score >= t.min) return t.level as RiskLevel;
-      }
-      return 'aceitavel';
-    } else {
-      // Low score = high risk for positive dimensions
-      for (const t of RISK_THRESHOLDS_POSITIVE) {
-        if (score <= t.max) return t.level as RiskLevel;
-      }
-      return 'aceitavel';
+    const normalized = this.normalizeScoreByPolarity(score, dimensionType);
+    // Após normalização por polaridade, usamos uma única régua:
+    // score alto = pior risco.
+    for (const t of RISK_THRESHOLDS_NEGATIVE) {
+      if (normalized >= t.min) return t.level as RiskLevel;
     }
+    return 'aceitavel';
   }
 
   // Calculate NR value: probability × severity (both variable 1–4, NR range 1–16)
