@@ -17,9 +17,9 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">% Avaliações em Risco</CardTitle>
+        <CardTitle className="text-base">% Trabalhadores em Risco</CardTitle>
         <CardDescription>
-          % de avaliações (respondente × dimensão) com NR ≥ 9 (Importante ou Crítico)
+          % de respondentes com ao menos uma dimensão em NR ≥ 9 (Importante ou Crítico)
         </CardDescription>
       </CardHeader>
       <CardContent>

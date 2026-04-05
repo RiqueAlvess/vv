@@ -25,8 +25,8 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
     let total = 0, count = 0;
     for (const resp of responses) {
       for (const qn of dim.questionNumbers) {
-        const val = resp.responses[`q${qn}`];
-        if (val !== undefined) { total += val; count++; }
+        const val = ScoreService.getQuestionAnswer(resp.responses, qn);
+        if (typeof val === 'number') { total += val; count++; }
       }
     }
     const avgScore = count > 0 ? Math.round((total / count) * 100) / 100 : 0;
