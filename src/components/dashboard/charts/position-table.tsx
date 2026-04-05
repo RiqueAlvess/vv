@@ -54,13 +54,13 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
                 <TableCell className="font-medium">{row.position}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{row.sector}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
-                <TableCell className="text-center tabular-nums">{row.avg_hse_score.toFixed(2)}</TableCell>
+                <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
                 <TableCell>
                   <Badge className="text-xs" style={{ backgroundColor: BADGE_COLORS[row.classification]?.bg ?? '#94a3b8', color: BADGE_COLORS[row.classification]?.text ?? '#ffffff' }}>
                     {row.classification}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-center tabular-nums font-mono">{row.nr.toFixed(1)}</TableCell>
+                <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
                 <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
               </TableRow>
             ))}
