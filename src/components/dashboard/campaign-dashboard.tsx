@@ -38,7 +38,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   const handleExportPGR = async () => {
     setDownloading(true);
     try {
-      const url = `/api/campaigns/${campaignId}/report/pdf`;
+      const url = `/api/campaigns/${campaignId}/report/pdf?sync=1`;
       const win = window.open(url, '_blank');
       if (win) {
         win.addEventListener('load', () => {

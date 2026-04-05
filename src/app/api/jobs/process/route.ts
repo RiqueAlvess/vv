@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { claimNextJob, completeJob, failJob } from '@/lib/jobs';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
+import { buildCampaignPgrHtmlArtifact, buildDashboardXlsxArtifact } from '@/services/report-export.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,22 @@ export async function POST(request: Request) {
       case 'send_invitation_email': {
         // Email invitations removed — QR code model. Silently skip.
         break;
+      }
+
+      case 'generate_campaign_pgr_html': {
+        const { campaign_id } = job.payload as { campaign_id: string };
+        const artifact = await buildCampaignPgrHtmlArtifact(campaign_id);
+        await completeJob(job.id, { ...job.payload, artifact });
+        console.log(`[JobProcessor] Job ${job.id} completed`);
+        return NextResponse.json({ status: 'processed', job_id: job.id, type: job.type });
+      }
+
+      case 'generate_dashboard_xlsx': {
+        const { campaign_id } = job.payload as { campaign_id: string };
+        const artifact = await buildDashboardXlsxArtifact(campaign_id);
+        await completeJob(job.id, { ...job.payload, artifact });
+        console.log(`[JobProcessor] Job ${job.id} completed`);
+        return NextResponse.json({ status: 'processed', job_id: job.id, type: job.type });
       }
 
       default:
