@@ -97,7 +97,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       user_id: user.user_id,
       target_id: id,
       target_type: 'company',
-      metadata: updateData,
+      metadata: JSON.parse(JSON.stringify(updateData)),
     });
 
     return NextResponse.json(company);
