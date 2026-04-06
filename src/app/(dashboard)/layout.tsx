@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Header } from '@/components/layout/header';
 import { AuthProvider } from '@/hooks/use-auth';
+import { NotificationBannerWrapper } from '@/components/modals/notification-banner-wrapper';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   // useState ensures the same QueryClient instance survives re-renders in
@@ -27,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </main>
           </SidebarInset>
         </SidebarProvider>
+        <NotificationBannerWrapper />
       </QueryClientProvider>
     </AuthProvider>
   );

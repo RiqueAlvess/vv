@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser, hashPassword } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { userSchema } from '@/lib/validations';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,9 +163,24 @@ export async function POST(request: Request) {
       },
     });
 
+    log('AUDIT', {
+      action: 'user.create',
+      message: `Usuário criado: ${newUser.name} (${newUser.role})`,
+      user_id: user.user_id,
+      company_id: newUser.company_id,
+      target_id: newUser.id,
+      target_type: 'user',
+      metadata: { name: newUser.name, role: newUser.role, email: newUser.email },
+    });
+
     return NextResponse.json(newUser, { status: 201 });
   } catch (err) {
     console.error('Create user error:', err);
+    log('ERROR', {
+      action: 'user.create',
+      message: `Erro ao criar usuário: ${err instanceof Error ? err.message : String(err)}`,
+      user_id: user?.user_id,
+    });
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

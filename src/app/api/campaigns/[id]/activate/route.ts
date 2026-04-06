@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,15 @@ export async function POST(request: Request, { params }: RouteParams) {
         status: 'active',
         updated_at: new Date(),
       },
+    });
+
+    log('AUDIT', {
+      action: 'campaign.activate',
+      message: `Campanha ativada: ${updatedCampaign.name}`,
+      user_id: user.user_id,
+      company_id: campaign.company_id,
+      target_id: id,
+      target_type: 'campaign',
     });
 
     return NextResponse.json(updatedCampaign);
