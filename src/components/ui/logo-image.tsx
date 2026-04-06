@@ -15,16 +15,16 @@ export function LogoImage({ className, variant = 'light' }: LogoImageProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 340 56"
-      width="200"
-      height="33"
+      viewBox="0 0 380 56"
+      width="100%"
+      height="100%"
       role="img"
       aria-label="Vivamente360"
       className={className}
-      style={{ display: 'block' }}
+      style={{ display: 'block', maxWidth: '220px' }}
     >
       <text
-        x="0"
+        x="2"
         y="44"
         fontFamily="Arial, Helvetica, sans-serif"
         fontWeight="800"
