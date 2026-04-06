@@ -27,10 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshAuth = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      let res = await fetch('/api/auth/me', { credentials: 'include' });
+
+      // Access token expired — try refreshing before giving up
+      if (res.status === 401) {
+        const refreshRes = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!refreshRes.ok) {
+          setUser(null);
+          return;
+        }
+        res = await fetch('/api/auth/me', { credentials: 'include' });
+      }
+
       if (res.ok) {
         const data = await res.json();
-        // API returns user data directly with optional company object
         setUser({
           id: data.id,
           name: data.name,
