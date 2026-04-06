@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { enqueueJob } from '@/lib/jobs';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,15 @@ export async function POST(request: Request, { params }: RouteParams) {
         status: 'closed',
         updated_at: new Date(),
       },
+    });
+
+    log('AUDIT', {
+      action: 'campaign.close',
+      message: `Campanha encerrada: ${campaign.name}`,
+      user_id: user.user_id,
+      company_id: campaign.company_id,
+      target_id: id,
+      target_type: 'campaign',
     });
 
     try {

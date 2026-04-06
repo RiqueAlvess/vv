@@ -52,6 +52,8 @@ model User {
   refresh_tokens RefreshToken[]
   campaigns      Campaign[]     @relation("CampaignCreator")
   articles_authored Article[]   @relation("ArticleAuthor")
+  notifications_created SystemNotification[]     @relation("NotificationCreator")
+  notification_views    SystemNotificationView[] @relation("NotificationViews")
 
   @@map("users")
   @@schema("core")
@@ -307,6 +309,58 @@ model Article {
   author User @relation("ArticleAuthor", fields: [author_id], references: [id])
 
   @@map("articles")
+  @@schema("core")
+}
+
+model SystemLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  level       String   @db.VarChar(10)
+  action      String   @db.VarChar(100)
+  user_id     String?  @db.Uuid
+  company_id  String?  @db.Uuid
+  target_id   String?  @db.Uuid
+  target_type String?  @db.VarChar(50)
+  message     String
+  metadata    Json?
+  ip          String?  @db.VarChar(50)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([level, created_at])
+  @@index([user_id, created_at])
+  @@index([created_at])
+  @@map("system_logs")
+  @@schema("core")
+}
+
+model SystemNotification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String
+  message    String
+  active     Boolean  @default(true)
+  starts_at  DateTime @db.Timestamptz()
+  ends_at    DateTime @db.Timestamptz()
+  created_by String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  creator User                     @relation("NotificationCreator", fields: [created_by], references: [id])
+  views   SystemNotificationView[]
+
+  @@map("system_notifications")
+  @@schema("core")
+}
+
+model SystemNotificationView {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notification_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  viewed_at       DateTime @default(now()) @db.Timestamptz()
+
+  notification SystemNotification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  user         User               @relation("NotificationViews", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([notification_id, user_id])
+  @@map("system_notification_views")
   @@schema("core")
 }
 

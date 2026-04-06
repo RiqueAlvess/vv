@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { LogoImage } from '@/components/ui/logo-image';
 
@@ -22,6 +22,8 @@ const navItems = {
     { title: 'Empresas', url: '/companies', icon: Building2 },
     { title: 'Usuários', url: '/users', icon: Users },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
+    { title: 'Notificações', url: '/adm/notifications', icon: Bell },
+    { title: 'Logs do Sistema', url: '/adm/system-logs', icon: ScrollText },
   ],
   RH: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },

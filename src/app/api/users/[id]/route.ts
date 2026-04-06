@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser, hashPassword } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
 
+    log('AUDIT', {
+      action: 'user.update',
+      message: `Usuário atualizado: ${updatedUser.name}`,
+      user_id: user.user_id,
+      company_id: updatedUser.company_id,
+      target_id: id,
+      target_type: 'user',
+      metadata: { updated_fields: Object.keys(updateData) },
+    });
+
     return NextResponse.json(updatedUser);
   } catch (err) {
     console.error('Update user error:', err);
@@ -168,6 +179,14 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     await prisma.user.update({
       where: { id },
       data: { active: false },
+    });
+
+    log('AUDIT', {
+      action: 'user.delete',
+      message: `Usuário desativado (soft delete)`,
+      user_id: user.user_id,
+      target_id: id,
+      target_type: 'user',
     });
 
     return NextResponse.json({ message: 'Usuário desativado com sucesso' });
