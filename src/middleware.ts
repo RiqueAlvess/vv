@@ -21,7 +21,7 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://i.ibb.co",
+    "img-src 'self' blob: data: https:",
     "font-src 'self'",
     "connect-src 'self'",
     "worker-src blob:",
