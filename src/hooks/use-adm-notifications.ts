@@ -41,7 +41,14 @@ export function useAdmNotifications() {
 
   return useQuery<{ data: AdminNotification[] }>({
     queryKey: QUERY_KEY,
-    queryFn: () => get('/api/adm/notifications'),
+    queryFn: async () => {
+      const res = await get('/api/adm/notifications');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<{ data: AdminNotification[] }>;
+    },
     staleTime: 30_000,
   });
 }
