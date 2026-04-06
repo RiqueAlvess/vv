@@ -22,7 +22,7 @@ export function useNotificationBanner() {
 
   return useQuery<{ notification: SystemNotification | null }>({
     queryKey: ['notification-banner'],
-    queryFn: () => get('/api/notifications/active'),
+    queryFn: () => get('/api/notifications/active').then(res => res.json()),
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
