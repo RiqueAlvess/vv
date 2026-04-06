@@ -6,6 +6,12 @@ interface ApiOptions extends RequestInit {
   skipAuth?: boolean;
 }
 
+// Module-level mutex: if a refresh is already in-flight, all concurrent 401s
+// reuse the same promise instead of each firing their own refresh request.
+// This prevents token rotation race conditions when multiple requests fail
+// simultaneously (e.g. on a hard page reload with an expired access token).
+let refreshPromise: Promise<boolean> | null = null;
+
 export function useApi() {
   const fetchWithAuth = useCallback(async (url: string, options: ApiOptions = {}) => {
     const { skipAuth, ...fetchOptions } = options;
@@ -24,15 +30,21 @@ export function useApi() {
           },
     });
 
-    // If 401, try to refresh token
+    // If 401, try to refresh token — deduplicated via module-level mutex
     if (res.status === 401 && !skipAuth) {
-      const refreshRes = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      if (!refreshPromise) {
+        refreshPromise = fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        })
+          .then((r) => r.ok)
+          .finally(() => { refreshPromise = null; });
+      }
 
-      if (refreshRes.ok) {
-        // Retry original request
+      const refreshed = await refreshPromise;
+
+      if (refreshed) {
+        // Retry original request with fresh token
         return fetch(url, {
           ...fetchOptions,
           credentials: 'include',

@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { CSVUploadModal } from '@/components/modals/csv-upload-modal';
 import { QRCodeModal } from '@/components/modals/qrcode-modal';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -71,6 +72,7 @@ export default function CampaignDetailPage() {
   const { get, post } = useApi();
   const { user } = useAuth();
   const { success, error: notifyError } = useNotifications();
+  const queryClient = useQueryClient();
   const campaignId = params.id as string;
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -216,6 +218,8 @@ export default function CampaignDetailPage() {
       }
       success('Campanha encerrada');
       setCloseModalOpen(false);
+      // Invalidate the closed-campaigns list so DashboardPage refetches on next visit
+      queryClient.invalidateQueries({ queryKey: ['campaigns', 'closed'] });
       fetchCampaign();
       fetchQRCodes();
     } catch {
