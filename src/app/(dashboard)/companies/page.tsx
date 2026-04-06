@@ -96,10 +96,6 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  if (user?.role !== 'ADM') {
-    return <p className="text-muted-foreground">Acesso restrito a administradores.</p>;
-  }
-
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -119,6 +115,10 @@ export default function CompaniesPage() {
   }, [get, page, search, notifyError]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+
+  if (user?.role !== 'ADM') {
+    return <p className="text-muted-foreground">Acesso restrito a administradores.</p>;
+  }
 
   function openCreate() {
     setSelected(null);
