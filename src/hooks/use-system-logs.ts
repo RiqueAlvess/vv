@@ -41,7 +41,14 @@ export function useSystemLogs(filters: LogFilters = {}) {
 
   return useQuery<{ logs: SystemLog[]; total: number; page: number }>({
     queryKey: ['adm', 'system-logs', filters],
-    queryFn: () => get(`/api/adm/system-logs${query ? `?${query}` : ''}`),
+    queryFn: async () => {
+      const res = await get(`/api/adm/system-logs${query ? `?${query}` : ''}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
     staleTime: 30_000,
   });
 }
