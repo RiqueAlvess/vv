@@ -1,4 +1,7 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+
+type InputJsonValue = Prisma.InputJsonValue;
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'AUDIT';
 
@@ -9,7 +12,7 @@ export interface LogPayload {
   company_id?: string;
   target_id?: string;
   target_type?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: InputJsonValue;
   ip?: string;
 }
 
