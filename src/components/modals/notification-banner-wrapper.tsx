@@ -1,10 +1,10 @@
 'use client';
 
-import { useNotificationBanner, useDismissNotification } from '@/hooks/use-notification-banner';
+import { useNotificationBanner, useDismissNotification, type SystemNotification } from '@/hooks/use-notification-banner';
 import { NotificationModal } from '@/components/modals/notification-modal';
 
 export function NotificationBannerWrapper() {
-  const { data } = useNotificationBanner();
+  const { data } = useNotificationBanner() as { data?: { notification: SystemNotification | null } };
   const dismiss = useDismissNotification();
 
   const notification = data?.notification ?? null;
