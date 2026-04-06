@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { signToken, signRefreshToken, comparePassword } from '@/lib/auth';
 import { loginLimiter } from '@/lib/rate-limit';
 import { loginSchema } from '@/lib/validations';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,14 @@ export async function POST(request: Request) {
 
     const validPassword = await comparePassword(password, user.password_hash);
     if (!validPassword) {
+      log('WARN', {
+        action: 'user.login_failed',
+        message: `Tentativa de login com senha incorreta para ${email}`,
+        user_id: user.id,
+        company_id: user.company_id,
+        ip,
+        metadata: { email },
+      });
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
@@ -72,6 +81,15 @@ export async function POST(request: Request) {
 
     // Fire-and-forget: update last login timestamp — non-blocking
     prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } }).catch(() => {});
+
+    log('AUDIT', {
+      action: 'user.login',
+      message: `Login realizado: ${user.name} (${user.role})`,
+      user_id: user.id,
+      company_id: user.company_id,
+      ip,
+      metadata: { email, role: user.role },
+    });
 
     const response = NextResponse.json({
       token,
@@ -104,6 +122,10 @@ export async function POST(request: Request) {
     return response;
   } catch (err) {
     console.error('Login error:', err);
+    log('ERROR', {
+      action: 'user.login',
+      message: `Erro interno no login: ${err instanceof Error ? err.message : String(err)}`,
+    });
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

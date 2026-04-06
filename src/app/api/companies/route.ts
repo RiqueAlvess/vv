@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { companySchema } from '@/lib/validations';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,9 +109,22 @@ export async function POST(request: Request) {
       data: { name, cnpj, cnae: cnae ?? null, active: true },
     });
 
+    log('AUDIT', {
+      action: 'company.create',
+      message: `Empresa criada: ${company.name} (CNPJ: ${company.cnpj})`,
+      user_id: user.user_id,
+      target_id: company.id,
+      target_type: 'company',
+      metadata: { name: company.name, cnpj: company.cnpj },
+    });
+
     return NextResponse.json(company, { status: 201 });
   } catch (err) {
     console.error('Create company error:', err);
+    log('ERROR', {
+      action: 'company.create',
+      message: `Erro ao criar empresa: ${err instanceof Error ? err.message : String(err)}`,
+    });
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
