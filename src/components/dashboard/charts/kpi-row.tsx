@@ -1,31 +1,59 @@
 'use client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, BarChart3, AlertTriangle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Users, BarChart3, AlertTriangle, UserCheck } from 'lucide-react';
 
 export function KpiRow({ data }: { data: Record<string, unknown> }) {
   const igrpLabel = data.igrp_label as string;
   const igrpColor = data.igrp_color as string;
+  const totalEmployees = (data.total_employees as number) ?? 0;
+  const totalResponded = (data.total_responded as number) ?? 0;
+  const responseRate = totalEmployees > 0
+    ? Math.round((totalResponded / totalEmployees) * 100)
+    : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {/* Card 1 — Participantes */}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Card 1 — Total de Funcionários */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Participantes
+            Funcionários
           </CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-bold">
-            {(data.total_responded as number).toLocaleString('pt-BR')}
+            {totalEmployees.toLocaleString('pt-BR')}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">total de respondentes</p>
+          <p className="text-xs text-muted-foreground mt-1">cadastrados na campanha</p>
         </CardContent>
       </Card>
 
-      {/* Card 2 — IGRP */}
+      {/* Card 2 — Respondentes + Taxa */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Respondentes
+          </CardTitle>
+          <UserCheck className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold">
+            {totalResponded.toLocaleString('pt-BR')}
+          </p>
+          <div className="mt-2">
+            <Progress value={responseRate} className="h-1.5" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{responseRate}%</span>{' '}
+            de adesão
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Card 3 — IGRP */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -45,7 +73,7 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
         </CardContent>
       </Card>
 
-      {/* Card 3 — Em Risco Alto */}
+      {/* Card 4 — Em Risco Alto */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

@@ -15,7 +15,6 @@ interface RouteParams { params: Promise<{ id: string }> }
 const GENDER_LABELS: Record<string, string> = {
   M: 'Masculino',
   F: 'Feminino',
-  O: 'Outro',
   N: 'Não informado',
 };
 
@@ -73,7 +72,6 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
     }
 
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
-    // Classify by average score (consistent with heatmap and scoring.ts aggregateHSEITScores)
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
     const nr = ScoreService.calculateNR(riskLevel);
     const interp = ScoreService.interpretNR(nr);
@@ -169,9 +167,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       },
     });
 
-    const totalInvited = 0;
+    const totalEmployees = await prisma.campaignEmployee.count({ where: { campaign_id: id } });
+    const totalInvited = totalEmployees;
     const totalResponded = rawResponses.length;
-    const responseRate = totalInvited > 0 ? (totalResponded / totalInvited) * 100 : 0;
+    const responseRate = totalEmployees > 0 ? (totalResponded / totalEmployees) * 100 : 0;
 
     if (totalResponded === 0) {
       return NextResponse.json(
@@ -580,6 +579,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const payload = {
       campaign_id: id,
       campaign_name: campaign.name,
+      total_employees: totalEmployees,
       total_invited: totalInvited,
       total_responded: totalResponded,
       response_rate: Math.round(responseRate * 100) / 100,

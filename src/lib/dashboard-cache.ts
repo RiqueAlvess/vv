@@ -63,6 +63,7 @@ export function buildPayloadFromCache(
   return {
     campaign_id: campaignId,
     campaign_name: rd.campaign_name ?? null,
+    total_employees: cached.total_employees ?? 0,
     total_invited: cached.total_invited,
     total_responded: cached.total_responded,
     response_rate: Number(cached.response_rate),

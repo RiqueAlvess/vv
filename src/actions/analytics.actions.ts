@@ -158,6 +158,7 @@ export async function getCampaignDashboard(
       metrics: {
         id: cached.id,
         campaign_id: cached.campaign_id,
+        total_employees: cached.total_employees ?? 0,
         total_invited: cached.total_invited,
         total_responded: cached.total_responded,
         response_rate: Number(cached.response_rate),
@@ -225,6 +226,7 @@ export async function getCampaignDashboard(
     metrics: {
       id: '',
       campaign_id: campaignId,
+      total_employees: 0,
       total_invited: totalInvited,
       total_responded: responses.length,
       response_rate: totalInvited ? Math.round((responses.length / totalInvited) * 10000) / 100 : 0,

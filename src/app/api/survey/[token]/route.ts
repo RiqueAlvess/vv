@@ -101,7 +101,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { responses, gender, age_range, unit_id, sector_id, position_id, fingerprint, consent_accepted } = parsed.data;
+    const { responses, gender, age_range, unit_id, sector_id, position_id, validation_token, consent_accepted } = parsed.data;
 
     // Validate QR code is still active and campaign is active
     const qrCode = await prisma.campaignQRCode.findUnique({
@@ -128,38 +128,59 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const campaignId = qrCode.campaign.id;
 
-    // Check fingerprint deduplication (one response per device per campaign)
-    if (fingerprint) {
-      const existing = await prisma.surveyResponse.findFirst({
-        where: { campaign_id: campaignId, fingerprint },
-        select: { id: true },
-      });
-      if (existing) {
-        return NextResponse.json(
-          { error: 'Você já participou desta pesquisa neste dispositivo' },
-          { status: 409 }
-        );
-      }
+    // Validate the one-use token, ensure it belongs to this campaign and is not expired
+    const employee = await prisma.campaignEmployee.findFirst({
+      where: {
+        campaign_id: campaignId,
+        validation_token: validation_token,
+        has_responded: false,
+      },
+      select: { id: true, validation_token_expires_at: true },
+    });
+
+    if (!employee) {
+      return NextResponse.json(
+        { error: 'Token de acesso inválido. Por favor, insira seu CPF novamente.' },
+        { status: 401 }
+      );
+    }
+
+    if (employee.validation_token_expires_at && employee.validation_token_expires_at < new Date()) {
+      return NextResponse.json(
+        { error: 'Seu token de acesso expirou. Por favor, insira seu CPF novamente.' },
+        { status: 401 }
+      );
     }
 
     const sessionUuid = generateToken();
 
-    const surveyResponse = await prisma.surveyResponse.create({
-      data: {
-        campaign_id: campaignId,
-        session_uuid: sessionUuid,
-        unit_id: unit_id ?? null,
-        sector_id: sector_id ?? null,
-        position_id: position_id ?? null,
-        fingerprint: fingerprint ?? null,
-        gender: gender ?? null,
-        age_range: age_range ?? null,
-        consent_accepted,
-        consent_accepted_at: new Date(),
-        responses,
-      },
-      select: { id: true },
-    });
+    // Atomic: mark employee as responded + destroy cpf_hash + create survey response
+    const [, surveyResponse] = await prisma.$transaction([
+      prisma.campaignEmployee.update({
+        where: { id: employee.id },
+        data: {
+          has_responded: true,
+          cpf_hash: null,               // permanently destroy CPF hash
+          validation_token: null,        // invalidate token
+          validation_token_expires_at: null,
+        },
+      }),
+      prisma.surveyResponse.create({
+        data: {
+          campaign_id: campaignId,
+          session_uuid: sessionUuid,
+          unit_id: unit_id ?? null,
+          sector_id: sector_id ?? null,
+          position_id: position_id ?? null,
+          gender: gender ?? null,
+          age_range: age_range ?? null,
+          consent_accepted,
+          consent_accepted_at: new Date(),
+          responses,
+        },
+        select: { id: true },
+      }),
+    ]);
 
     // Persist analytics fact rows — non-fatal
     try {
