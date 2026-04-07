@@ -67,7 +67,8 @@ type SurveyStep =
   | 'demographics'
   | 'questions'
   | 'submitting'
-  | 'done';
+  | 'done'
+  | 'declined';
 
 /** Format CPF input as 000.000.000-00 */
 function formatCpf(value: string): string {
@@ -156,6 +157,10 @@ export default function SurveyPage() {
         return;
       }
       setValidationToken(data.validation_token);
+      // Pre-populate hierarchy from CSV registration (user can still change)
+      if (data.suggested_unit_id) setSelectedUnitId(data.suggested_unit_id);
+      if (data.suggested_sector_id) setSelectedSectorId(data.suggested_sector_id);
+      if (data.suggested_position_id) setSelectedPositionId(data.suggested_position_id);
       setStep('consent');
     } catch {
       setErrorMsg('Erro de conexão. Tente novamente.');
@@ -247,6 +252,25 @@ export default function SurveyPage() {
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Obrigado!</h2>
             <p className="text-muted-foreground">Sua resposta foi registrada com sucesso. Você pode fechar esta página.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 'declined') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardContent className="py-12 space-y-3">
+            <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold">Participação recusada</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado foi coletado.
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Você pode fechar esta página.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -351,29 +375,33 @@ export default function SurveyPage() {
             <CardContent className="space-y-4">
               <div className="h-96 overflow-y-auto rounded-lg border bg-muted/30 p-4 text-sm space-y-4 leading-relaxed">
                 <p className="text-muted-foreground">
-                  Prezado(a) colaborador(a), antes de iniciar o questionário, pedimos que leia atentamente este termo.
+                  Prezado(a) colaborador(a), antes de iniciar o questionário, leia atentamente este termo.
                 </p>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">1. Quem está conduzindo esta pesquisa</h3>
+                  <h3 className="font-semibold text-foreground">1. Controlador e Operador</h3>
                   <p className="text-muted-foreground">
-                    Esta pesquisa é conduzida pela empresa{' '}
-                    <strong className="text-foreground">{campaignInfo?.company_name ?? '[EMPRESA]'}</strong>,
-                    inscrita sob CNPJ{' '}
-                    <strong className="text-foreground">{campaignInfo?.company_cnpj ?? '[CNPJ]'}</strong>,
-                    como parte do cumprimento das obrigações da NR-1. A plataforma utilizada é o{' '}
-                    <strong className="text-foreground">Vivamente360</strong>.
+                    <strong className="text-foreground">Controlador:</strong>{' '}
+                    {campaignInfo?.company_name ?? '[EMPRESA]'} (CNPJ{' '}
+                    {campaignInfo?.company_cnpj ?? '[CNPJ]'}) — responsável pela decisão de realizar
+                    esta pesquisa e pelo cumprimento da NR-1.{' '}
+                    <strong className="text-foreground">Operador:</strong> Vivamente360 — plataforma
+                    tecnológica que processa os dados em nome do Controlador, sem acesso a dados
+                    identificados dos respondentes.
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">2. Por que esta pesquisa está sendo realizada</h3>
+                  <h3 className="font-semibold text-foreground">2. Finalidade</h3>
                   <p className="text-muted-foreground">
-                    A NR-1 tornou obrigatório que as empresas identifiquem os riscos psicossociais. Esta pesquisa
-                    utiliza o instrumento HSE-IT (35 questões, 7 dimensões). Os resultados serão usados
-                    exclusivamente para diagnóstico e planos de ação.{' '}
+                    Identificação e gestão de riscos psicossociais no trabalho, conforme obrigação da NR-1
+                    (Portaria MTE nº 1.419/2024). O instrumento utilizado é o HSE-IT (35 questões,
+                    7 dimensões). Os resultados são usados{' '}
+                    <strong className="text-foreground">exclusivamente</strong> para diagnóstico
+                    organizacional e elaboração do Programa de Gerenciamento de Riscos (PGR).{' '}
                     <strong className="text-foreground">
-                      Não serão usados para avaliação de desempenho individual ou processos disciplinares.
+                      Não serão utilizados para avaliação de desempenho individual, processos
+                      disciplinares ou qualquer decisão que afete sua relação de emprego.
                     </strong>
                   </p>
                 </div>
@@ -381,51 +409,66 @@ export default function SurveyPage() {
                 <div className="space-y-1">
                   <h3 className="font-semibold text-foreground">3. Como sua anonimidade é garantida</h3>
                   <p className="text-muted-foreground">
-                    O acesso é validado via CPF apenas para confirmar que você está cadastrado na campanha.
-                    Ao concluir a pesquisa, seu CPF é{' '}
+                    Seu CPF é usado <strong className="text-foreground">somente</strong> para confirmar
+                    que você está cadastrado nesta campanha e garantir que cada colaborador responda
+                    apenas uma vez. Ao concluir o envio, o CPF é{' '}
                     <strong className="text-foreground">excluído permanentemente e de forma irreversível</strong>{' '}
-                    da base de dados. As respostas são armazenadas sem nenhum dado pessoal identificável.
-                    A seleção de unidade, setor e cargo é{' '}
-                    <strong className="text-foreground">feita por você</strong>, não capturada do sistema.
-                    O resultado final é sempre apresentado de forma agregada.
+                    — não é possível recuperá-lo nem vincular qualquer resposta à sua identidade.
+                    As respostas são gravadas sem nenhum campo identificável (sem nome, e-mail,
+                    matrícula, IP ou localização). A unidade, o setor e o cargo são sugeridos com base
+                    no cadastro fornecido pela empresa, mas{' '}
+                    <strong className="text-foreground">você pode alterar ou deixar em branco</strong>{' '}
+                    antes de prosseguir. Os resultados são sempre apresentados de forma agregada —
+                    nunca individualmente.
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">4. O que será coletado</h3>
+                  <h3 className="font-semibold text-foreground">4. Dados coletados</h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Respostas às 35 perguntas do questionário HSE-IT</li>
-                    <li>Unidade, setor e cargo (selecionados por você, opcionais)</li>
+                    <li>Respostas às 35 perguntas do questionário HSE-IT (escala 0–4)</li>
+                    <li>
+                      Unidade, setor e cargo (sugeridos pelo sistema, alteráveis por você — opcionais,
+                      para análise por área)
+                    </li>
                     <li>Faixa etária e sexo (obrigatórios, para análise estatística agregada)</li>
-                    <li>Registro do aceite deste termo (data/hora, sem vínculo com identidade)</li>
+                    <li>Data e hora do aceite deste termo (sem vínculo com sua identidade)</li>
                   </ul>
                   <p className="text-muted-foreground mt-2">
-                    <strong className="text-foreground">Não será armazenado:</strong> CPF (excluído ao concluir),
-                    nome, e-mail, matrícula, endereço, telefone, localização, IP ou qualquer dado
-                    que permita identificação individual.
+                    <strong className="text-foreground">Não será retido após a conclusão:</strong> CPF
+                    (excluído imediatamente ao enviar), nome, e-mail, matrícula, endereço, telefone,
+                    endereço IP ou qualquer outro dado que permita identificação individual.
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">5. Base legal</h3>
+                  <h3 className="font-semibold text-foreground">5. Base legal (LGPD)</h3>
                   <p className="text-muted-foreground">
-                    Art. 7º, I (Consentimento) · Art. 7º, II (Obrigação legal — NR-1) · Art. 11, II, a
-                    (Proteção da saúde) da Lei nº 13.709/2018 (LGPD).
+                    Art. 7º, I — Consentimento livre e informado do titular.{' '}
+                    Art. 7º, II — Cumprimento de obrigação legal (NR-1).{' '}
+                    Art. 11, II, a — Proteção da vida e da saúde dos trabalhadores.
+                    Lei nº 13.709/2018 (LGPD).
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">6. Retenção e voluntariedade</h3>
+                  <h3 className="font-semibold text-foreground">6. Retenção, voluntariedade e direitos</h3>
                   <p className="text-muted-foreground">
-                    Participação <strong className="text-foreground">completamente voluntária</strong> — recusar
-                    não acarreta qualquer consequência trabalhista. Dados mantidos pelo período necessário à análise.
+                    A participação é <strong className="text-foreground">completamente voluntária</strong> —
+                    recusar ou interromper não acarreta qualquer consequência trabalhista. Os dados de
+                    respostas são mantidos pelo prazo mínimo necessário ao cumprimento das obrigações
+                    legais da NR-1 e eventual defesa em processos administrativos ou judiciais. Como os
+                    dados são anonimizados após o envio, não é tecnicamente possível localizar ou excluir
+                    respostas individuais. Dúvidas sobre privacidade podem ser encaminhadas ao RH da
+                    empresa ou ao canal de privacidade da Vivamente360.
                   </p>
                 </div>
 
                 <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
-                  <p>Versão 2.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)</p>
+                  <p>Versão 3.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)</p>
                   <p className="mt-1">
-                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} · Operador: Vivamente360
+                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} (CNPJ{' '}
+                    {campaignInfo?.company_cnpj ?? '[CNPJ]'}) · Operador: Vivamente360
                   </p>
                 </div>
               </div>
@@ -444,7 +487,7 @@ export default function SurveyPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button variant="outline" className="sm:flex-none" onClick={() => window.close()}>
+                <Button variant="outline" className="sm:flex-none" onClick={() => setStep('declined')}>
                   Não aceito — sair
                 </Button>
                 <Button
@@ -465,7 +508,7 @@ export default function SurveyPage() {
             <CardHeader>
               <CardTitle>Identificação Hierárquica</CardTitle>
               <CardDescription>
-                Selecione sua unidade, setor e cargo para análise por área (opcional — não identifica você)
+                Pré-preenchido com base no seu cadastro — confirme, altere ou deixe em branco (opcional, não identifica você individualmente)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
