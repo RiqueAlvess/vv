@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Lock, Download, Loader2, Info, FileSpreadsheet } from 'lucide-react';
+import { LockedState } from './locked-state';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
@@ -27,6 +28,8 @@ interface CampaignDashboardProps {
   sectorId?: string;
 }
 
+const MAX_POLL_ATTEMPTS = 24; // 24 × 5s = 2 minutes max
+
 export function CampaignDashboard({ campaignId, campaignStatus, campaignName, unitId, sectorId }: CampaignDashboardProps) {
   const { get } = useApi();
   const { user } = useAuth();
@@ -34,6 +37,8 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [pollTrigger, setPollTrigger] = useState(0);
+  const pollAttemptsRef = useRef(0);
 
   const handleExportPGR = async () => {
     setDownloading(true);
@@ -64,14 +69,32 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
     setData(null);
 
     get(`/api/campaigns/${campaignId}/dashboard${qs ? `?${qs}` : ''}`)
-      .then(res => res.json())
-      .then(d => {
+      .then(async res => {
+        const d = await res.json();
+        if (res.status === 202 || d.status === 'computing') {
+          setData({ status: 'computing' });
+          return;
+        }
         if (d.error) throw new Error(d.error);
+        pollAttemptsRef.current = 0;
         setData(d);
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [campaignId, campaignStatus, unitId, sectorId, get]);
+  }, [campaignId, campaignStatus, unitId, sectorId, get, pollTrigger]);
+
+  // Auto-poll every 5s while computing, up to MAX_POLL_ATTEMPTS
+  useEffect(() => {
+    if (!data || (data as Record<string, unknown>).status !== 'computing') return;
+    if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) return;
+
+    const timer = setTimeout(() => {
+      pollAttemptsRef.current += 1;
+      setPollTrigger(t => t + 1);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [data]);
 
   if (campaignStatus !== 'closed') {
     return (
@@ -90,6 +113,10 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   }
 
   if (loading) return <DashboardSkeleton />;
+
+  if (data?.status === 'computing') {
+    return <LockedState status={campaignStatus} campaignName={campaignName} variant="computing" />;
+  }
 
   if (error || !data) {
     return (
