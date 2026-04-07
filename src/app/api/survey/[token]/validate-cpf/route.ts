@@ -50,10 +50,24 @@ export async function POST(request: Request, { params }: RouteParams) {
     const campaignId = qrCode.campaign.id;
     const cpfHash = hashCpf(cpf, qrCode.campaign.campaign_salt);
 
-    // Find employee by cpf_hash
+    // Find employee by cpf_hash — also fetch position to pre-suggest hierarchy on survey
     const employee = await prisma.campaignEmployee.findFirst({
       where: { campaign_id: campaignId, cpf_hash: cpfHash },
-      select: { id: true, has_responded: true },
+      select: {
+        id: true,
+        has_responded: true,
+        position: {
+          select: {
+            id: true,
+            sector: {
+              select: {
+                id: true,
+                unit_id: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!employee) {
@@ -82,7 +96,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       },
     });
 
-    return NextResponse.json({ validation_token: validationToken });
+    return NextResponse.json({
+      validation_token: validationToken,
+      suggested_unit_id: employee.position?.sector?.unit_id ?? null,
+      suggested_sector_id: employee.position?.sector?.id ?? null,
+      suggested_position_id: employee.position?.id ?? null,
+    });
   } catch (err) {
     console.error('Validate CPF error:', err);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

@@ -135,11 +135,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       const existingHashSet = new Set(existingHashes.map((e) => e.cpf_hash).filter(Boolean));
 
       const newEmployees = validRows
-        .map((r) => ({ cpf_hash: hashCpf(r.cpf, salt) }))
+        .map((r) => {
+          const unitId = unitMap.get(r.unidade.trim())!;
+          const sectorId = sectorMap.get(`${unitId}:${r.setor.trim()}`)!;
+          const positionId = positionMap.get(`${sectorId}:${r.cargo.trim()}`)!;
+          return { cpf_hash: hashCpf(r.cpf, salt), position_id: positionId };
+        })
         .filter(({ cpf_hash }) => !existingHashSet.has(cpf_hash))
         // Deduplicate within the uploaded batch itself
         .filter(({ cpf_hash }, idx, arr) => arr.findIndex(x => x.cpf_hash === cpf_hash) === idx)
-        .map(({ cpf_hash }) => ({ campaign_id: id, cpf_hash }));
+        .map(({ cpf_hash, position_id }) => ({ campaign_id: id, cpf_hash, position_id }));
 
       if (newEmployees.length > 0) {
         await tx.campaignEmployee.createMany({ data: newEmployees, skipDuplicates: true });
