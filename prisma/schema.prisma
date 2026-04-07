@@ -335,6 +335,7 @@ model SystemLog {
   level       String   @db.VarChar(10)
   action      String   @db.VarChar(100)
   user_id     String?  @db.Uuid
+  user_email  String?  @db.VarChar(255)
   company_id  String?  @db.Uuid
   target_id   String?  @db.Uuid
   target_type String?  @db.VarChar(50)
