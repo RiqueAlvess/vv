@@ -33,14 +33,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const body = JSON.parse(await request.text());
-    const rows: { unidade: string; setor: string; cargo: string }[] = body.rows;
+    const rows: { unidade: string; setor: string; cargo: string; cpf: string }[] = body.rows;
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'Nenhuma linha válida encontrada' }, { status: 400 });
     }
 
     const validRows = rows.filter(
-      (r) => r.unidade?.trim() && r.setor?.trim() && r.cargo?.trim()
+      (r) => r.unidade?.trim() && r.setor?.trim() && r.cargo?.trim() && r.cpf?.trim()
     );
 
     if (validRows.length === 0) {

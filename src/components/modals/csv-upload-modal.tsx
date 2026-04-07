@@ -15,6 +15,7 @@ interface CSVRow {
   unidade: string;
   setor: string;
   cargo: string;
+  cpf: string;
 }
 
 interface CSVUploadModalProps {
@@ -41,7 +42,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
       const header = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
 
       const errs: string[] = [];
-      const required = ['unidade', 'setor', 'cargo'];
+      const required = ['unidade', 'setor', 'cargo', 'cpf'];
       for (const col of required) {
         if (!header.includes(col)) errs.push(`Coluna "${col}" não encontrada`);
       }
@@ -58,8 +59,8 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         const row: Record<string, string> = {};
         header.forEach((h, idx) => { row[h] = cols[idx] || ''; });
 
-        if (!row.unidade?.trim() || !row.setor?.trim() || !row.cargo?.trim()) {
-          errs.push(`Linha ${i + 1}: unidade, setor e cargo são obrigatórios`);
+        if (!row.unidade?.trim() || !row.setor?.trim() || !row.cargo?.trim() || !row.cpf?.trim()) {
+          errs.push(`Linha ${i + 1}: unidade, setor, cargo e cpf são obrigatórios`);
           continue;
         }
 
@@ -67,6 +68,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
           unidade: row.unidade,
           setor: row.setor,
           cargo: row.cargo,
+          cpf: row.cpf,
         });
       }
 
@@ -92,7 +94,7 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         <DialogHeader>
           <DialogTitle>Importar Hierarquia (CSV)</DialogTitle>
           <DialogDescription>
-            O arquivo deve conter as colunas: <strong>unidade</strong>, <strong>setor</strong>, <strong>cargo</strong> (separado por vírgula ou ponto-e-vírgula)
+            O arquivo deve conter as colunas: <strong>unidade</strong>, <strong>setor</strong>, <strong>cargo</strong>, <strong>cpf</strong> (separado por vírgula ou ponto-e-vírgula)
           </DialogDescription>
         </DialogHeader>
 
@@ -131,9 +133,10 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[33%]">Unidade</TableHead>
-                          <TableHead className="w-[33%]">Setor</TableHead>
-                          <TableHead className="w-[34%]">Cargo</TableHead>
+                          <TableHead className="w-[25%]">Unidade</TableHead>
+                          <TableHead className="w-[25%]">Setor</TableHead>
+                          <TableHead className="w-[25%]">Cargo</TableHead>
+                          <TableHead className="w-[25%]">CPF</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -147,6 +150,9 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
                             </TableCell>
                             <TableCell className="text-sm max-w-0">
                               <span className="block truncate" title={row.cargo}>{row.cargo}</span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-0">
+                              <span className="block truncate" title={row.cpf}>{row.cpf}</span>
                             </TableCell>
                           </TableRow>
                         ))}

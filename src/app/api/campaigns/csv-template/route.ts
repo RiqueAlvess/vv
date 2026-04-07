@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const headers = ['unidade', 'setor', 'cargo'];
+  const headers = ['unidade', 'setor', 'cargo', 'cpf'];
 
   const exampleRows = [
-    ['Unidade Centro', 'Recursos Humanos', 'Analista'],
-    ['Unidade Norte', 'Operações', 'Técnico'],
-    ['Unidade Norte', 'Operações', 'Supervisor'],
+    ['Unidade Centro', 'Recursos Humanos', 'Analista', '47161228829'],
+    ['Unidade Norte', 'Operações', 'Técnico', '471612288328'],
+    ['Unidade Norte', 'Operações', 'Supervisor', '47161228830'],
   ];
 
   const csv = [headers.join(','), ...exampleRows.map((r) => r.join(','))].join('\n');
