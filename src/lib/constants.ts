@@ -130,3 +130,45 @@ export const GENDER_OPTIONS: { value: string; label: string }[] = [
   { value: 'F', label: 'Feminino' },
   { value: 'N', label: 'Prefiro não informar' },
 ];
+
+// ============================================================
+// HSE-IT Question Texts (35 questions)
+// ============================================================
+
+export const HSE_QUESTIONS: Record<number, string> = {
+  1:  'Eu sei exatamente o que é esperado de mim no trabalho',
+  2:  'Posso decidir quando fazer uma pausa',
+  3:  'Diferentes grupos no trabalho exigem coisas de mim que são difíceis de combinar',
+  4:  'Eu sei como fazer meu trabalho',
+  5:  'Estou sujeito(a) a atenção pessoal ou assédio na forma de palavras ou comportamentos ofensivos',
+  6:  'Tenho prazos inatingíveis',
+  7:  'Se o trabalho fica difícil, meus colegas me ajudam',
+  8:  'Sou apoiado(a) em uma crise emocional no trabalho',
+  9:  'Tenho que trabalhar muito intensamente',
+  10: 'Tenho voz nas mudanças no modo como faço meu trabalho',
+  11: 'Tenho tempo suficiente para completar meu trabalho',
+  12: 'Tenho que desconsiderar regras ou procedimentos para fazer o trabalho',
+  13: 'Sei qual é o meu papel e responsabilidades',
+  14: 'Tenho que trabalhar com pessoas que têm valores de trabalho diferentes',
+  15: 'Posso planejar quando fazer as pausas',
+  16: 'Tenho volume de trabalho pesado',
+  17: 'Existe uma boa combinação entre o que a organização espera de mim e as habilidades que tenho',
+  18: 'Tenho que trabalhar muito rapidamente',
+  19: 'Tenho uma palavra a dizer sobre o ritmo em que trabalho',
+  20: 'Tenho que negligenciar alguns aspectos do meu trabalho porque tenho muito a fazer',
+  21: 'Existe fricção ou raiva entre colegas',
+  22: 'Não tenho tempo para fazer uma pausa',
+  23: 'Minha chefia imediata me encoraja no trabalho',
+  24: 'Recebo o respeito no trabalho que mereço de meus colegas',
+  25: 'Tenho controle sobre quando fazer uma pausa',
+  26: 'Os funcionários são sempre consultados sobre mudanças no trabalho',
+  27: 'Posso contar com meus colegas para me ajudar quando as coisas ficam difíceis no trabalho',
+  28: 'Posso conversar com minha chefia sobre algo que me incomodou',
+  29: 'Minha chefia me apoia para o trabalho',
+  30: 'Tenho alguma participação em decisões sobre o meu trabalho',
+  31: 'Recebo ajuda e apoio de meus colegas',
+  32: 'Quando ocorrem mudanças no trabalho, tenho clareza sobre como funcionará na prática',
+  33: 'Recebo feedback sobre o meu trabalho',
+  34: 'Existe tensão entre mim e colegas de trabalho',
+  35: 'Minha chefia me incentiva nas minhas atividades',
+};
