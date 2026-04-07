@@ -1,14 +1,69 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { HSE_QUESTIONS } from '@/lib/constants';
+
+interface ChartRow {
+  name: string;
+  dim: string;
+  question_number: number;
+  'Aceitável': number;
+  'Moderado': number;
+  'Importante': number;
+  'Crítico': number;
+}
+
+interface TooltipPayload {
+  name: string;
+  value: number;
+  fill: string;
+  payload: ChartRow;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+}
+
+function CustomTooltip({ active, payload, label }: TooltipProps) {
+  if (!active || !payload?.length) return null;
+  const { dim, question_number } = payload[0].payload;
+  const questionText = HSE_QUESTIONS[question_number];
+
+  return (
+    <div className="bg-white border rounded shadow-md p-2.5 text-xs max-w-[280px]">
+      <p className="font-semibold mb-0.5">
+        {label} — {dim}
+      </p>
+      {questionText && (
+        <p className="italic text-muted-foreground mb-2 leading-snug">
+          &ldquo;{questionText}&rdquo;
+        </p>
+      )}
+      <div className="space-y-0.5">
+        {payload.map((p) => (
+          <div key={p.name} className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 shrink-0 rounded-sm" style={{ backgroundColor: p.fill }} />
+              {p.name}
+            </span>
+            <span className="font-medium tabular-nums">{p.value}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function StackedQuestionChart({ data }: { data: unknown[] }) {
-  const chartData = (data as Array<{
+  const chartData: ChartRow[] = (data as Array<{
     question_number: number; dimension: string;
     aceitavel_pct: number; moderado_pct: number; importante_pct: number; critico_pct: number;
   }>).map(d => ({
     name: `Q${d.question_number}`,
     dim: d.dimension,
+    question_number: d.question_number,
     'Aceitável': d.aceitavel_pct,
     'Moderado': d.moderado_pct,
     'Importante': d.importante_pct,
@@ -37,12 +92,7 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
                   interval={0}
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#6B7280' }} unit="%" domain={[0, 100]} />
-                <Tooltip
-                  formatter={(val: unknown) => `${val}%`}
-                  labelFormatter={(label, payload) =>
-                    payload?.[0] ? `${label} — ${(payload[0].payload as { dim: string }).dim}` : label
-                  }
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="Aceitável"  stackId="a" fill="#A2C06A" />
                 <Bar dataKey="Moderado"   stackId="a" fill="#FFFF00" />
                 <Bar dataKey="Importante" stackId="a" fill="#F79454" />
