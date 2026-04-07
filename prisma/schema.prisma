@@ -94,6 +94,7 @@ model Campaign {
   units       CampaignUnit[]
   qr_codes    CampaignQRCode[]
   responses   SurveyResponse[]
+  employees   CampaignEmployee[]
   metrics     CampaignMetrics?
   facts       FactResponse[]
   dim_sectors DimSector[]
@@ -161,7 +162,7 @@ model CampaignQRCode {
 }
 
 /// NO FK to QR code or any identifying record — anonymity guarantee
-/// fingerprint = SHA-256 hash of device characteristics (deduplication only, per-campaign)
+/// CPF is validated via CampaignEmployee but never stored here (Blind-Drop)
 model SurveyResponse {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaign_id         String    @db.Uuid
@@ -169,7 +170,6 @@ model SurveyResponse {
   unit_id             String?   @db.Uuid
   sector_id           String?   @db.Uuid
   position_id         String?   @db.Uuid
-  fingerprint         String?   @db.VarChar(64)
   gender              String?   @db.VarChar(1)
   age_range           String?   @db.VarChar(20)
   consent_accepted    Boolean   @default(true)
@@ -184,8 +184,26 @@ model SurveyResponse {
   facts    FactResponse[]
 
   @@index([campaign_id])
-  @@index([campaign_id, fingerprint])
   @@map("survey_responses")
+  @@schema("survey")
+}
+
+/// One row per employee registered via CSV for this campaign.
+/// cpf_hash = SHA-256(campaign_salt:cpf_digits) — nulled after survey submission.
+/// validation_token = ephemeral UUID issued when CPF is verified, one-use 15-min TTL.
+model CampaignEmployee {
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id                 String    @db.Uuid
+  cpf_hash                    String?   @db.VarChar(64)
+  has_responded               Boolean   @default(false)
+  validation_token            String?   @unique @db.Uuid
+  validation_token_expires_at DateTime? @db.Timestamptz()
+  created_at                  DateTime  @default(now()) @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_id, cpf_hash])
+  @@map("campaign_employees")
   @@schema("survey")
 }
 
@@ -385,6 +403,7 @@ model Job {
 model CampaignMetrics {
   id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaign_id         String   @unique @db.Uuid
+  total_employees     Int      @default(0)
   total_invited       Int      @default(0)
   total_responded     Int      @default(0)
   response_rate       Decimal  @default(0) @db.Decimal(5, 2)

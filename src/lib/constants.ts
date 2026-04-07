@@ -128,7 +128,6 @@ export const AGE_RANGES: string[] = [
 export const GENDER_OPTIONS: { value: string; label: string }[] = [
   { value: 'M', label: 'Masculino' },
   { value: 'F', label: 'Feminino' },
-  { value: 'O', label: 'Outro' },
   { value: 'N', label: 'Prefiro não informar' },
 ];
 

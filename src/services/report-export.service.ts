@@ -105,12 +105,27 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
     ...positions.map(p => [p.sector.unit.name, p.sector.name, p.name, igrp, ScoreService.interpretNR(igrp).label]),
   ];
 
+  const employees = await prisma.campaignEmployee.findMany({
+    where: { campaign_id: campaignId },
+    select: { cpf_hash: true, has_responded: true, created_at: true },
+    orderBy: { created_at: 'asc' },
+  });
+  const sheetFuncionarios = [
+    ['CPF (hash)', 'Respondeu', 'Cadastrado em'],
+    ...employees.map(e => [
+      e.cpf_hash ?? '-',
+      e.has_responded ? 'Sim' : 'Não',
+      new Date(e.created_at).toLocaleString('pt-BR'),
+    ]),
+  ];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetResumo), 'Resumo');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetDistribuicao), 'Distribuicao Risco');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetGenero), 'Genero');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetIdade), 'Faixa Etaria');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetCargos), 'Hierarquia');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetFuncionarios), 'Funcionarios');
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   const filename = `Dashboard_${campaign.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;

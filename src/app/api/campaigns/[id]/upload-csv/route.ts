@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { hashCpf } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const campaign = await prisma.campaign.findUnique({
       where: { id },
-      select: { id: true, company_id: true, status: true },
+      select: { id: true, company_id: true, status: true, campaign_salt: true },
     });
     if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     if (user.role === 'RH' && campaign.company_id !== user.company_id) {
@@ -47,8 +48,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Nenhuma linha com dados válidos' }, { status: 400 });
     }
 
-    // ── Batch-upsert units, sectors, and positions in one transaction ──
+    // ── Batch-upsert units, sectors, positions + create CampaignEmployee records ──
     const uniqueUnitNames = [...new Set(validRows.map((r) => r.unidade.trim()))];
+    const salt = campaign.campaign_salt;
 
     const { unitMap, sectorMap, positionMap } = await prisma.$transaction(async (tx) => {
       // Units
@@ -125,6 +127,24 @@ export async function POST(request: Request, { params }: RouteParams) {
       });
       const positionMap = new Map(allPositions.map((p) => [`${p.sector_id}:${p.name}`, p.id]));
 
+      // CampaignEmployee — upsert by cpf_hash (skip duplicates within same campaign)
+      const existingHashes = await tx.campaignEmployee.findMany({
+        where: { campaign_id: id },
+        select: { cpf_hash: true },
+      });
+      const existingHashSet = new Set(existingHashes.map((e) => e.cpf_hash).filter(Boolean));
+
+      const newEmployees = validRows
+        .map((r) => ({ cpf_hash: hashCpf(r.cpf, salt) }))
+        .filter(({ cpf_hash }) => !existingHashSet.has(cpf_hash))
+        // Deduplicate within the uploaded batch itself
+        .filter(({ cpf_hash }, idx, arr) => arr.findIndex(x => x.cpf_hash === cpf_hash) === idx)
+        .map(({ cpf_hash }) => ({ campaign_id: id, cpf_hash }));
+
+      if (newEmployees.length > 0) {
+        await tx.campaignEmployee.createMany({ data: newEmployees, skipDuplicates: true });
+      }
+
       return { unitMap, sectorMap, positionMap };
     });
 
@@ -136,11 +156,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       })
     );
 
+    const totalEmployees = await prisma.campaignEmployee.count({ where: { campaign_id: id } });
+
     return NextResponse.json({
       units: uniqueUnitNames.length,
       sectors: [...new Set(validRows.map((r) => r.setor.trim()))].length,
       positions: uniquePositions.size,
       rows: validRows.length,
+      employees: totalEmployees,
     });
   } catch (err) {
     console.error('Upload CSV error:', err);

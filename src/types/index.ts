@@ -72,11 +72,18 @@ export interface SurveyResponse {
   unit_id: string | null;
   sector_id: string | null;
   position_id: string | null;
-  fingerprint: string | null;
   gender: string | null;
   age_range: string | null;
   consent_accepted: boolean;
   responses: Record<string, number>;
+  created_at: string;
+}
+
+export interface CampaignEmployee {
+  id: string;
+  campaign_id: string;
+  cpf_hash: string | null;
+  has_responded: boolean;
   created_at: string;
 }
 
@@ -90,6 +97,7 @@ export interface SurveyQuestion {
 export interface CampaignMetrics {
   id: string;
   campaign_id: string;
+  total_employees: number;
   total_invited: number;
   total_responded: number;
   response_rate: number;
@@ -143,6 +151,7 @@ export interface CSVRow {
   unidade: string;
   setor: string;
   cargo: string;
+  cpf: string;
 }
 
 export interface DashboardData {
