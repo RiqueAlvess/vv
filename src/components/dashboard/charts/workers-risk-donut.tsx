@@ -2,13 +2,42 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
+interface SliceEntry { name: string; value: number; color: string }
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: SliceEntry }>;
+  totalResponded: number;
+}
+
+function CustomTooltip({ active, payload, totalResponded }: TooltipProps) {
+  if (!active || !payload?.length) return null;
+  const { name, value, color } = payload[0].payload;
+  const count = Math.round((value / 100) * totalResponded);
+
+  return (
+    <div className="bg-white border rounded shadow-md p-2.5 text-xs max-w-[220px]">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span className="font-semibold">{name}</span>
+      </div>
+      <p className="text-muted-foreground">
+        <span className="text-foreground font-medium">{value}%</span> dos respondentes
+      </p>
+      <p className="text-muted-foreground">
+        ≈ <span className="text-foreground font-medium">{count}</span> trabalhador{count !== 1 ? 'es' : ''}
+      </p>
+    </div>
+  );
+}
+
 export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
   highRiskPct: number; criticalPct: number; totalResponded: number;
 }) {
   const importantPct = Math.max(0, highRiskPct - criticalPct);
   const lowPct = Math.max(0, 100 - highRiskPct);
 
-  const data = [
+  const data: SliceEntry[] = [
     { name: 'Aceitável/Moderado', value: lowPct, color: '#A2C06A' },
     { name: 'Importante (NR 9–12)', value: importantPct, color: '#F79454' },
     { name: 'Crítico (NR 13–16)', value: criticalPct, color: '#FF0000' },
@@ -36,7 +65,9 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
             >
               {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
             </Pie>
-            <Tooltip formatter={(val: unknown) => [`${val}%`, ''] as [string, string]} />
+            <Tooltip
+              content={<CustomTooltip totalResponded={totalResponded} />}
+            />
             <Legend iconType="circle" iconSize={10} formatter={(value) => <span className="text-xs">{value}</span>} />
           </PieChart>
         </ResponsiveContainer>
