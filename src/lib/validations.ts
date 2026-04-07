@@ -43,12 +43,12 @@ export const campaignSchema = z.object({
 
 export const surveyResponseSchema = z.object({
   responses: z.record(z.string(), z.number().min(0).max(4)),
-  gender: z.string().optional(),
-  age_range: z.string().optional(),
+  gender: z.enum(['M', 'F', 'N'], { error: 'Selecione um sexo válido' }),
+  age_range: z.string().min(1, 'Selecione uma faixa etária'),
   unit_id: z.string().uuid().optional(),
   sector_id: z.string().uuid().optional(),
   position_id: z.string().uuid().optional(),
-  fingerprint: z.string().max(64).optional(),
+  validation_token: z.string().uuid('Token de acesso inválido'),
   consent_accepted: z.literal(true, { error: 'É necessário aceitar o termo de consentimento' }),
 });
 

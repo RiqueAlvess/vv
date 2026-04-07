@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
@@ -59,7 +60,8 @@ interface HierarchyUnit { id: string; name: string; sectors: HierarchySector[]; 
 type SurveyStep =
   | 'loading'
   | 'invalid'
-  | 'already_responded'
+  | 'cpf_verify'
+  | 'cpf_verifying'
   | 'consent'
   | 'hierarchy'
   | 'demographics'
@@ -67,47 +69,13 @@ type SurveyStep =
   | 'submitting'
   | 'done';
 
-// ── Device fingerprinting ────────────────────────────────────────────────────
-async function generateFingerprint(): Promise<string> {
-  try {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.textBaseline = 'top';
-      ctx.font = '14px Arial';
-      ctx.fillStyle = '#f60';
-      ctx.fillRect(125, 1, 62, 20);
-      ctx.fillStyle = '#069';
-      ctx.fillText('Asta🔒', 2, 15);
-      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-      ctx.fillText('Asta🔒', 4, 17);
-    }
-    const canvasHash = canvas.toDataURL();
-
-    const raw = [
-      navigator.userAgent,
-      navigator.language,
-      screen.width + 'x' + screen.height,
-      screen.colorDepth,
-      new Date().getTimezoneOffset(),
-      navigator.hardwareConcurrency ?? 0,
-      canvasHash.slice(0, 200),
-    ].join('|');
-
-    // SHA-256 via SubtleCrypto
-    const encoded = new TextEncoder().encode(raw);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch {
-    // Fallback: random ID stored in sessionStorage (weaker but won't break flow)
-    const key = 'asta_fp';
-    const stored = sessionStorage.getItem(key);
-    if (stored) return stored;
-    const fallback = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    sessionStorage.setItem(key, fallback);
-    return fallback;
-  }
+/** Format CPF input as 000.000.000-00 */
+function formatCpf(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
 export default function SurveyPage() {
@@ -116,6 +84,8 @@ export default function SurveyPage() {
 
   const [step, setStep] = useState<SurveyStep>('loading');
   const [errorMsg, setErrorMsg] = useState('');
+  const [cpfInput, setCpfInput] = useState('');
+  const [validationToken, setValidationToken] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
@@ -125,8 +95,6 @@ export default function SurveyPage() {
   const [ageRange, setAgeRange] = useState('');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
-  const [fingerprint, setFingerprint] = useState('');
-  const [campaignId, setCampaignId] = useState('');
   const [campaignInfo, setCampaignInfo] = useState<{
     campaign_name: string;
     company_name: string;
@@ -142,11 +110,6 @@ export default function SurveyPage() {
   const availableSectors = hierarchy.find(u => u.id === selectedUnitId)?.sectors ?? [];
   const availablePositions = availableSectors.find(s => s.id === selectedSectorId)?.positions ?? [];
 
-  // Generate fingerprint on mount
-  useEffect(() => {
-    generateFingerprint().then(setFingerprint);
-  }, []);
-
   useEffect(() => {
     const validate = async () => {
       try {
@@ -156,20 +119,13 @@ export default function SurveyPage() {
           setErrorMsg(data.error || 'QR Code inválido');
           setStep('invalid');
         } else {
-          const cid = data.campaign_id as string;
-          setCampaignId(cid);
-          // localStorage barrier — soft device-level deduplication
-          if (typeof window !== 'undefined' && localStorage.getItem(`vivamente_responded_${cid}`)) {
-            setStep('already_responded');
-            return;
-          }
           setCampaignInfo({
             campaign_name: data.campaign_name ?? '',
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
           });
           setHierarchy(data.hierarchy ?? []);
-          setStep('consent');
+          setStep('cpf_verify');
         }
       } catch {
         setErrorMsg('Erro ao validar QR Code');
@@ -178,6 +134,34 @@ export default function SurveyPage() {
     };
     validate();
   }, [token]);
+
+  const handleCpfVerify = useCallback(async () => {
+    const digits = cpfInput.replace(/\D/g, '');
+    if (digits.length !== 11) {
+      setErrorMsg('Digite um CPF válido com 11 dígitos');
+      return;
+    }
+    setErrorMsg('');
+    setStep('cpf_verifying');
+    try {
+      const res = await fetch(`/api/survey/${token}/validate-cpf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpf: cpfInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || 'CPF inválido');
+        setStep('cpf_verify');
+        return;
+      }
+      setValidationToken(data.validation_token);
+      setStep('consent');
+    } catch {
+      setErrorMsg('Erro de conexão. Tente novamente.');
+      setStep('cpf_verify');
+    }
+  }, [cpfInput, token]);
 
   const handleSubmit = useCallback(async () => {
     if (answeredCount < QUESTIONS.length) {
@@ -192,43 +176,42 @@ export default function SurveyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           responses,
-          gender: gender || undefined,
-          age_range: ageRange || undefined,
+          gender,
+          age_range: ageRange,
           unit_id: selectedUnitId || undefined,
           sector_id: selectedSectorId || undefined,
           position_id: selectedPositionId || undefined,
-          fingerprint: fingerprint || undefined,
+          validation_token: validationToken,
           consent_accepted: true,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        if (res.status === 409 && data.error?.includes('já participou')) {
-          setStep('already_responded');
-          return;
-        }
         setErrorMsg(data.error || 'Erro ao enviar respostas');
-        setStep('questions');
+        // Token expired — go back to CPF verification
+        if (res.status === 401) {
+          setValidationToken('');
+          setCpfInput('');
+          setStep('cpf_verify');
+        } else {
+          setStep('questions');
+        }
         return;
       }
 
-      // Mark this device as responded in localStorage
-      if (typeof window !== 'undefined' && campaignId) {
-        localStorage.setItem(`vivamente_responded_${campaignId}`, '1');
-      }
       setStep('done');
     } catch {
       setErrorMsg('Erro de conexão');
       setStep('questions');
     }
-  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, fingerprint, campaignId]);
+  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, validationToken]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (step === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-2xl">
+        <Card className="w-full max-w-md">
           <CardContent className="py-12">
             <div className="flex flex-col items-center gap-4">
               <Skeleton className="h-12 w-12 rounded-lg" />
@@ -241,7 +224,7 @@ export default function SurveyPage() {
     );
   }
 
-  // ── Invalid / already responded / done ───────────────────────────────────
+  // ── Invalid ───────────────────────────────────────────────────────────────
   if (step === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -250,22 +233,6 @@ export default function SurveyPage() {
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">QR Code Inválido</h2>
             <p className="text-muted-foreground">{errorMsg}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (step === 'already_responded') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="py-12">
-            <CheckCircle2 className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Participação Registrada</h2>
-            <p className="text-muted-foreground">
-              Este dispositivo já participou desta pesquisa. Obrigado pela sua contribuição!
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -287,14 +254,14 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/40 p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="min-h-screen bg-muted/40 p-3 sm:p-4">
+      <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="text-center py-4">
+        <div className="text-center py-3 sm:py-4">
           <div className="flex justify-center mb-3">
             <Logo size={44} />
           </div>
-          <h1 className="text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
+          <h1 className="text-lg sm:text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
           {campaignInfo && (
             <p className="text-sm text-muted-foreground mt-1">
               {campaignInfo.company_name} — {campaignInfo.campaign_name}
@@ -302,6 +269,70 @@ export default function SurveyPage() {
           )}
           <p className="text-xs text-muted-foreground">Instrumento HSE-IT · NR-1</p>
         </div>
+
+        {/* Step 0: CPF Verification */}
+        {(step === 'cpf_verify' || step === 'cpf_verifying') && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <Lock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Chave de Acesso</CardTitle>
+                  <CardDescription>Digite seu CPF para acessar a pesquisa</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Sua participação é validada pelo CPF cadastrado pela sua empresa.
+                Após a conclusão da pesquisa, seu CPF é <strong className="text-foreground">excluído permanentemente</strong> da base de dados — não é possível recuperá-lo.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  value={cpfInput}
+                  onChange={(e) => {
+                    setCpfInput(formatCpf(e.target.value));
+                    setErrorMsg('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && step !== 'cpf_verifying') handleCpfVerify();
+                  }}
+                  disabled={step === 'cpf_verifying'}
+                  className="text-lg tracking-widest font-mono"
+                  maxLength={14}
+                  autoComplete="off"
+                />
+              </div>
+              {errorMsg && (
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {errorMsg}
+                </div>
+              )}
+              <Button
+                className="w-full"
+                onClick={handleCpfVerify}
+                disabled={step === 'cpf_verifying' || cpfInput.replace(/\D/g, '').length !== 11}
+              >
+                {step === 'cpf_verifying' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Verificando...
+                  </>
+                ) : (
+                  'Acessar Pesquisa →'
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Step 1: Consent */}
         {step === 'consent' && (
@@ -350,8 +381,10 @@ export default function SurveyPage() {
                 <div className="space-y-1">
                   <h3 className="font-semibold text-foreground">3. Como sua anonimidade é garantida</h3>
                   <p className="text-muted-foreground">
-                    A pesquisa é acessada via QR Code compartilhado — não há nenhum link individual que
-                    identifique você. As respostas são armazenadas sem nenhum dado pessoal identificável.
+                    O acesso é validado via CPF apenas para confirmar que você está cadastrado na campanha.
+                    Ao concluir a pesquisa, seu CPF é{' '}
+                    <strong className="text-foreground">excluído permanentemente e de forma irreversível</strong>{' '}
+                    da base de dados. As respostas são armazenadas sem nenhum dado pessoal identificável.
                     A seleção de unidade, setor e cargo é{' '}
                     <strong className="text-foreground">feita por você</strong>, não capturada do sistema.
                     O resultado final é sempre apresentado de forma agregada.
@@ -363,12 +396,13 @@ export default function SurveyPage() {
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Respostas às 35 perguntas do questionário HSE-IT</li>
                     <li>Unidade, setor e cargo (selecionados por você, opcionais)</li>
-                    <li>Faixa etária e gênero (opcionais, para análise estatística agregada)</li>
+                    <li>Faixa etária e sexo (obrigatórios, para análise estatística agregada)</li>
                     <li>Registro do aceite deste termo (data/hora, sem vínculo com identidade)</li>
                   </ul>
                   <p className="text-muted-foreground mt-2">
-                    <strong className="text-foreground">Não será coletado:</strong> nome, e-mail, CPF, matrícula,
-                    endereço, telefone, localização, IP ou qualquer dado que permita identificação individual.
+                    <strong className="text-foreground">Não será armazenado:</strong> CPF (excluído ao concluir),
+                    nome, e-mail, matrícula, endereço, telefone, localização, IP ou qualquer dado
+                    que permita identificação individual.
                   </p>
                 </div>
 
@@ -409,8 +443,8 @@ export default function SurveyPage() {
                 </Label>
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => window.close()}>
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <Button variant="outline" className="sm:flex-none" onClick={() => window.close()}>
                   Não aceito — sair
                 </Button>
                 <Button
@@ -504,11 +538,15 @@ export default function SurveyPage() {
           <Card>
             <CardHeader>
               <CardTitle>Dados Demográficos</CardTitle>
-              <CardDescription>Informações opcionais para análise estatística (não identificam você)</CardDescription>
+              <CardDescription>
+                Informações para análise estatística agregada — não identificam você individualmente
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Gênero (opcional)</Label>
+                <Label>
+                  Sexo <span className="text-destructive">*</span>
+                </Label>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -519,7 +557,9 @@ export default function SurveyPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Faixa Etária (opcional)</Label>
+                <Label>
+                  Faixa Etária <span className="text-destructive">*</span>
+                </Label>
                 <Select value={ageRange} onValueChange={setAgeRange}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -529,12 +569,29 @@ export default function SurveyPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {errorMsg && (
+                <p className="text-sm text-destructive">{errorMsg}</p>
+              )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep('hierarchy')}>Voltar</Button>
-                <Button className="flex-1" onClick={() => setStep('questions')}>
+                <Button variant="outline" onClick={() => { setErrorMsg(''); setStep('hierarchy'); }}>Voltar</Button>
+                <Button
+                  className="flex-1"
+                  disabled={!gender || !ageRange}
+                  onClick={() => {
+                    if (!gender || !ageRange) {
+                      setErrorMsg('Selecione sexo e faixa etária para continuar');
+                      return;
+                    }
+                    setErrorMsg('');
+                    setStep('questions');
+                  }}
+                >
                   Iniciar Pesquisa →
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-destructive">*</span> Campos obrigatórios
+              </p>
             </CardContent>
           </Card>
         )}
@@ -545,7 +602,7 @@ export default function SurveyPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span>{answeredCount} de {QUESTIONS.length} questões respondidas</span>
-                <span>Página {currentPage + 1} de {totalPages}</span>
+                <span className="text-muted-foreground">Pág. {currentPage + 1}/{totalPages}</span>
               </div>
               <Progress value={progress} />
             </div>
@@ -557,10 +614,10 @@ export default function SurveyPage() {
             )}
 
             <Card>
-              <CardContent className="pt-6 space-y-6">
+              <CardContent className="pt-4 sm:pt-6 space-y-5 sm:space-y-6 px-3 sm:px-6">
                 {currentQuestions.map((q) => (
                   <div key={q.id} className="space-y-3">
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium leading-relaxed">
                       <span className="text-muted-foreground mr-2">{q.id}.</span>
                       {q.text}
                     </p>
@@ -570,14 +627,14 @@ export default function SurveyPage() {
                         setResponses((prev) => ({ ...prev, [`q${q.id}`]: parseInt(v) }));
                         setErrorMsg('');
                       }}
-                      className="flex flex-wrap gap-2"
+                      className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2"
                     >
                       {LIKERT_SCALE.map((option) => (
                         <div key={option.value} className="flex items-center">
                           <RadioGroupItem value={option.value.toString()} id={`q${q.id}-${option.value}`} className="peer sr-only" />
                           <Label
                             htmlFor={`q${q.id}-${option.value}`}
-                            className="cursor-pointer rounded-md border px-3 py-2 text-xs peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground hover:bg-muted transition-colors"
+                            className="w-full cursor-pointer rounded-md border px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground hover:bg-muted transition-colors select-none"
                           >
                             {option.label}
                           </Label>

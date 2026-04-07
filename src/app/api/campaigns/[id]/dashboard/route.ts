@@ -14,7 +14,6 @@ interface RouteParams { params: Promise<{ id: string }> }
 const GENDER_LABELS: Record<string, string> = {
   M: 'Masculino',
   F: 'Feminino',
-  O: 'Outro',
   N: 'Não informado',
 };
 
@@ -151,9 +150,10 @@ export async function GET(request: Request, { params }: RouteParams) {
       },
     });
 
-    const totalInvited = 0;
+    const totalEmployees = await prisma.campaignEmployee.count({ where: { campaign_id: id } });
+    const totalInvited = totalEmployees; // legacy field kept for backward compat
     const totalResponded = rawResponses.length;
-    const responseRate = totalInvited > 0 ? (totalResponded / totalInvited) * 100 : 0;
+    const responseRate = totalEmployees > 0 ? (totalResponded / totalEmployees) * 100 : 0;
 
     if (totalResponded === 0) {
       return NextResponse.json(
@@ -562,6 +562,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const payload = {
       campaign_id: id,
       campaign_name: campaign.name,
+      total_employees: totalEmployees,
       total_invited: totalInvited,
       total_responded: totalResponded,
       response_rate: Math.round(responseRate * 100) / 100,
@@ -598,6 +599,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         where: { campaign_id: id },
         create: {
           campaign_id: id,
+          total_employees: totalEmployees,
           total_invited: totalInvited,
           total_responded: totalResponded,
           response_rate: payload.response_rate,
@@ -631,6 +633,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           updated_at: now,
         },
         update: {
+          total_employees: totalEmployees,
           total_invited: totalInvited,
           total_responded: totalResponded,
           response_rate: payload.response_rate,

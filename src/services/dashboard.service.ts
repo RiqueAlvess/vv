@@ -59,7 +59,7 @@ export class DashboardService {
 
   // Gender distribution (pie chart)
   static getGenderDistribution(responses: SurveyResponse[]): { labels: string[]; values: number[] } {
-    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', O: 'Outro', N: 'Prefiro não informar' };
+    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', N: 'Não informado' };
     const counts: Record<string, number> = {};
     for (const resp of responses) {
       const g = resp.gender || 'N';
@@ -159,7 +159,7 @@ export class DashboardService {
 
   // Scores by gender (line chart)
   static getScoresByGender(responses: SurveyResponse[]): Record<string, Record<string, number>> {
-    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', O: 'Outro', N: 'Não informado' };
+    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', N: 'Não informado' };
     const grouped: Record<string, SurveyResponse[]> = {};
     for (const resp of responses) {
       const g = genderMap[resp.gender || 'N'] || 'Não informado';
@@ -190,7 +190,7 @@ export class DashboardService {
 
   // Top 3 critical demographic groups
   static getTopCriticalGroups(responses: SurveyResponse[]): Array<{ group: string; riskLevel: number; totalResponses: number; color: string }> {
-    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', O: 'Outro', N: 'Não informado' };
+    const genderMap: Record<string, string> = { M: 'Masculino', F: 'Feminino', N: 'Não informado' };
     const grouped: Record<string, SurveyResponse[]> = {};
 
     for (const resp of responses) {
