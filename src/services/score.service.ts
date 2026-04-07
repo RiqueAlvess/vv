@@ -1,4 +1,4 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, NR_MATRIX, RISK_COLORS } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX, RISK_COLORS } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
@@ -7,11 +7,6 @@ export class ScoreService {
     // Compatibilidade com bases legadas 1–5: desloca para 0–4.
     if (value > 4) return value - 1;
     return value;
-  }
-
-  private static normalizeScoreByPolarity(score: number, dimensionType: 'positive' | 'negative'): number {
-    // Normaliza interpretação para "quanto maior, pior".
-    return dimensionType === 'positive' ? 4 - score : score;
   }
 
   static getQuestionAnswer(responses: Record<string, number>, questionNumber: number): number | undefined {
@@ -47,13 +42,19 @@ export class ScoreService {
 
   // Get risk level for a score given dimension type
   static getRiskLevel(score: number, dimensionType: 'positive' | 'negative'): RiskLevel {
-    const normalized = this.normalizeScoreByPolarity(score, dimensionType);
-    // Após normalização por polaridade, usamos uma única régua:
-    // score alto = pior risco.
-    for (const t of RISK_THRESHOLDS_NEGATIVE) {
-      if (normalized >= t.min) return t.level as RiskLevel;
+    if (dimensionType === 'negative') {
+      // NEGATIVE: high score = high risk (Demandas, Relacionamentos)
+      for (const t of RISK_THRESHOLDS_NEGATIVE) {
+        if (score >= t.min) return t.level as RiskLevel;
+      }
+      return 'aceitavel';
+    } else {
+      // POSITIVE: low score = high risk (Controle, Apoio Chefia, Apoio Colegas, Cargo, Comunicação)
+      for (const t of RISK_THRESHOLDS_POSITIVE) {
+        if (score <= t.max) return t.level as RiskLevel;
+      }
+      return 'aceitavel';
     }
-    return 'aceitavel';
   }
 
   // Calculate NR value: probability × severity (both variable 1–4, NR range 1–16)
