@@ -74,13 +74,8 @@ export function CSVUploadModal({ open, onOpenChange, onUpload, loading }: CSVUpl
         const row: Record<string, string> = {};
         header.forEach((h, idx) => { row[h] = cols[idx] || ''; });
 
-        if (!row.unidade?.trim() || !row.setor?.trim() || !row.cargo?.trim()) {
-          errs.push(`Linha ${i + 1}: unidade, setor e cargo são obrigatórios`);
-          continue;
-        }
-
-        if (!row.cpf?.trim()) {
-          errs.push(`Linha ${i + 1}: CPF é obrigatório`);
+        if (!row.unidade?.trim() || !row.setor?.trim() || !row.cargo?.trim() || !row.cpf?.trim()) {
+          errs.push(`Linha ${i + 1}: unidade, setor, cargo e cpf são obrigatórios`);
           continue;
         }
 
