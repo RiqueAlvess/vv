@@ -4,7 +4,8 @@ import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { AGE_RANGES, HSE_DIMENSIONS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
-import { DASHBOARD_CACHE_VERSION, getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
+import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
+import { enqueueJob } from '@/lib/jobs';
 import type { DimensionType, RiskLevel } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -71,7 +72,6 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
     }
 
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
-    // Classify by average score (consistent with heatmap and scoring.ts aggregateHSEITScores)
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
     const nr = ScoreService.calculateNR(riskLevel);
     const interp = ScoreService.interpretNR(nr);
@@ -133,6 +133,23 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // For closed campaigns without filters: metrics are computed by the worker at close time.
+    // If there is no cache yet (worker still running or pending), return 202 and enqueue a job
+    // if one is not already pending/processing. The frontend polls until data is ready.
+    if (isUnfiltered) {
+      const pendingJob = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM core.jobs
+        WHERE type = 'calculate_campaign_metrics'
+          AND status IN ('pending', 'processing')
+          AND payload->>'campaign_id' = ${id}
+        LIMIT 1
+      `;
+      if (!pendingJob.length) {
+        await enqueueJob('calculate_campaign_metrics', { campaign_id: id });
+      }
+      return NextResponse.json({ status: 'computing', retry_after: 5 }, { status: 202 });
+    }
+
     const rawResponses = await prisma.surveyResponse.findMany({
       where: {
         campaign_id: id,
@@ -151,7 +168,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     });
 
     const totalEmployees = await prisma.campaignEmployee.count({ where: { campaign_id: id } });
-    const totalInvited = totalEmployees; // legacy field kept for backward compat
+    const totalInvited = totalEmployees;
     const totalResponded = rawResponses.length;
     const responseRate = totalEmployees > 0 ? (totalResponded / totalEmployees) * 100 : 0;
 
@@ -592,81 +609,6 @@ export async function GET(request: Request, { params }: RouteParams) {
           : null,
       },
     };
-
-    if (isUnfiltered) {
-      const now = new Date();
-      await prisma.campaignMetrics.upsert({
-        where: { campaign_id: id },
-        create: {
-          campaign_id: id,
-          total_employees: totalEmployees,
-          total_invited: totalInvited,
-          total_responded: totalResponded,
-          response_rate: payload.response_rate,
-          igrp,
-          dimension_scores: dimensionAnalysis,
-          risk_distribution: {
-            payload_version: DASHBOARD_CACHE_VERSION,
-            campaign_name: campaign.name,
-            igrp_label: igrpInterp.label,
-            igrp_color: igrpInterp.color,
-            workers_high_risk_pct: workersHighRiskPct,
-            workers_critical_pct: workersCriticalPct,
-            workers_high_risk_eval_pct: workersHighRiskEvalPct,
-            workers_critical_eval_pct: workersCriticalEvalPct,
-            stacked_by_dimension: stackedByDimension,
-            stacked_by_question: stackedByQuestion,
-          },
-          demographic_data: {
-            gender_distribution: genderCounts,
-            age_distribution: ageCounts,
-          },
-          heatmap_data: heatmapData,
-          top_critical_sectors: {
-            top_sectors_by_nr: topSectorsByNR,
-            top_positions_by_nr: topPositionsByNR,
-          },
-          scores_by_gender: genderChartData,
-          scores_by_age: ageChartData,
-          top_critical_groups: positionTable,
-          calculated_at: now,
-          updated_at: now,
-        },
-        update: {
-          total_employees: totalEmployees,
-          total_invited: totalInvited,
-          total_responded: totalResponded,
-          response_rate: payload.response_rate,
-          igrp,
-          dimension_scores: dimensionAnalysis,
-          risk_distribution: {
-            payload_version: DASHBOARD_CACHE_VERSION,
-            campaign_name: campaign.name,
-            igrp_label: igrpInterp.label,
-            igrp_color: igrpInterp.color,
-            workers_high_risk_pct: workersHighRiskPct,
-            workers_critical_pct: workersCriticalPct,
-            workers_high_risk_eval_pct: workersHighRiskEvalPct,
-            workers_critical_eval_pct: workersCriticalEvalPct,
-            stacked_by_dimension: stackedByDimension,
-            stacked_by_question: stackedByQuestion,
-          },
-          demographic_data: {
-            gender_distribution: genderCounts,
-            age_distribution: ageCounts,
-          },
-          heatmap_data: heatmapData,
-          top_critical_sectors: {
-            top_sectors_by_nr: topSectorsByNR,
-            top_positions_by_nr: topPositionsByNR,
-          },
-          scores_by_gender: genderChartData,
-          scores_by_age: ageChartData,
-          top_critical_groups: positionTable,
-          updated_at: now,
-        },
-      });
-    }
 
     return NextResponse.json(payload);
   } catch (err) {
