@@ -34,7 +34,7 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
           <BarChart3 className="h-4 w-4" style={{ color: igrpColor }} />
         </CardHeader>
         <CardContent>
-          <p className="text-3xl font-bold">{(data.igrp as number).toFixed(1)}</p>
+          <p className="text-3xl font-bold">{((data.igrp as number) ?? 0).toFixed(1)}</p>
           <Badge
             className="mt-1 text-white text-xs"
             style={{ backgroundColor: igrpColor }}

@@ -72,6 +72,7 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
     }
 
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
+    // Classify by average score (consistent with heatmap and scoring.ts aggregateHSEITScores)
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
     const nr = ScoreService.calculateNR(riskLevel);
     const interp = ScoreService.interpretNR(nr);
@@ -87,6 +88,7 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
       nr,
       nr_label: interp.label,
       nr_color: interp.color,
+      risk_distribution: riskCount,
       sample_size: scoreCount,
     };
   });
@@ -154,7 +156,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     const responseRate = totalInvited > 0 ? (totalResponded / totalInvited) * 100 : 0;
 
     if (totalResponded === 0) {
-      return NextResponse.json({ error: 'Nenhuma resposta encontrada' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Nenhuma resposta encontrada para esta campanha.' },
+        { status: 200 },
+      );
     }
 
     const responses = rawResponses.map(toParsedResponse);
@@ -516,13 +521,15 @@ export async function GET(request: Request, { params }: RouteParams) {
         const posDimensions = aggregateDimensionAnalysis(positionResponses);
         const posNR = Number((posDimensions.reduce((sum, d) => sum + d.nr, 0) / posDimensions.length).toFixed(1));
         const { label } = ScoreService.interpretNR(posNR);
-        const scoreAsPct = Number(((posNR / 16) * 100).toFixed(1));
+        const avgHSEScore = Number(
+          (posDimensions.reduce((sum, d) => sum + d.avg_score, 0) / posDimensions.length).toFixed(2)
+        );
 
         return {
           position: pos.name,
           sector: pos.sector.name,
           unit: pos.sector.unit.name,
-          score_pct: scoreAsPct,
+          avg_hse_score: avgHSEScore,
           classification: label,
           nr: posNR,
           n_responses: positionResponses.length,

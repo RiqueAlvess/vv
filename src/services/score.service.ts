@@ -1,4 +1,4 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX, RISK_COLORS } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
@@ -65,10 +65,10 @@ export class ScoreService {
 
   // Interpret NR value (scale 1–16)
   static interpretNR(nr: number): { label: string; color: string } {
-    if (nr <= 4)  return { label: 'Aceitável',  color: '#A2C06A' };
-    if (nr <= 8)  return { label: 'Moderado',   color: '#FFFF00' };
-    if (nr <= 12) return { label: 'Importante', color: '#F79454' };
-    return           { label: 'Crítico',    color: '#FF0000' };
+    if (nr <= 4)  return { label: 'Aceitável',  color: RISK_COLORS.aceitavel };
+    if (nr <= 8)  return { label: 'Moderado',   color: RISK_COLORS.moderado };
+    if (nr <= 12) return { label: 'Importante', color: RISK_COLORS.importante };
+    return           { label: 'Crítico',    color: RISK_COLORS.critico };
   }
 
   // Calculate IGRP = mean of all 7 dimension NR values (range 1–16)

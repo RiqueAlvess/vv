@@ -367,7 +367,7 @@ export default function CampaignDetailPage() {
                 variant="outline"
                 onClick={() => {
                   const a = document.createElement('a');
-                  a.href = `/api/campaigns/${campaignId}/report/pdf`;
+                  a.href = `/api/campaigns/${campaignId}/report/pdf?sync=1`;
                   a.target = '_blank';
                   a.click();
                 }}

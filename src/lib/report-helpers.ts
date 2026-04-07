@@ -18,7 +18,8 @@ export function getRiskLevel(score: number, type: 'positive' | 'negative'): Risk
 }
 
 export function calculateNR(riskLevel: RiskLevel): number {
-  return NR_MATRIX[riskLevel].probability * NR_MATRIX.default_severity;
+  // NR = P × S, both variable 1–4 per risk level → range 1, 4, 9, 16
+  return NR_MATRIX[riskLevel].probability * NR_MATRIX[riskLevel].severity;
 }
 
 /**

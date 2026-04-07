@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button';
 
 interface PositionRow {
   position: string; sector: string; unit: string;
-  score_pct: number; classification: string; nr: number; n_responses: number;
+  avg_hse_score: number; classification: string; nr: number; n_responses: number;
 }
 
 const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-  'Aceitável':  { bg: '#A2C06A', text: '#000000' },
-  'Moderado':   { bg: '#FFFF00', text: '#000000' },
-  'Importante': { bg: '#F79454', text: '#ffffff' },
-  'Crítico':    { bg: '#FF0000', text: '#ffffff' },
+  'Aceitável':  { bg: '#8ba800', text: '#ffffff' },
+  'Moderado':   { bg: '#d4b000', text: '#ffffff' },
+  'Importante': { bg: '#cc7722', text: '#ffffff' },
+  'Crítico':    { bg: '#cc0000', text: '#ffffff' },
 };
 
 export function PositionTable({ positions }: { positions: unknown[] }) {
@@ -33,7 +33,7 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Análise Detalhada por Cargo</CardTitle>
-        <CardDescription>Score médio e classificação predominante por cargo/função</CardDescription>
+        <CardDescription>Score HSE-IT (0–4) e NR por cargo/função</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -42,7 +42,7 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
               <TableHead>Cargo</TableHead>
               <TableHead>Setor</TableHead>
               <TableHead>Unidade</TableHead>
-              <TableHead className="text-center">Score (%)</TableHead>
+              <TableHead className="text-center">Score HSE-IT</TableHead>
               <TableHead>Classificação</TableHead>
               <TableHead className="text-center">NR</TableHead>
               <TableHead className="text-center">N Respostas</TableHead>
@@ -54,13 +54,13 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
                 <TableCell className="font-medium">{row.position}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{row.sector}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
-                <TableCell className="text-center tabular-nums">{row.score_pct.toFixed(1)}</TableCell>
+                <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
                 <TableCell>
                   <Badge className="text-xs" style={{ backgroundColor: BADGE_COLORS[row.classification]?.bg ?? '#94a3b8', color: BADGE_COLORS[row.classification]?.text ?? '#ffffff' }}>
                     {row.classification}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-center tabular-nums font-mono">{row.nr.toFixed(1)}</TableCell>
+                <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
                 <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
               </TableRow>
             ))}
