@@ -1,10 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, createElement, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { getQueryClient } from '@/lib/query-client';
 
-interface CompanyRef {
+export interface CompanyRef {
   id: string;
   name: string;
 }
@@ -33,8 +32,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
   const refreshAuth = useCallback(async () => {
     try {
       let res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -122,14 +119,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.error || 'Erro ao trocar empresa');
     }
 
-    // Clear all cached queries — they belong to the previous company context
+    // Clear cached queries from the previous company context before reloading.
     getQueryClient().clear();
 
-    // Refresh the auth context with the new company data
+    // Try to refresh auth in-memory (best effort) and then hard reload to avoid stale UI state.
     await refreshAuth();
 
-    // Navigate to dashboard (client-side, avoids full-page reload)
-    router.push('/dashboard');
+    const target = user?.role === 'ADM' ? '/companies' : '/dashboard';
+    window.location.href = target;
   };
 
   return createElement(
