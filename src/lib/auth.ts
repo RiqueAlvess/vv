@@ -13,8 +13,8 @@ export async function signToken(payload: JWTPayload): Promise<string> {
     .sign(getJwtSecret());
 }
 
-export async function signRefreshToken(userId: string): Promise<string> {
-  return new SignJWT({ user_id: userId })
+export async function signRefreshToken(userId: string, companyId: string): Promise<string> {
+  return new SignJWT({ user_id: userId, company_id: companyId })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -30,10 +30,10 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   }
 }
 
-export async function verifyRefreshToken(token: string): Promise<{ user_id: string } | null> {
+export async function verifyRefreshToken(token: string): Promise<{ user_id: string; company_id?: string } | null> {
   try {
     const { payload } = await jwtVerify(token, getRefreshSecret());
-    return payload as unknown as { user_id: string };
+    return payload as unknown as { user_id: string; company_id?: string };
   } catch {
     return null;
   }

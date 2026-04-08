@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       company_id: activeCompanyId,
     });
 
-    const refreshToken = await signRefreshToken(user.id);
+    const refreshToken = await signRefreshToken(user.id, activeCompanyId);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
