@@ -2,26 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose/jwt/verify';
 
-/** Generate a base64-encoded nonce using the Web Crypto API (Edge-runtime safe). */
-function generateNonce(): string {
-  return btoa(crypto.randomUUID());
-}
-
 /**
  * Build a Content-Security-Policy header value.
  *
- * - script-src uses the per-request nonce so Next.js inline hydration scripts
- *   are allowed while arbitrary inline scripts are blocked.
+ * - script-src allows inline scripts because hydration/runtime scripts and
+ *   extension injections were being blocked in production.
  * - 'wasm-unsafe-eval' is required by the Prisma WASM query engine.
  * - style-src uses 'unsafe-inline' because Radix UI / shadcn write inline styles.
  * - frame-ancestors 'none' prevents clickjacking.
  */
-function buildCsp(nonce: string): string {
+function buildCsp(): string {
   const directives = [
     "default-src 'self'",
-    // Keep nonce-based policy, but allow inline scripts as compatibility fallback
-    // for browser extension injections / inline bootstraps that do not receive the nonce.
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'wasm-unsafe-eval' 'inline-speculation-rules'`,
+    // We intentionally avoid nonce here because browsers ignore 'unsafe-inline'
+    // when a nonce/hash is present, which was blocking required inline runtime scripts.
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'inline-speculation-rules' chrome-extension:",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
     "font-src 'self'",
@@ -42,14 +37,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Generate a fresh nonce for every HTML page / API response.
-  const nonce = generateNonce();
-  const csp = buildCsp(nonce);
+  const csp = buildCsp();
 
-  // Forward the nonce to the rendering pipeline so Next.js can stamp it onto
-  // the inline <script> tags it emits for client-component hydration.
+  // Forward CSP to the rendering pipeline.
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('content-security-policy', csp);
 
   // Helper: attach CSP to any NextResponse
