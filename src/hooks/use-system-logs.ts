@@ -8,6 +8,7 @@ export interface SystemLog {
   level: string;
   action: string;
   user_id: string | null;
+  user_email: string | null;
   company_id: string | null;
   target_id: string | null;
   target_type: string | null;

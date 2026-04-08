@@ -34,6 +34,12 @@ export async function GET(request: Request) {
         company: {
           select: { id: true, name: true, cnpj: true, cnae: true },
         },
+        user_companies: {
+          select: {
+            company: { select: { id: true, name: true } },
+          },
+          orderBy: { created_at: 'asc' },
+        },
       },
     });
 
@@ -44,7 +50,13 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(userData);
+    const companies = userData.user_companies.map((uc) => uc.company);
+
+    return NextResponse.json({
+      ...userData,
+      companies,
+      user_companies: undefined,
+    });
   } catch (err) {
     console.error('Get me error:', err);
     return NextResponse.json(
