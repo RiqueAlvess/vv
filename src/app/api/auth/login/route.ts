@@ -76,8 +76,12 @@ export async function POST(request: Request) {
       companies.push({ id: user.company_id, name: '' });
     }
 
-    // Use the first (primary) company for the initial token
-    const activeCompanyId = companies[0].id;
+    // Use the user's persisted default company whenever possible.
+    // If the default is not available in the active companies list,
+    // fall back to the first available company.
+    const activeCompanyId = companies.some((c) => c.id === user.company_id)
+      ? user.company_id
+      : companies[0].id;
 
     const token = await signToken({
       user_id: user.id,

@@ -35,6 +35,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Acesso negado a esta empresa' }, { status: 403 });
     }
 
+    // Persist selected company as the new default/primary company for this user.
+    await prisma.user.update({
+      where: { id: user.user_id },
+      data: { company_id },
+    });
+
     // Re-issue tokens with new company_id
     const token = await signToken({
       user_id: user.user_id,
