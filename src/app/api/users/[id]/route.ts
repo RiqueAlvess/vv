@@ -134,6 +134,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       action: 'user.update',
       message: `Usuário atualizado: ${updatedUser.name}`,
       user_id: user.user_id,
+      user_email: user.email,
       company_id: updatedUser.company_id,
       target_id: id,
       target_type: 'user',
@@ -185,6 +186,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       action: 'user.delete',
       message: `Usuário desativado (soft delete)`,
       user_id: user.user_id,
+      user_email: user.email,
       target_id: id,
       target_type: 'user',
     });

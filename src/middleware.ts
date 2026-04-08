@@ -67,6 +67,7 @@ export async function middleware(request: NextRequest) {
     '/api/survey',
     '/api/feedback',
     '/api/campaigns/csv-template',
+    '/api/jobs/',
   ];
 
   const isPublic = publicPaths.some(path => pathname.startsWith(path));

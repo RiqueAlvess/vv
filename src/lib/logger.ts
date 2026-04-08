@@ -9,6 +9,7 @@ export interface LogPayload {
   action: string;
   message: string;
   user_id?: string;
+  user_email?: string;
   company_id?: string;
   target_id?: string;
   target_type?: string;

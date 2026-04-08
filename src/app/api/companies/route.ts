@@ -113,6 +113,7 @@ export async function POST(request: Request) {
       action: 'company.create',
       message: `Empresa criada: ${company.name} (CNPJ: ${company.cnpj})`,
       user_id: user.user_id,
+      user_email: user.email,
       target_id: company.id,
       target_type: 'company',
       metadata: { name: company.name, cnpj: company.cnpj },

@@ -56,6 +56,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       action: 'campaign.activate',
       message: `Campanha ativada: ${updatedCampaign.name}`,
       user_id: user.user_id,
+      user_email: user.email,
       company_id: campaign.company_id,
       target_id: id,
       target_type: 'campaign',

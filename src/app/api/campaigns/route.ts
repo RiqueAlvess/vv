@@ -4,6 +4,7 @@ import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
 import { campaignSchema } from '@/lib/validations';
 import { generateSalt } from '@/lib/crypto';
+import { log } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +105,17 @@ export async function POST(request: Request) {
         campaign_salt: campaignSalt,
         created_by: user.user_id,
       },
+    });
+
+    log('AUDIT', {
+      action: 'campaign.create',
+      message: `Campanha criada: ${campaign.name}`,
+      user_id: user.user_id,
+      user_email: user.email,
+      company_id: campaign.company_id,
+      target_id: campaign.id,
+      target_type: 'campaign',
+      metadata: { name: campaign.name, start_date: campaign.start_date, end_date: campaign.end_date },
     });
 
     return NextResponse.json(campaign, { status: 201 });

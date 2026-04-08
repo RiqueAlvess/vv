@@ -168,6 +168,7 @@ export async function POST(request: Request) {
       action: 'user.create',
       message: `Usuário criado: ${newUser.name} (${newUser.role})`,
       user_id: user.user_id,
+      user_email: user.email,
       company_id: newUser.company_id,
       target_id: newUser.id,
       target_type: 'user',
