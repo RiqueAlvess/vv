@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell, ArrowLeftRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { LogoImage } from '@/components/ui/logo-image';
 
@@ -39,7 +39,7 @@ const navItems = {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, switchCompany } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -55,12 +55,18 @@ export function AppSidebar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
+  // Password change state
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+
+  // Company switch state
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState('');
 
   const handleChangePassword = async () => {
     setPasswordError('');
@@ -91,8 +97,21 @@ export function AppSidebar() {
     }
   };
 
+  const handleSwitchCompany = async (companyId: string) => {
+    if (companyId === user?.company_id) { setCompanyOpen(false); return; }
+    setSwitchingId(companyId);
+    setSwitchError('');
+    try {
+      await switchCompany(companyId);
+    } catch (err) {
+      setSwitchError(err instanceof Error ? err.message : 'Erro ao trocar empresa');
+      setSwitchingId(null);
+    }
+  };
+
   const items = navItems[user?.role as keyof typeof navItems] || navItems.LIDERANCA;
   const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+  const hasMultipleCompanies = (user?.companies?.length ?? 0) > 1;
 
   return (
       <Sidebar className="bg-[#0D3D4F]">
@@ -122,7 +141,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div ref={menuRef} className="relative p-2">
-          <p className="text-[10px] text-white/25 text-center pb-1">v1.0.5</p>
+          <p className="text-[10px] text-white/25 text-center pb-1">v1.0.6</p>
 
           {/* Floating menu — appears above the button */}
           {menuOpen && (
@@ -142,6 +161,25 @@ export function AppSidebar() {
                   <KeyRound className="h-4 w-4 text-[#00C896]" />
                   <span>Mudar Senha</span>
                 </button>
+
+                {hasMultipleCompanies && (
+                  <>
+                    <div className="my-1 mx-2 h-px bg-[#00C896]/30" />
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#00C896]/20 hover:text-[#00C896] transition-colors"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setSwitchError('');
+                        setCompanyOpen(true);
+                      }}
+                    >
+                      <ArrowLeftRight className="h-4 w-4 text-[#00C896]" />
+                      <span>Alterar Empresa</span>
+                    </button>
+                  </>
+                )}
+
                 <div className="my-1 mx-2 h-px bg-[#00C896]/30" />
                 <button
                   type="button"
@@ -171,7 +209,7 @@ export function AppSidebar() {
             </Avatar>
             <div className="flex flex-col text-left text-sm min-w-0 flex-1">
               <span className="font-medium truncate">{user?.name}</span>
-              <span className="text-xs text-white/60 truncate">{user?.role}</span>
+              <span className="text-xs text-white/60 truncate">{user?.company_name ?? user?.role}</span>
             </div>
             <ChevronUp
               className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
@@ -183,6 +221,7 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
 
+      {/* Change password dialog */}
       <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
         <DialogContent>
           <DialogHeader>
@@ -229,6 +268,54 @@ export function AppSidebar() {
             </Button>
             <Button onClick={handleChangePassword} disabled={saving || !currentPassword || !newPassword || !confirmPassword}>
               {saving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Switch company dialog */}
+      <Dialog open={companyOpen} onOpenChange={(open) => { if (!switchingId) setCompanyOpen(open); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Empresa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {user?.companies.map((company) => {
+              const isCurrent = company.id === user.company_id;
+              const isSwitching = switchingId === company.id;
+              return (
+                <button
+                  key={company.id}
+                  type="button"
+                  disabled={switchingId !== null}
+                  onClick={() => handleSwitchCompany(company.id)}
+                  className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-60 ${
+                    isCurrent
+                      ? 'border-[#00C896]/50 bg-[#00C896]/10 font-medium'
+                      : 'border-border hover:bg-accent hover:border-[#00C896]/40'
+                  }`}
+                >
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0D3D4F]/10">
+                    {isSwitching ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-[#0D3D4F]" />
+                    ) : (
+                      <Building2 className="h-4 w-4 text-[#0D3D4F]" />
+                    )}
+                  </div>
+                  <span className="flex-1 truncate">{company.name}</span>
+                  {isCurrent && (
+                    <span className="text-xs text-[#00C896] font-medium">atual</span>
+                  )}
+                </button>
+              );
+            })}
+            {switchError && (
+              <p className="text-sm text-destructive pt-1">{switchError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompanyOpen(false)} disabled={switchingId !== null}>
+              Cancelar
             </Button>
           </DialogFooter>
         </DialogContent>

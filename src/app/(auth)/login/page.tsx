@@ -5,15 +5,29 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Building2, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
+import { useAuth } from '@/hooks/use-auth';
+
+interface CompanyOption {
+  id: string;
+  name: string;
+}
+
+type Step = 'credentials' | 'select-company';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { switchCompany } = useAuth();
+
+  const [step, setStep] = useState<Step>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +48,16 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.user?.role === 'ADM') {
-        router.push('/companies');
-      } else {
-        router.push('/dashboard');
+      setUserRole(data.user?.role ?? '');
+
+      if (data.needs_company_select && data.companies?.length > 1) {
+        setCompanies(data.companies);
+        setStep('select-company');
+        return;
       }
+
+      // Single company — go straight in
+      redirectAfterLogin(data.user?.role);
     } catch {
       setError('Erro de conexão. Tente novamente.');
     } finally {
@@ -46,6 +65,75 @@ export default function LoginPage() {
     }
   };
 
+  const redirectAfterLogin = (role: string) => {
+    if (role === 'ADM') {
+      router.push('/companies');
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
+  const handleSelectCompany = async (companyId: string) => {
+    setSwitchingId(companyId);
+    try {
+      await switchCompany(companyId);
+      // switchCompany does a full page reload to /dashboard
+    } catch {
+      setError('Erro ao selecionar empresa. Tente novamente.');
+      setSwitchingId(null);
+    }
+  };
+
+  // ── Company selection screen ──────────────────────────────────────────
+  if (step === 'select-company') {
+    return (
+      <div className="flex flex-col justify-center w-full max-w-sm px-2">
+        <div className="flex flex-col items-center mb-8">
+          <Logo size={44} variant="dark" />
+          <p className="text-sm text-muted-foreground mt-3">Selecione a empresa</p>
+        </div>
+
+        <div className="space-y-2">
+          {companies.map((company) => (
+            <button
+              key={company.id}
+              type="button"
+              disabled={switchingId !== null}
+              onClick={() => handleSelectCompany(company.id)}
+              className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-accent hover:border-[#00C896]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#0D3D4F]/10">
+                {switchingId === company.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#0D3D4F]" />
+                ) : (
+                  <Building2 className="h-4 w-4 text-[#0D3D4F]" />
+                )}
+              </div>
+              <span className="flex-1 truncate">{company.name}</span>
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2.5">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => { setStep('credentials'); setError(''); setSwitchingId(null); }}
+          className="mt-6 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 text-center"
+        >
+          Voltar ao login
+        </button>
+
+        <p className="text-center text-[10px] text-muted-foreground/50 mt-8">v1.0.6</p>
+      </div>
+    );
+  }
+
+  // ── Credentials screen ────────────────────────────────────────────────
   return (
     <div className="flex flex-col justify-center w-full max-w-sm px-2">
       {/* Logo */}
@@ -116,7 +204,7 @@ export default function LoginPage() {
       <p className="text-center text-xs text-muted-foreground mt-10">
         Acesso restrito a usuários autorizados
       </p>
-      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.5</p>
+      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.6</p>
     </div>
   );
 }

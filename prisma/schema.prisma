@@ -28,6 +28,7 @@ model Company {
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   users           User[]
+  user_companies  UserCompany[]
   campaigns       Campaign[]
   feedbackChannel CompanyFeedbackChannel?
 
@@ -50,12 +51,28 @@ model User {
 
   company        Company        @relation(fields: [company_id], references: [id], onDelete: Cascade)
   refresh_tokens RefreshToken[]
+  user_companies UserCompany[]
   campaigns      Campaign[]     @relation("CampaignCreator")
   articles_authored Article[]   @relation("ArticleAuthor")
   notifications_created SystemNotification[]     @relation("NotificationCreator")
   notification_views    SystemNotificationView[] @relation("NotificationViews")
 
   @@map("users")
+  @@schema("core")
+}
+
+model UserCompany {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  company_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, company_id])
+  @@index([user_id])
+  @@map("user_companies")
   @@schema("core")
 }
 

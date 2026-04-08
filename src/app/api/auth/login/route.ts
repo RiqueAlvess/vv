@@ -60,11 +60,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch all companies this user has access to
+    const userCompanies = await prisma.userCompany.findMany({
+      where: { user_id: user.id },
+      select: { company: { select: { id: true, name: true, active: true } } },
+      orderBy: { created_at: 'asc' },
+    });
+
+    // Filter active companies; fall back to the user's primary company_id if table is empty
+    const companies = userCompanies
+      .filter((uc) => uc.company.active)
+      .map((uc) => ({ id: uc.company.id, name: uc.company.name }));
+
+    if (companies.length === 0) {
+      companies.push({ id: user.company_id, name: '' });
+    }
+
+    // Use the first (primary) company for the initial token
+    const activeCompanyId = companies[0].id;
+
     const token = await signToken({
       user_id: user.id,
       email: user.email,
       role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
-      company_id: user.company_id,
+      company_id: activeCompanyId,
     });
 
     const refreshToken = await signRefreshToken(user.id);
@@ -88,7 +107,7 @@ export async function POST(request: Request) {
       message: `Login realizado: ${user.name} (${user.role})`,
       user_id: user.id,
       user_email: user.email,
-      company_id: user.company_id,
+      company_id: activeCompanyId,
       ip,
       metadata: { email, role: user.role },
     });
@@ -101,8 +120,10 @@ export async function POST(request: Request) {
         name: user.name,
         email: user.email,
         role: user.role,
-        company_id: user.company_id,
+        company_id: activeCompanyId,
       },
+      companies,
+      needs_company_select: companies.length > 1,
     });
 
     // Set cookies for middleware auth check

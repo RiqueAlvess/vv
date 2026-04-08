@@ -142,19 +142,20 @@ export default function LogsPage() {
               <TableHead className="w-24">Nível</TableHead>
               <TableHead className="w-48">Ação</TableHead>
               <TableHead>Mensagem</TableHead>
+              <TableHead className="w-48">Usuário</TableHead>
               <TableHead className="w-36">IP</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Nenhum log encontrado.
                 </TableCell>
               </TableRow>
@@ -174,6 +175,9 @@ export default function LogsPage() {
                   </TableCell>
                   <TableCell className="text-xs font-mono">{log.action}</TableCell>
                   <TableCell className="text-sm">{log.message}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground font-mono truncate max-w-[12rem]">
+                    {log.user_email ?? '—'}
+                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground font-mono">
                     {log.ip ?? '—'}
                   </TableCell>
