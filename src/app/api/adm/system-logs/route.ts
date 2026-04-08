@@ -54,7 +54,23 @@ export async function GET(request: Request) {
       prisma.systemLog.count({ where }),
     ]);
 
-    return NextResponse.json({ logs, total, page });
+    // Enrich logs with user email
+    const userIds = [...new Set(logs.filter((l) => l.user_id).map((l) => l.user_id as string))];
+    let userMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, email: true },
+      });
+      userMap = Object.fromEntries(users.map((u) => [u.id, u.email]));
+    }
+
+    const enrichedLogs = logs.map((log) => ({
+      ...log,
+      user_email: log.user_id ? (userMap[log.user_id] ?? null) : null,
+    }));
+
+    return NextResponse.json({ logs: enrichedLogs, total, page });
   } catch (err) {
     console.error('List logs error:', err);
     return NextResponse.json(
