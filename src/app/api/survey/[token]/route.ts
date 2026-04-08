@@ -10,7 +10,7 @@ interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
-// GET — validate QR code token, return campaign info + hierarchy for self-selection
+// GET — validate QR code token, return campaign info
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
@@ -26,24 +26,6 @@ export async function GET(request: Request, { params }: RouteParams) {
             status: true,
             name: true,
             company: { select: { name: true, cnpj: true } },
-            units: {
-              select: {
-                id: true,
-                name: true,
-                sectors: {
-                  select: {
-                    id: true,
-                    name: true,
-                    positions: {
-                      select: { id: true, name: true },
-                      orderBy: { name: 'asc' },
-                    },
-                  },
-                  orderBy: { name: 'asc' },
-                },
-              },
-              orderBy: { name: 'asc' },
-            },
           },
         },
       },
@@ -76,7 +58,6 @@ export async function GET(request: Request, { params }: RouteParams) {
       campaign_name: qrCode.campaign.name,
       company_name: qrCode.campaign.company.name,
       company_cnpj: qrCode.campaign.company.cnpj,
-      hierarchy: qrCode.campaign.units,
     });
   } catch (err) {
     console.error('Validate QR code error:', err);
