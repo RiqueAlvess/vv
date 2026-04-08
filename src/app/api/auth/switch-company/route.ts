@@ -43,10 +43,13 @@ export async function POST(request: Request) {
       company_id,
     });
 
-    const refreshToken = await signRefreshToken(user.user_id);
+    const refreshToken = await signRefreshToken(user.user_id, company_id);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Invalidate all existing refresh tokens for this user (they had a different company context)
+    await prisma.refreshToken.deleteMany({ where: { user_id: user.user_id } });
 
     await prisma.refreshToken.create({
       data: { user_id: user.user_id, token: refreshToken, expires_at: expiresAt },

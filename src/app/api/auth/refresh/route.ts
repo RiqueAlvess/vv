@@ -4,10 +4,32 @@ import { signToken, signRefreshToken, verifyRefreshToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+function getRefreshTokenFromCookies(request: Request): string | null {
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) return null;
+  const cookies = Object.fromEntries(
+    cookieHeader.split(';').map(c => {
+      const [key, ...rest] = c.trim().split('=');
+      return [key.trim(), rest.join('=')];
+    })
+  );
+  return cookies.refreshToken ?? null;
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { refreshToken } = body;
+    // Try body first (backwards compat), fall back to httpOnly cookie
+    let refreshToken: string | null = null;
+    try {
+      const body = await request.json();
+      refreshToken = body.refreshToken ?? null;
+    } catch {
+      // No body or invalid JSON — read from cookie
+    }
+
+    if (!refreshToken) {
+      refreshToken = getRefreshTokenFromCookies(request);
+    }
 
     if (!refreshToken) {
       return NextResponse.json(
@@ -60,14 +82,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Preserve the switched company_id from the refresh token payload;
+    // fall back to the user's primary company_id if not present.
+    const activeCompanyId = payload.company_id ?? user.company_id;
+
     const newToken = await signToken({
       user_id: user.id,
       email: user.email,
       role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
-      company_id: user.company_id,
+      company_id: activeCompanyId,
     });
 
-    const newRefreshToken = await signRefreshToken(user.id);
+    const newRefreshToken = await signRefreshToken(user.id, activeCompanyId);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
@@ -80,10 +106,28 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       token: newToken,
       refreshToken: newRefreshToken,
     });
+
+    // Update httpOnly cookies so subsequent requests use the refreshed tokens
+    response.cookies.set('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 15 * 60,
+    });
+    response.cookies.set('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (err) {
     console.error('Refresh token error:', err);
     return NextResponse.json(

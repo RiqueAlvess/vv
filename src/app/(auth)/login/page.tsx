@@ -84,7 +84,7 @@ export default function LoginPage() {
         const data = await res.json();
         throw new Error(data.error || 'Erro ao selecionar empresa');
       }
-      window.location.href = '/dashboard';
+      redirectAfterLogin(userRole);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao selecionar empresa. Tente novamente.');
       setSwitchingId(null);
