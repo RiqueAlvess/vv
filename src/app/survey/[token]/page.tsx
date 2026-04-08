@@ -53,17 +53,12 @@ const QUESTIONS = [
   { id: 35, text: 'Meu chefe me incentiva no trabalho' },
 ] as const;
 
-interface HierarchyPosition { id: string; name: string; }
-interface HierarchySector { id: string; name: string; positions: HierarchyPosition[]; }
-interface HierarchyUnit { id: string; name: string; sectors: HierarchySector[]; }
-
 type SurveyStep =
   | 'loading'
   | 'invalid'
   | 'cpf_verify'
   | 'cpf_verifying'
   | 'consent'
-  | 'hierarchy'
   | 'demographics'
   | 'questions'
   | 'submitting'
@@ -88,7 +83,6 @@ export default function SurveyPage() {
   const [cpfInput, setCpfInput] = useState('');
   const [validationToken, setValidationToken] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState('');
   const [selectedPositionId, setSelectedPositionId] = useState('');
@@ -108,9 +102,6 @@ export default function SurveyPage() {
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / QUESTIONS.length) * 100;
 
-  const availableSectors = hierarchy.find(u => u.id === selectedUnitId)?.sectors ?? [];
-  const availablePositions = availableSectors.find(s => s.id === selectedSectorId)?.positions ?? [];
-
   useEffect(() => {
     const validate = async () => {
       try {
@@ -125,7 +116,6 @@ export default function SurveyPage() {
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
           });
-          setHierarchy(data.hierarchy ?? []);
           setStep('cpf_verify');
         }
       } catch {
@@ -415,9 +405,8 @@ export default function SurveyPage() {
                     <strong className="text-foreground">excluído permanentemente e de forma irreversível</strong>{' '}
                     — não é possível recuperá-lo nem vincular qualquer resposta à sua identidade.
                     As respostas são gravadas sem nenhum campo identificável (sem nome, e-mail,
-                    matrícula, IP ou localização). A unidade, o setor e o cargo são sugeridos com base
-                    no cadastro fornecido pela empresa.{' '}
-                    <strong className="text-foreground">Você pode confirmar ou alterar esses dados, mas eles não podem ficar em branco.</strong>{' '}
+                    matrícula, IP ou localização). A unidade, o setor e o cargo são atribuídos
+                    automaticamente com base no cadastro fornecido pela empresa.
                     Os resultados são sempre apresentados de forma agregada —
                     nunca individualmente.
                   </p>
@@ -428,8 +417,7 @@ export default function SurveyPage() {
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Respostas às 35 perguntas do questionário HSE-IT (escala 0–4)</li>
                     <li>
-                      Unidade, setor e cargo (pré-preenchidos com base no cadastro e obrigatórios,
-                      podendo ser ajustados por você para análise por área)
+                      Unidade, setor e cargo (atribuídos automaticamente com base no cadastro da empresa)
                     </li>
                     <li>Faixa etária e sexo (obrigatórios, para análise estatística agregada)</li>
                     <li>Data e hora do aceite deste termo (sem vínculo com sua identidade)</li>
@@ -495,7 +483,7 @@ export default function SurveyPage() {
                   disabled={!consentAccepted}
                   onClick={() => {
                     setErrorMsg('');
-                    setStep('hierarchy');
+                    setStep('demographics');
                   }}
                 >
                   Aceito e desejo participar →
@@ -505,103 +493,7 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* Step 2: Hierarchy selection */}
-        {step === 'hierarchy' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Identificação Hierárquica</CardTitle>
-              <CardDescription>
-                Pré-preenchido com base no seu cadastro — confirme ou altere os campos obrigatórios (não identifica você individualmente)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>
-                  Unidade <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedUnitId}
-                  onValueChange={(v) => {
-                    setSelectedUnitId(v);
-                    setSelectedSectorId('');
-                    setSelectedPositionId('');
-                  }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
-                  <SelectContent>
-                    {hierarchy.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Setor <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedSectorId}
-                  onValueChange={(v) => {
-                    setSelectedSectorId(v);
-                    setSelectedPositionId('');
-                  }}
-                  disabled={!selectedUnitId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
-                  <SelectContent>
-                    {availableSectors.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Cargo <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedPositionId}
-                  onValueChange={setSelectedPositionId}
-                  disabled={!selectedSectorId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
-                  <SelectContent>
-                    {availablePositions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {errorMsg && (
-                <p className="text-sm text-destructive">{errorMsg}</p>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep('consent')}>Voltar</Button>
-                <Button
-                  className="flex-1"
-                  onClick={() => {
-                    if (!selectedUnitId || !selectedSectorId || !selectedPositionId) {
-                      setErrorMsg('Unidade, setor e cargo são obrigatórios para continuar');
-                      return;
-                    }
-                    setErrorMsg('');
-                    setStep('demographics');
-                  }}
-                >
-                  Continuar →
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-destructive">*</span> Campos obrigatórios
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Demographics */}
+        {/* Step 2: Demographics */}
         {step === 'demographics' && (
           <Card>
             <CardHeader>
@@ -641,7 +533,7 @@ export default function SurveyPage() {
                 <p className="text-sm text-destructive">{errorMsg}</p>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { setErrorMsg(''); setStep('hierarchy'); }}>Voltar</Button>
+                <Button variant="outline" onClick={() => { setErrorMsg(''); setStep('consent'); }}>Voltar</Button>
                 <Button
                   className="flex-1"
                   disabled={!gender || !ageRange}
