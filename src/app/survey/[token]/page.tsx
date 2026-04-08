@@ -183,9 +183,9 @@ export default function SurveyPage() {
           responses,
           gender,
           age_range: ageRange,
-          unit_id: selectedUnitId || undefined,
-          sector_id: selectedSectorId || undefined,
-          position_id: selectedPositionId || undefined,
+          unit_id: selectedUnitId,
+          sector_id: selectedSectorId,
+          position_id: selectedPositionId,
           validation_token: validationToken,
           consent_accepted: true,
         }),
@@ -416,9 +416,9 @@ export default function SurveyPage() {
                     — não é possível recuperá-lo nem vincular qualquer resposta à sua identidade.
                     As respostas são gravadas sem nenhum campo identificável (sem nome, e-mail,
                     matrícula, IP ou localização). A unidade, o setor e o cargo são sugeridos com base
-                    no cadastro fornecido pela empresa, mas{' '}
-                    <strong className="text-foreground">você pode alterar ou deixar em branco</strong>{' '}
-                    antes de prosseguir. Os resultados são sempre apresentados de forma agregada —
+                    no cadastro fornecido pela empresa.{' '}
+                    <strong className="text-foreground">Você pode confirmar ou alterar esses dados, mas eles não podem ficar em branco.</strong>{' '}
+                    Os resultados são sempre apresentados de forma agregada —
                     nunca individualmente.
                   </p>
                 </div>
@@ -428,8 +428,8 @@ export default function SurveyPage() {
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Respostas às 35 perguntas do questionário HSE-IT (escala 0–4)</li>
                     <li>
-                      Unidade, setor e cargo (sugeridos pelo sistema, alteráveis por você — opcionais,
-                      para análise por área)
+                      Unidade, setor e cargo (pré-preenchidos com base no cadastro e obrigatórios,
+                      podendo ser ajustados por você para análise por área)
                     </li>
                     <li>Faixa etária e sexo (obrigatórios, para análise estatística agregada)</li>
                     <li>Data e hora do aceite deste termo (sem vínculo com sua identidade)</li>
@@ -493,7 +493,10 @@ export default function SurveyPage() {
                 <Button
                   className="flex-1"
                   disabled={!consentAccepted}
-                  onClick={() => setStep('hierarchy')}
+                  onClick={() => {
+                    setErrorMsg('');
+                    setStep('hierarchy');
+                  }}
                 >
                   Aceito e desejo participar →
                 </Button>
@@ -508,12 +511,14 @@ export default function SurveyPage() {
             <CardHeader>
               <CardTitle>Identificação Hierárquica</CardTitle>
               <CardDescription>
-                Pré-preenchido com base no seu cadastro — confirme, altere ou deixe em branco (opcional, não identifica você individualmente)
+                Pré-preenchido com base no seu cadastro — confirme ou altere os campos obrigatórios (não identifica você individualmente)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Unidade</Label>
+                <Label>
+                  Unidade <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={selectedUnitId}
                   onValueChange={(v) => {
@@ -532,7 +537,9 @@ export default function SurveyPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Setor</Label>
+                <Label>
+                  Setor <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={selectedSectorId}
                   onValueChange={(v) => {
@@ -551,7 +558,9 @@ export default function SurveyPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Cargo</Label>
+                <Label>
+                  Cargo <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={selectedPositionId}
                   onValueChange={setSelectedPositionId}
@@ -566,12 +575,28 @@ export default function SurveyPage() {
                 </Select>
               </div>
 
+              {errorMsg && (
+                <p className="text-sm text-destructive">{errorMsg}</p>
+              )}
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" onClick={() => setStep('consent')}>Voltar</Button>
-                <Button className="flex-1" onClick={() => setStep('demographics')}>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    if (!selectedUnitId || !selectedSectorId || !selectedPositionId) {
+                      setErrorMsg('Unidade, setor e cargo são obrigatórios para continuar');
+                      return;
+                    }
+                    setErrorMsg('');
+                    setStep('demographics');
+                  }}
+                >
                   Continuar →
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-destructive">*</span> Campos obrigatórios
+              </p>
             </CardContent>
           </Card>
         )}
