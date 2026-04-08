@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
-import { useAuth } from '@/hooks/use-auth';
 
 interface CompanyOption {
   id: string;
@@ -18,7 +17,6 @@ type Step = 'credentials' | 'select-company';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { switchCompany } = useAuth();
 
   const [step, setStep] = useState<Step>('credentials');
   const [email, setEmail] = useState('');
@@ -76,10 +74,19 @@ export default function LoginPage() {
   const handleSelectCompany = async (companyId: string) => {
     setSwitchingId(companyId);
     try {
-      await switchCompany(companyId);
-      // switchCompany does a full page reload to /dashboard
-    } catch {
-      setError('Erro ao selecionar empresa. Tente novamente.');
+      const res = await fetch('/api/auth/switch-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ company_id: companyId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao selecionar empresa');
+      }
+      window.location.href = '/dashboard';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao selecionar empresa. Tente novamente.');
       setSwitchingId(null);
     }
   };
