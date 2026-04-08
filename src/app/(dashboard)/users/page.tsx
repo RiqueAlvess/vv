@@ -28,8 +28,13 @@ const roleLabels: Record<string, string> = {
   LIDERANCA: 'Liderança',
 };
 
+interface UserRow extends User {
+  companies?: { id: string; name: string }[];
+  company_count?: number;
+}
+
 interface UserPage {
-  data: (User & { companies: { id: string; name: string }[] })[];
+  data: UserRow[];
   pagination: { page: number; totalPages: number; total: number; limit: number };
 }
 
@@ -45,14 +50,15 @@ export default function UsersPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
     role: 'RH',
-    company_ids: [] as string[],
+    company_id: '',
   });
+  const [extraCompanyIds, setExtraCompanyIds] = useState<string[]>([]);
 
   // Debounce search
   useEffect(() => {
@@ -95,24 +101,31 @@ export default function UsersPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { company_ids, ...rest } = form;
+      const company_ids = Array.from(
+        new Set([form.company_id, ...extraCompanyIds].filter(Boolean))
+      );
+
       const payload: Record<string, unknown> = {
-        ...rest,
-        company_id: company_ids[0],
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        company_id: form.company_id,
         company_ids,
       };
 
-      if (selectedUser && !payload.password) {
-        delete payload.password;
+      if (form.password) {
+        payload.password = form.password;
       }
 
       const endpoint = selectedUser ? `/api/users/${selectedUser.id}` : '/api/users';
       const method = selectedUser ? put : post;
       const res = await method(endpoint, payload);
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erro ao salvar usuário');
       }
+
       return selectedUser ? 'updated' : 'created';
     },
     onSuccess: (result) => {
@@ -126,7 +139,7 @@ export default function UsersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (user: User) => {
+    mutationFn: async (user: UserRow) => {
       const res = await del(`/api/users/${user.id}`);
       if (!res.ok) {
         const data = await res.json();
@@ -148,51 +161,40 @@ export default function UsersPage() {
   }
 
   const openCreate = () => {
+    const firstCompanyId = companies[0]?.id ?? '';
     setSelectedUser(null);
-    setForm({
-      name: '',
-      email: '',
-      password: '',
-      role: 'RH',
-      company_ids: companies[0] ? [companies[0].id] : [],
-    });
+    setForm({ name: '', email: '', password: '', role: 'RH', company_id: firstCompanyId });
+    setExtraCompanyIds(firstCompanyId ? [firstCompanyId] : []);
     setModalOpen(true);
   };
 
-  const openEdit = (u: User & { companies?: { id: string; name: string }[] }) => {
-    setSelectedUser(u);
-    const existingIds = u.companies && u.companies.length > 0
+  const openEdit = (u: UserRow) => {
+    const assignedCompanyIds = u.companies?.length
       ? u.companies.map((c) => c.id)
       : [u.company_id];
-    setForm({
-      name: u.name,
-      email: u.email,
-      password: '',
-      role: u.role,
-      company_ids: existingIds,
-    });
+
+    setSelectedUser(u);
+    setForm({ name: u.name, email: u.email, password: '', role: u.role, company_id: u.company_id });
+    setExtraCompanyIds(Array.from(new Set(assignedCompanyIds)));
     setModalOpen(true);
   };
 
-  const openDelete = (u: User) => {
+  const openDelete = (u: UserRow) => {
     setSelectedUser(u);
     setDeleteModalOpen(true);
   };
 
-  const toggleCompany = (id: string) => {
-    setForm((prev) => {
-      const has = prev.company_ids.includes(id);
-      if (has) {
-        // Don't allow deselecting the last one
-        if (prev.company_ids.length === 1) return prev;
-        return { ...prev, company_ids: prev.company_ids.filter((c) => c !== id) };
-      }
-      return { ...prev, company_ids: [...prev.company_ids, id] };
-    });
+  const toggleExtraCompany = (companyId: string) => {
+    if (companyId === form.company_id) return;
+
+    setExtraCompanyIds((prev) =>
+      prev.includes(companyId) ? prev.filter((id) => id !== companyId) : [...prev, companyId]
+    );
   };
 
   const saving = saveMutation.isPending || deleteMutation.isPending;
-  const canSave = !!form.name && !!form.email && form.company_ids.length > 0 && (!selectedUser ? !!form.password : true);
+  const canSave = !!form.name && !!form.email && !!form.company_id && (!!selectedUser || !!form.password);
+  const otherCompanies = companies.filter((c) => c.id !== form.company_id);
 
   return (
     <div className="space-y-6">
@@ -242,50 +244,52 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Empresas</TableHead>
+                  <TableHead>Empresa(s)</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>
-                      {u.companies && u.companies.length > 1 ? (
+                {users.map((u) => {
+                  const companyCount = u.company_count ?? u.companies?.length ?? 1;
+
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.name}</TableCell>
+                      <TableCell>{u.email}</TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm">{u.company_name ?? '-'}</span>
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                            <Building2 className="h-3 w-3 mr-1" />
-                            +{u.companies.length - 1}
-                          </Badge>
+                          {companyCount > 1 && (
+                            <Badge variant="secondary" className="text-xs gap-1 px-1.5">
+                              <Building2 className="h-3 w-3" />
+                              +{companyCount - 1}
+                            </Badge>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-sm">{u.company_name ?? '-'}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{roleLabels[u.role] || u.role}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={u.active ? 'default' : 'secondary'}>
-                        {u.active ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDelete(u)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{roleLabels[u.role] || u.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={u.active ? 'default' : 'secondary'}>
+                          {u.active ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openDelete(u)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -301,12 +305,12 @@ export default function UsersPage() {
       </Card>
 
       {/* Create/Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <Dialog open={modalOpen} onOpenChange={(open) => { if (!saving) setModalOpen(open); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -330,49 +334,62 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
-              <Label>
-                Empresas
-                {form.company_ids.length > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground font-normal">
-                    {form.company_ids.length} selecionada{form.company_ids.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </Label>
-              <div className="rounded-md border divide-y max-h-48 overflow-y-auto">
-                {companies.map((c, idx) => {
-                  const checked = form.company_ids.includes(c.id);
-                  const isPrimary = form.company_ids[0] === c.id;
-                  return (
-                    <label
-                      key={c.id}
-                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors"
-                    >
+              <Label>Empresa principal</Label>
+              <Select
+                value={form.company_id}
+                onValueChange={(v) => {
+                  setExtraCompanyIds((prev) => {
+                    const withoutOldPrimary = prev.filter((id) => id !== form.company_id && id !== v);
+                    return [v, ...withoutOldPrimary];
+                  });
+                  setForm({ ...form, company_id: v });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {otherCompanies.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Acesso a outras empresas
+                </Label>
+                <div className="rounded-md border p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {otherCompanies.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2">
                       <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleCompany(c.id)}
-                        id={`company-${idx}`}
+                        id={`company-${c.id}`}
+                        checked={extraCompanyIds.includes(c.id)}
+                        onCheckedChange={() => toggleExtraCompany(c.id)}
+                        disabled={saving}
                       />
-                      <span className="flex-1 text-sm">{c.name}</span>
-                      {isPrimary && checked && (
-                        <span className="text-xs text-muted-foreground">principal</span>
-                      )}
-                    </label>
-                  );
-                })}
-                {companies.length === 0 && (
-                  <p className="px-3 py-2.5 text-sm text-muted-foreground">Nenhuma empresa cadastrada</p>
+                      <label
+                        htmlFor={`company-${c.id}`}
+                        className="text-sm cursor-pointer select-none flex-1"
+                      >
+                        {c.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {extraCompanyIds.filter((id) => id !== form.company_id).length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {extraCompanyIds.filter((id) => id !== form.company_id).length} empresa(s) adicional(is) selecionada(s)
+                  </p>
                 )}
               </div>
-              {form.company_ids.length > 1 && (
-                <p className="text-xs text-muted-foreground">
-                  A empresa principal é a primeira marcada. O usuário poderá alternar entre as empresas selecionadas após o login.
-                </p>
-              )}
-            </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancelar</Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saving || !canSave}>
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>

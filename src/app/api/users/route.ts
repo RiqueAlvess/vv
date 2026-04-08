@@ -67,13 +67,18 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
-    const normalizedUsers = users.map(({ company, user_companies, ...u }) => ({
-      ...u,
-      company_name: company.name,
-      companies: user_companies.length > 0
+    const normalizedUsers = users.map(({ company, user_companies, ...u }) => {
+      const companies = user_companies.length > 0
         ? user_companies.map((uc) => uc.company)
-        : [{ id: company.id, name: company.name }],
-    }));
+        : [{ id: company.id, name: company.name }];
+
+      return {
+        ...u,
+        company_name: company.name,
+        companies,
+        company_count: companies.length,
+      };
+    });
 
     return NextResponse.json({
       data: normalizedUsers,
@@ -117,9 +122,8 @@ export async function POST(request: Request) {
 
     const { name, email, password, role, company_id, company_ids } = parsed.data;
 
-    // Resolve the full list of companies: use company_ids if provided, else fallback to [company_id]
-    const allCompanyIds = company_ids && company_ids.length > 0 ? company_ids : [company_id];
-    // Primary company is always the first in the list
+    const normalizedCompanyIds = company_ids && company_ids.length > 0 ? company_ids : [company_id];
+    const allCompanyIds = Array.from(new Set(normalizedCompanyIds));
     const primaryCompanyId = allCompanyIds[0];
 
     // RH can only create users for their own company

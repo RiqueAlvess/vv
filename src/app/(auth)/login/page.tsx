@@ -63,16 +63,16 @@ export default function LoginPage() {
     }
   };
 
+  const getPostLoginPath = (role: string) => (role === 'ADM' ? '/companies' : '/dashboard');
+
   const redirectAfterLogin = (role: string) => {
-    if (role === 'ADM') {
-      router.push('/companies');
-    } else {
-      router.push('/dashboard');
-    }
+    router.push(getPostLoginPath(role));
   };
 
   const handleSelectCompany = async (companyId: string) => {
     setSwitchingId(companyId);
+    setError('');
+
     try {
       const res = await fetch('/api/auth/switch-company', {
         method: 'POST',
@@ -82,11 +82,15 @@ export default function LoginPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Erro ao selecionar empresa');
+        setError(data.error || 'Erro ao selecionar empresa');
+        return;
       }
-      window.location.href = '/dashboard';
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao selecionar empresa. Tente novamente.');
+
+      // Hard reload after company switch to guarantee auth/session context refresh.
+      window.location.href = getPostLoginPath(userRole);
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
+    } finally {
       setSwitchingId(null);
     }
   };
