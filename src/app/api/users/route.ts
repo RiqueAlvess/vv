@@ -58,6 +58,7 @@ export async function GET(request: Request) {
           sector_id: true,
           active: true,
           created_at: true,
+          _count: { select: { user_companies: true } },
         },
         orderBy: { created_at: 'desc' },
         skip: offset,
@@ -66,9 +67,10 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
-    const normalizedUsers = users.map(({ company, ...u }) => ({
+    const normalizedUsers = users.map(({ company, _count, ...u }) => ({
       ...u,
       company_name: company.name,
+      company_count: _count.user_companies,
     }));
 
     return NextResponse.json({
@@ -112,6 +114,9 @@ export async function POST(request: Request) {
     }
 
     const { name, email, password, role, company_id } = parsed.data;
+    const extra_company_ids: string[] = Array.isArray(body.extra_company_ids)
+      ? body.extra_company_ids.filter((id: unknown) => typeof id === 'string')
+      : [];
 
     // RH can only create users for their own company
     if (user.role === 'RH' && company_id !== user.company_id) {
@@ -144,6 +149,9 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
+    // Build the full list of company IDs (primary + extras)
+    const allCompanyIds = Array.from(new Set([company_id, ...extra_company_ids]));
+
     const newUser = await prisma.user.create({
       data: {
         name,
@@ -152,6 +160,12 @@ export async function POST(request: Request) {
         role,
         company_id,
         active: true,
+        user_companies: {
+          createMany: {
+            data: allCompanyIds.map((cid) => ({ company_id: cid })),
+            skipDuplicates: true,
+          },
+        },
       },
       select: {
         id: true,
@@ -171,7 +185,7 @@ export async function POST(request: Request) {
       company_id: newUser.company_id,
       target_id: newUser.id,
       target_type: 'user',
-      metadata: { name: newUser.name, role: newUser.role, email: newUser.email },
+      metadata: { name: newUser.name, role: newUser.role, email: newUser.email, company_count: allCompanyIds.length },
     });
 
     return NextResponse.json(newUser, { status: 201 });

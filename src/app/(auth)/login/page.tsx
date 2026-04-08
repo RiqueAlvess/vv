@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
-import { useAuth } from '@/hooks/use-auth';
 
 interface CompanyOption {
   id: string;
@@ -18,7 +17,6 @@ type Step = 'credentials' | 'select-company';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { switchCompany } = useAuth();
 
   const [step, setStep] = useState<Step>('credentials');
   const [email, setEmail] = useState('');
@@ -28,6 +26,14 @@ export default function LoginPage() {
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [userRole, setUserRole] = useState<string>('');
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+
+  const redirectAfterLogin = (role: string) => {
+    if (role === 'ADM') {
+      router.push('/companies');
+    } else {
+      router.push('/dashboard');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,21 +71,27 @@ export default function LoginPage() {
     }
   };
 
-  const redirectAfterLogin = (role: string) => {
-    if (role === 'ADM') {
-      router.push('/companies');
-    } else {
-      router.push('/dashboard');
-    }
-  };
-
   const handleSelectCompany = async (companyId: string) => {
     setSwitchingId(companyId);
+    setError('');
     try {
-      await switchCompany(companyId);
-      // switchCompany does a full page reload to /dashboard
+      const res = await fetch('/api/auth/switch-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ company_id: companyId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Erro ao selecionar empresa');
+        setSwitchingId(null);
+        return;
+      }
+
+      redirectAfterLogin(userRole);
     } catch {
-      setError('Erro ao selecionar empresa. Tente novamente.');
+      setError('Erro de conexão. Tente novamente.');
       setSwitchingId(null);
     }
   };
