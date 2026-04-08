@@ -20,6 +20,7 @@ export const userSchema = z.object({
   password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
   role: z.enum(['ADM', 'RH', 'LIDERANCA']),
   company_id: z.string().uuid(),
+  company_ids: z.array(z.string().uuid()).min(1).optional(),
 });
 
 export const campaignSchema = z.object({
