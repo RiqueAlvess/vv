@@ -54,11 +54,11 @@ export async function GET(request: Request) {
           email: true,
           role: true,
           company_id: true,
-          company: { select: { name: true } },
+          company: { select: { id: true, name: true } },
+          user_companies: { select: { company: { select: { id: true, name: true } } } },
           sector_id: true,
           active: true,
           created_at: true,
-          _count: { select: { user_companies: true } },
         },
         orderBy: { created_at: 'desc' },
         skip: offset,
@@ -67,11 +67,18 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
-    const normalizedUsers = users.map(({ company, _count, ...u }) => ({
-      ...u,
-      company_name: company.name,
-      company_count: _count.user_companies,
-    }));
+    const normalizedUsers = users.map(({ company, user_companies, ...u }) => {
+      const companies = user_companies.length > 0
+        ? user_companies.map((uc) => uc.company)
+        : [{ id: company.id, name: company.name }];
+
+      return {
+        ...u,
+        company_name: company.name,
+        companies,
+        company_count: companies.length,
+      };
+    });
 
     return NextResponse.json({
       data: normalizedUsers,
@@ -113,13 +120,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, email, password, role, company_id } = parsed.data;
-    const extra_company_ids: string[] = Array.isArray(body.extra_company_ids)
-      ? body.extra_company_ids.filter((id: unknown) => typeof id === 'string')
-      : [];
+    const { name, email, password, role, company_id, company_ids } = parsed.data;
+
+    const normalizedCompanyIds = company_ids && company_ids.length > 0 ? company_ids : [company_id];
+    const allCompanyIds = Array.from(new Set(normalizedCompanyIds));
+    const primaryCompanyId = allCompanyIds[0];
 
     // RH can only create users for their own company
-    if (user.role === 'RH' && company_id !== user.company_id) {
+    if (user.role === 'RH' && !allCompanyIds.includes(user.company_id)) {
       return NextResponse.json(
         { error: 'Você só pode criar usuários para sua própria empresa' },
         { status: 403 }
@@ -149,22 +157,16 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
-    // Build the full list of company IDs (primary + extras)
-    const allCompanyIds = Array.from(new Set([company_id, ...extra_company_ids]));
-
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         password_hash: passwordHash,
         role,
-        company_id,
+        company_id: primaryCompanyId,
         active: true,
         user_companies: {
-          createMany: {
-            data: allCompanyIds.map((cid) => ({ company_id: cid })),
-            skipDuplicates: true,
-          },
+          create: allCompanyIds.map((cid) => ({ company_id: cid })),
         },
       },
       select: {
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
         company_id: true,
         active: true,
         created_at: true,
+        user_companies: { select: { company: { select: { id: true, name: true } } } },
       },
     });
 
@@ -182,13 +185,18 @@ export async function POST(request: Request) {
       action: 'user.create',
       message: `Usuário criado: ${newUser.name} (${newUser.role})`,
       user_id: user.user_id,
+      user_email: user.email,
       company_id: newUser.company_id,
       target_id: newUser.id,
       target_type: 'user',
-      metadata: { name: newUser.name, role: newUser.role, email: newUser.email, company_count: allCompanyIds.length },
+      metadata: { name: newUser.name, role: newUser.role, email: newUser.email, company_ids: allCompanyIds },
     });
 
-    return NextResponse.json(newUser, { status: 201 });
+    const { user_companies, ...rest } = newUser;
+    return NextResponse.json({
+      ...rest,
+      companies: user_companies.map((uc) => uc.company),
+    }, { status: 201 });
   } catch (err) {
     console.error('Create user error:', err);
     log('ERROR', {

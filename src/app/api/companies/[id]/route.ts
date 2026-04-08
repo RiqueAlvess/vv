@@ -95,6 +95,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       action: 'company.update',
       message: `Empresa atualizada: ${company.name}`,
       user_id: user.user_id,
+      user_email: user.email,
       target_id: id,
       target_type: 'company',
       metadata: JSON.parse(JSON.stringify(updateData)),
@@ -145,6 +146,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       action: 'company.delete',
       message: `Empresa desativada (soft delete)`,
       user_id: user.user_id,
+      user_email: user.email,
       target_id: id,
       target_type: 'company',
     });

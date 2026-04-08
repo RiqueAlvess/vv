@@ -27,14 +27,6 @@ export default function LoginPage() {
   const [userRole, setUserRole] = useState<string>('');
   const [switchingId, setSwitchingId] = useState<string | null>(null);
 
-  const redirectAfterLogin = (role: string) => {
-    if (role === 'ADM') {
-      router.push('/companies');
-    } else {
-      router.push('/dashboard');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -71,9 +63,16 @@ export default function LoginPage() {
     }
   };
 
+  const getPostLoginPath = (role: string) => (role === 'ADM' ? '/companies' : '/dashboard');
+
+  const redirectAfterLogin = (role: string) => {
+    router.push(getPostLoginPath(role));
+  };
+
   const handleSelectCompany = async (companyId: string) => {
     setSwitchingId(companyId);
     setError('');
+
     try {
       const res = await fetch('/api/auth/switch-company', {
         method: 'POST',
@@ -81,17 +80,17 @@ export default function LoginPage() {
         credentials: 'include',
         body: JSON.stringify({ company_id: companyId }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || 'Erro ao selecionar empresa');
-        setSwitchingId(null);
         return;
       }
 
-      redirectAfterLogin(userRole);
+      // Hard reload after company switch to guarantee auth/session context refresh.
+      window.location.href = getPostLoginPath(userRole);
     } catch {
       setError('Erro de conexão. Tente novamente.');
+    } finally {
       setSwitchingId(null);
     }
   };

@@ -81,6 +81,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const updateData: Record<string, unknown> = {};
 
+    // company_ids for multi-company assignment (ADM only)
+    const newCompanyIds: string[] | undefined =
+      !isSelf && user.role === 'ADM' && Array.isArray(body.company_ids) && body.company_ids.length > 0
+        ? body.company_ids
+        : undefined;
+
     if (isSelf && user.role !== 'ADM') {
       // Self-update: limited fields
       if (body.name) updateData.name = body.name;
@@ -91,11 +97,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       if (body.email) updateData.email = body.email;
       if (body.password) updateData.password_hash = await hashPassword(body.password);
       if (body.role) updateData.role = body.role;
-      if (body.company_id) updateData.company_id = body.company_id;
+      // Use first of company_ids as primary, or explicit company_id
+      if (newCompanyIds) {
+        updateData.company_id = newCompanyIds[0];
+      } else if (body.company_id) {
+        updateData.company_id = body.company_id;
+      }
       if (body.sector_id !== undefined) updateData.sector_id = body.sector_id;
     }
 
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && !newCompanyIds) {
       return NextResponse.json(
         { error: 'Nenhum campo para atualizar' },
         { status: 400 }
@@ -115,6 +126,17 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Sync UserCompany records if company_ids provided
+    if (newCompanyIds) {
+      await prisma.$transaction([
+        prisma.userCompany.deleteMany({ where: { user_id: id } }),
+        prisma.userCompany.createMany({
+          data: newCompanyIds.map((cid) => ({ user_id: id, company_id: cid })),
+          skipDuplicates: true,
+        }),
+      ]);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
@@ -127,6 +149,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         sector_id: true,
         active: true,
         created_at: true,
+        user_companies: { select: { company: { select: { id: true, name: true } } } },
       },
     });
 
@@ -134,13 +157,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
       action: 'user.update',
       message: `Usuário atualizado: ${updatedUser.name}`,
       user_id: user.user_id,
+      user_email: user.email,
       company_id: updatedUser.company_id,
       target_id: id,
       target_type: 'user',
-      metadata: { updated_fields: Object.keys(updateData) },
+      metadata: { updated_fields: Object.keys(updateData), company_ids: newCompanyIds },
     });
 
-    return NextResponse.json(updatedUser);
+    const { user_companies, ...rest } = updatedUser;
+    return NextResponse.json({
+      ...rest,
+      companies: user_companies.length > 0
+        ? user_companies.map((uc) => uc.company)
+        : [{ id: updatedUser.company_id, name: '' }],
+    });
   } catch (err) {
     console.error('Update user error:', err);
     return NextResponse.json(
@@ -185,6 +215,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       action: 'user.delete',
       message: `Usuário desativado (soft delete)`,
       user_id: user.user_id,
+      user_email: user.email,
       target_id: id,
       target_type: 'user',
     });
