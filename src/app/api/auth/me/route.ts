@@ -31,9 +31,6 @@ export async function GET(request: Request) {
         sector_id: true,
         active: true,
         created_at: true,
-        company: {
-          select: { id: true, name: true, cnpj: true, cnae: true },
-        },
         user_companies: {
           select: {
             company: { select: { id: true, name: true } },
@@ -52,12 +49,27 @@ export async function GET(request: Request) {
 
     const companies = userData.user_companies.length > 0
       ? userData.user_companies.map((uc) => uc.company)
-      : [{ id: userData.company.id, name: userData.company.name }];
+      : [{ id: userData.company_id, name: '' }];
+
+    // Use the active company_id from the JWT (may differ from DB primary after company switch)
+    const activeCompanyId = user.company_id;
+
+    const activeCompany = await prisma.company.findUnique({
+      where: { id: activeCompanyId },
+      select: { id: true, name: true, cnpj: true, cnae: true },
+    });
 
     return NextResponse.json({
-      ...userData,
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      company_id: activeCompanyId,
+      sector_id: userData.sector_id,
+      active: userData.active,
+      created_at: userData.created_at,
+      company: activeCompany,
       companies,
-      user_companies: undefined,
     });
   } catch (err) {
     console.error('Get me error:', err);
