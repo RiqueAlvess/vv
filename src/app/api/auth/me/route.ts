@@ -50,7 +50,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const companies = userData.user_companies.map((uc) => uc.company);
+    const companies = userData.user_companies.length > 0
+      ? userData.user_companies.map((uc) => uc.company)
+      : [{ id: userData.company.id, name: userData.company.name }];
 
     return NextResponse.json({
       ...userData,

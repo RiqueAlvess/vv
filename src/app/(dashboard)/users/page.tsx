@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
@@ -16,7 +17,7 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
-import { Plus, Pencil, Trash2, Users, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Search, Building2 } from 'lucide-react';
 import type { User, Company } from '@/types';
 
 const PAGE_SIZE = 20;
@@ -28,7 +29,7 @@ const roleLabels: Record<string, string> = {
 };
 
 interface UserPage {
-  data: User[];
+  data: (User & { companies: { id: string; name: string }[] })[];
   pagination: { page: number; totalPages: number; total: number; limit: number };
 }
 
@@ -45,7 +46,13 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'RH', company_id: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'RH',
+    company_ids: [] as string[],
+  });
 
   // Debounce search
   useEffect(() => {
@@ -88,25 +95,25 @@ export default function UsersPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { ...form };
+      const { company_ids, ...rest } = form;
+      const payload: Record<string, unknown> = {
+        ...rest,
+        company_id: company_ids[0],
+        company_ids,
+      };
+
       if (selectedUser && !payload.password) {
-        const { password: _, ...rest } = payload;
-        const res = await put(`/api/users/${selectedUser.id}`, rest);
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Erro ao atualizar usuário');
-        }
-        return 'updated';
-      } else {
-        const endpoint = selectedUser ? `/api/users/${selectedUser.id}` : '/api/users';
-        const method = selectedUser ? put : post;
-        const res = await method(endpoint, payload);
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Erro ao salvar usuário');
-        }
-        return selectedUser ? 'updated' : 'created';
+        delete payload.password;
       }
+
+      const endpoint = selectedUser ? `/api/users/${selectedUser.id}` : '/api/users';
+      const method = selectedUser ? put : post;
+      const res = await method(endpoint, payload);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao salvar usuário');
+      }
+      return selectedUser ? 'updated' : 'created';
     },
     onSuccess: (result) => {
       success(result === 'updated' ? 'Usuário atualizado' : 'Usuário criado');
@@ -142,13 +149,28 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setSelectedUser(null);
-    setForm({ name: '', email: '', password: '', role: 'RH', company_id: companies[0]?.id || '' });
+    setForm({
+      name: '',
+      email: '',
+      password: '',
+      role: 'RH',
+      company_ids: companies[0] ? [companies[0].id] : [],
+    });
     setModalOpen(true);
   };
 
-  const openEdit = (u: User) => {
+  const openEdit = (u: User & { companies?: { id: string; name: string }[] }) => {
     setSelectedUser(u);
-    setForm({ name: u.name, email: u.email, password: '', role: u.role, company_id: u.company_id });
+    const existingIds = u.companies && u.companies.length > 0
+      ? u.companies.map((c) => c.id)
+      : [u.company_id];
+    setForm({
+      name: u.name,
+      email: u.email,
+      password: '',
+      role: u.role,
+      company_ids: existingIds,
+    });
     setModalOpen(true);
   };
 
@@ -157,7 +179,20 @@ export default function UsersPage() {
     setDeleteModalOpen(true);
   };
 
+  const toggleCompany = (id: string) => {
+    setForm((prev) => {
+      const has = prev.company_ids.includes(id);
+      if (has) {
+        // Don't allow deselecting the last one
+        if (prev.company_ids.length === 1) return prev;
+        return { ...prev, company_ids: prev.company_ids.filter((c) => c !== id) };
+      }
+      return { ...prev, company_ids: [...prev.company_ids, id] };
+    });
+  };
+
   const saving = saveMutation.isPending || deleteMutation.isPending;
+  const canSave = !!form.name && !!form.email && form.company_ids.length > 0 && (!selectedUser ? !!form.password : true);
 
   return (
     <div className="space-y-6">
@@ -207,7 +242,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Empresa</TableHead>
+                  <TableHead>Empresas</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -218,7 +253,19 @@ export default function UsersPage() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.company_name ?? '-'}</TableCell>
+                    <TableCell>
+                      {u.companies && u.companies.length > 1 ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{u.company_name ?? '-'}</span>
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            +{u.companies.length - 1}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <span className="text-sm">{u.company_name ?? '-'}</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{roleLabels[u.role] || u.role}</Badge>
                     </TableCell>
@@ -255,7 +302,7 @@ export default function UsersPage() {
 
       {/* Create/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
           </DialogHeader>
@@ -284,20 +331,49 @@ export default function UsersPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {companies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>
+                Empresas
+                {form.company_ids.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">
+                    {form.company_ids.length} selecionada{form.company_ids.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </Label>
+              <div className="rounded-md border divide-y max-h-48 overflow-y-auto">
+                {companies.map((c, idx) => {
+                  const checked = form.company_ids.includes(c.id);
+                  const isPrimary = form.company_ids[0] === c.id;
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleCompany(c.id)}
+                        id={`company-${idx}`}
+                      />
+                      <span className="flex-1 text-sm">{c.name}</span>
+                      {isPrimary && checked && (
+                        <span className="text-xs text-muted-foreground">principal</span>
+                      )}
+                    </label>
+                  );
+                })}
+                {companies.length === 0 && (
+                  <p className="px-3 py-2.5 text-sm text-muted-foreground">Nenhuma empresa cadastrada</p>
+                )}
+              </div>
+              {form.company_ids.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  A empresa principal é a primeira marcada. O usuário poderá alternar entre as empresas selecionadas após o login.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saving || !form.name || !form.email || !form.company_id || (!selectedUser && !form.password)}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saving || !canSave}>
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>

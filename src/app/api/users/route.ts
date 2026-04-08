@@ -54,7 +54,8 @@ export async function GET(request: Request) {
           email: true,
           role: true,
           company_id: true,
-          company: { select: { name: true } },
+          company: { select: { id: true, name: true } },
+          user_companies: { select: { company: { select: { id: true, name: true } } } },
           sector_id: true,
           active: true,
           created_at: true,
@@ -66,9 +67,12 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
-    const normalizedUsers = users.map(({ company, ...u }) => ({
+    const normalizedUsers = users.map(({ company, user_companies, ...u }) => ({
       ...u,
       company_name: company.name,
+      companies: user_companies.length > 0
+        ? user_companies.map((uc) => uc.company)
+        : [{ id: company.id, name: company.name }],
     }));
 
     return NextResponse.json({
@@ -111,10 +115,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, email, password, role, company_id } = parsed.data;
+    const { name, email, password, role, company_id, company_ids } = parsed.data;
+
+    // Resolve the full list of companies: use company_ids if provided, else fallback to [company_id]
+    const allCompanyIds = company_ids && company_ids.length > 0 ? company_ids : [company_id];
+    // Primary company is always the first in the list
+    const primaryCompanyId = allCompanyIds[0];
 
     // RH can only create users for their own company
-    if (user.role === 'RH' && company_id !== user.company_id) {
+    if (user.role === 'RH' && !allCompanyIds.includes(user.company_id)) {
       return NextResponse.json(
         { error: 'Você só pode criar usuários para sua própria empresa' },
         { status: 403 }
@@ -150,8 +159,11 @@ export async function POST(request: Request) {
         email,
         password_hash: passwordHash,
         role,
-        company_id,
+        company_id: primaryCompanyId,
         active: true,
+        user_companies: {
+          create: allCompanyIds.map((cid) => ({ company_id: cid })),
+        },
       },
       select: {
         id: true,
@@ -161,6 +173,7 @@ export async function POST(request: Request) {
         company_id: true,
         active: true,
         created_at: true,
+        user_companies: { select: { company: { select: { id: true, name: true } } } },
       },
     });
 
@@ -172,10 +185,14 @@ export async function POST(request: Request) {
       company_id: newUser.company_id,
       target_id: newUser.id,
       target_type: 'user',
-      metadata: { name: newUser.name, role: newUser.role, email: newUser.email },
+      metadata: { name: newUser.name, role: newUser.role, email: newUser.email, company_ids: allCompanyIds },
     });
 
-    return NextResponse.json(newUser, { status: 201 });
+    const { user_companies, ...rest } = newUser;
+    return NextResponse.json({
+      ...rest,
+      companies: user_companies.map((uc) => uc.company),
+    }, { status: 201 });
   } catch (err) {
     console.error('Create user error:', err);
     log('ERROR', {
