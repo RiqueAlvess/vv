@@ -78,6 +78,7 @@ export default function CampaignDetailPage() {
   const campaignId = params.id as string;
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [companyData, setCompanyData] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -161,6 +162,14 @@ export default function CampaignDetailPage() {
     const interval = setInterval(fetchMetrics, 30_000);
     return () => clearInterval(interval);
   }, [campaign?.status, fetchMetrics]);
+
+  useEffect(() => {
+    if (!campaign?.company_id) return;
+    get(`/api/companies/${campaign.company_id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setCompanyData({ name: data.name, logo_url: data.logo_url }))
+      .catch(() => {});
+  }, [campaign?.company_id, get]);
 
   const handleCSVUpload = async (rows: Array<{ unidade: string; setor: string; cargo: string }>) => {
     setActionLoading(true);
@@ -687,6 +696,10 @@ export default function CampaignDetailPage() {
           onOpenChange={setQrViewModalOpen}
           surveyUrl={surveyUrl}
           campaignName={campaign.name}
+          campaignStartDate={campaign.start_date}
+          campaignEndDate={campaign.end_date}
+          companyName={companyData?.name}
+          companyLogoUrl={companyData?.logo_url ?? undefined}
         />
       )}
 
