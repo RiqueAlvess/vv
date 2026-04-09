@@ -35,9 +35,9 @@ export default function ArticleViewPage() {
   const renderMarkdown = (text: string) =>
     text
       .replace(/<iframe[^>]*>.*?<\/iframe>/gs, (match) => match)
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+      .replace(/!\[([^\]]*)\]\(((?:[^)(]|\([^)]*\))+)\)/g,
         '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:12px 0;display:block" />')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g,
+      .replace(/\[([^\]]+)\]\(((?:[^)(]|\([^)]*\))+)\)/g,
         '<a href="$2" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline">$1</a>')
       .replace(/^### (.+)$/gm,
         '<h3 style="font-size:1rem;font-weight:600;margin:1.2rem 0 0.4rem">$1</h3>')

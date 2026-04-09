@@ -105,9 +105,9 @@ function ToolbarEditor({ value, onChange, placeholder }: ToolbarEditorProps) {
   const renderMarkdown = (text: string) => {
     return text
       .replace(/<iframe[^>]*>.*?<\/iframe>/gs, (match) => match)
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+      .replace(/!\[([^\]]*)\]\(((?:[^)(]|\([^)]*\))+)\)/g,
         '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:8px 0" />')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g,
+      .replace(/\[([^\]]+)\]\(((?:[^)(]|\([^)]*\))+)\)/g,
         '<a href="$2" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline">$1</a>')
       .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:600;margin:1rem 0 0.4rem">$1</h3>')
       .replace(/^## (.+)$/gm, '<h2 style="font-size:1.2rem;font-weight:700;margin:1.4rem 0 0.6rem">$1</h2>')
