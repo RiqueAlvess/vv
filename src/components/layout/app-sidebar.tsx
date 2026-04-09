@@ -31,10 +31,6 @@ const navItems = {
     { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],
-  LIDERANCA: [
-    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
-  ],
 };
 
 export function AppSidebar() {
@@ -109,7 +105,7 @@ export function AppSidebar() {
     }
   };
 
-  const items = navItems[user?.role as keyof typeof navItems] || navItems.LIDERANCA;
+  const items = navItems[user?.role as keyof typeof navItems] || navItems.RH;
   const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
   const hasMultipleCompanies = (user?.companies?.length ?? 0) > 1;
 
