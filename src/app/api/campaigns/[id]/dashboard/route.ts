@@ -123,7 +123,11 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     if (isUnfiltered) {
       const cached = await getCampaignMetricsWithCache(id, campaign.status);
-      if (cached) return NextResponse.json(cached);
+      if (cached) {
+        // Always use fresh employee count — cache may have been built before CSV upload
+        const freshCount = await prisma.campaignEmployee.count({ where: { campaign_id: id } });
+        return NextResponse.json({ ...cached, total_employees: freshCount, total_invited: freshCount });
+      }
     }
 
     if (campaign.status !== 'closed') {
