@@ -110,8 +110,8 @@ export function AppSidebar() {
   const hasMultipleCompanies = (user?.companies?.length ?? 0) > 1;
 
   return (
-      <Sidebar className="bg-[#0D3D4F]">
-      <SidebarHeader className="border-b border-[#1AA278]/30 bg-[#0D3D4F]">
+      <Sidebar className="bg-[#144660]">
+      <SidebarHeader className="border-b border-[#1ff28d]/30 bg-[#144660]">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="h-9 w-full min-w-0"><LogoImage /></div>
         </div>
@@ -124,7 +124,7 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + '/')}>
-                    <Link href={item.url} className="text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors data-[active=true]:bg-[#1AA278] data-[active=true]:text-[#0D3D4F] data-[active=true]:font-semibold data-[active=true]:rounded-lg">
+                    <Link href={item.url} className="text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors data-[active=true]:bg-[#1ff28d] data-[active=true]:text-[#144660] data-[active=true]:font-semibold data-[active=true]:rounded-lg">
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -142,41 +142,41 @@ export function AppSidebar() {
           {/* Floating menu — appears above the button */}
           {menuOpen && (
             <div
-              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#1AA278]/30 bg-[#0D3D4F] shadow-lg"
+              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#1ff28d]/30 bg-[#144660] shadow-lg"
               style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}
             >
               <div className="py-1">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1AA278]/20 hover:text-[#1AA278] transition-colors"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1ff28d]/20 hover:text-[#1ff28d] transition-colors"
                   onClick={() => {
                     setMenuOpen(false);
                     setPasswordOpen(true);
                   }}
                 >
-                  <KeyRound className="h-4 w-4 text-[#1AA278]" />
+                  <KeyRound className="h-4 w-4 text-[#1ff28d]" />
                   <span>Mudar Senha</span>
                 </button>
 
                 {hasMultipleCompanies && (
                   <>
-                    <div className="my-1 mx-2 h-px bg-[#1AA278]/30" />
+                    <div className="my-1 mx-2 h-px bg-[#1ff28d]/30" />
                     <button
                       type="button"
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1AA278]/20 hover:text-[#1AA278] transition-colors"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1ff28d]/20 hover:text-[#1ff28d] transition-colors"
                       onClick={() => {
                         setMenuOpen(false);
                         setSwitchError('');
                         setCompanyOpen(true);
                       }}
                     >
-                      <ArrowLeftRight className="h-4 w-4 text-[#1AA278]" />
+                      <ArrowLeftRight className="h-4 w-4 text-[#1ff28d]" />
                       <span>Alterar Empresa</span>
                     </button>
                   </>
                 )}
 
-                <div className="my-1 mx-2 h-px bg-[#1AA278]/30" />
+                <div className="my-1 mx-2 h-px bg-[#1ff28d]/30" />
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -199,7 +199,7 @@ export function AppSidebar() {
             className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-white hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
           >
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="bg-[#1AA278]/20 text-[#1AA278] text-xs">
+              <AvatarFallback className="bg-[#1ff28d]/20 text-[#1ff28d] text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -297,20 +297,20 @@ export function AppSidebar() {
                   onClick={() => handleSwitchCompany(company.id)}
                   className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-60 ${
                     isCurrent
-                      ? 'border-[#1AA278]/50 bg-[#1AA278]/10 font-medium'
-                      : 'border-border hover:bg-accent hover:border-[#1AA278]/40'
+                      ? 'border-[#1ff28d]/50 bg-[#1ff28d]/10 font-medium'
+                      : 'border-border hover:bg-accent hover:border-[#1ff28d]/40'
                   }`}
                 >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0D3D4F]/10">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#144660]/10">
                     {isSwitching ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-[#0D3D4F]" />
+                      <Loader2 className="h-4 w-4 animate-spin text-[#144660]" />
                     ) : (
-                      <Building2 className="h-4 w-4 text-[#0D3D4F]" />
+                      <Building2 className="h-4 w-4 text-[#144660]" />
                     )}
                   </div>
                   <span className="flex-1 truncate">{company.name}</span>
                   {isCurrent && (
-                    <span className="text-xs text-[#1AA278] font-medium">atual</span>
+                    <span className="text-xs text-[#1ff28d] font-medium">atual</span>
                   )}
                 </button>
               );

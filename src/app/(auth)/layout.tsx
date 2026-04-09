@@ -32,7 +32,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           {/* Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0D3D4F]/72 via-[#0D3D4F]/52 to-[#1A2E35]/42" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#144660]/72 via-[#144660]/52 to-[#0d2a3d]/42" />
 
           {/* Top — logo */}
           <div className="relative z-10 flex items-center gap-3">
@@ -52,17 +52,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <div className="flex items-center gap-6 pt-2">
               <div className="text-center">
                 <p className="text-white font-bold text-xl">NR-1</p>
-                <p className="text-[#00C896] text-xs">Compliance</p>
+                <p className="text-[#1ff28d] text-xs">Compliance</p>
               </div>
               <div className="h-8 w-px bg-white/20" />
               <div className="text-center">
                 <p className="text-white font-bold text-xl">HSE-IT</p>
-                <p className="text-[#00C896] text-xs">Instrumento</p>
+                <p className="text-[#1ff28d] text-xs">Instrumento</p>
               </div>
               <div className="h-8 w-px bg-white/20" />
               <div className="text-center">
                 <p className="text-white font-bold text-xl">LGPD</p>
-                <p className="text-[#00C896] text-xs">Conformidade</p>
+                <p className="text-[#1ff28d] text-xs">Conformidade</p>
               </div>
             </div>
           </div>
