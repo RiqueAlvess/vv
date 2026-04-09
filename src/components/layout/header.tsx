@@ -27,18 +27,18 @@ export function Header() {
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[#E5E7EB] bg-white px-4 text-[#1A1A1A]">
-      <SidebarTrigger className="-ml-1 hover:text-[#0D3D4F]" />
+      <SidebarTrigger className="-ml-1 hover:text-[#144660]" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage className="font-semibold text-[#0D3D4F]">{getTitle()}</BreadcrumbPage>
+            <BreadcrumbPage className="font-semibold text-[#144660]">{getTitle()}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       <div className="ml-auto flex items-center gap-2">
         {user?.company_name && (
-          <Badge className="border-[#00C896]/30 bg-[#E8FBF5] text-xs text-[#00B082] hover:bg-[#E8FBF5] flex items-center gap-1.5">
+          <Badge className="border-[#1ff28d]/30 bg-[#ebf0eb] text-xs text-[#17d47e] hover:bg-[#ebf0eb] flex items-center gap-1.5">
             {user?.company_logo_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img

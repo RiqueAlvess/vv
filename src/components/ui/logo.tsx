@@ -12,7 +12,7 @@ export function Logo({
   size?: number;
   variant?: 'light' | 'dark';
 }) {
-  const textColor = variant === 'light' ? '#FFFFFF' : '#0D3D4F';
+  const textColor = variant === 'light' ? '#FFFFFF' : '#144660';
   // Maintain aspect ratio: viewBox 380×56, height-based scaling
   const width = Math.round((size * 380) / 56);
 
@@ -35,7 +35,7 @@ export function Logo({
         letterSpacing="-1"
       >
         <tspan fill={textColor}>Vivamente</tspan>
-        <tspan fill="#1AA278">360</tspan>
+        <tspan fill="#1ff28d">360</tspan>
       </text>
     </svg>
   );

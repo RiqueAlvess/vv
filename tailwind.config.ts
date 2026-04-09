@@ -6,22 +6,22 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#0D3D4F',
-          light: '#1B5F75',
+          DEFAULT: '#144660',
+          light: '#1a5a80',
           foreground: '#FFFFFF',
         },
         accent: {
-          DEFAULT: '#1AA278',
-          hover: '#158c66',
-          light: '#E6F5F0',
+          DEFAULT: '#1ff28d',
+          hover: '#17d47e',
+          light: '#ebf0eb',
           foreground: '#FFFFFF',
         },
         brand: {
-          teal: '#0D3D4F',
-          green: '#1AA278',
+          teal: '#144660',
+          green: '#1ff28d',
           white: '#FFFFFF',
-          gray: '#F7F7F7',
-          dark: '#1A2E35',
+          gray: '#ebf0eb',
+          dark: '#0d2a3d',
           text: '#1A1A1A',
           muted: '#6B7280',
         },

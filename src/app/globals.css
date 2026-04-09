@@ -42,15 +42,15 @@
 }
 
 :root {
-  /* Asta Real Brand */
-  --color-primary: #0D3D4F;
-  --color-primary-light: #1B5F75;
-  --color-accent: #1AA278;
-  --color-accent-hover: #158c66;
-  --color-accent-light: #E6F5F0;
+  /* DNV Brand */
+  --color-primary: #144660;
+  --color-primary-light: #1a5a80;
+  --color-accent: #1ff28d;
+  --color-accent-hover: #17d47e;
+  --color-accent-light: #ebf0eb;
   --color-bg: #FFFFFF;
-  --color-bg-secondary: #F7F7F7;
-  --color-bg-dark: #1A2E35;
+  --color-bg-secondary: #ebf0eb;
+  --color-bg-dark: #0d2a3d;
   --color-text: #1A1A1A;
   --color-text-muted: #6B7280;
   --color-text-inverse: #FFFFFF;
@@ -63,33 +63,33 @@
   --card-foreground: 0 0% 10%;
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 10%;
-  --primary: 162 72% 37%;           /* #1AA278 */
+  --primary: 151 89% 54%;           /* #1ff28d */
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 97%;
   --secondary-foreground: 0 0% 10%;
   --muted: 0 0% 97%;
   --muted-foreground: 220 9% 46%;
-  --accent: 162 72% 37%;            /* #1AA278 */
+  --accent: 151 89% 54%;            /* #1ff28d */
   --accent-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 162 72% 37%;              /* green focus ring */
+  --ring: 151 89% 54%;              /* green focus ring */
   --chart-1: 199 66% 19%;
   --chart-2: 162 72% 37%;
   --chart-3: 162 72% 33%;
   --chart-4: 199 50% 30%;
   --chart-5: 162 60% 28%;
   --radius: 0.5rem;
-  --sidebar: hsl(199 66% 19%);
+  --sidebar: hsl(200 65% 23%);
   --sidebar-foreground: hsl(0 0% 100%);
-  --sidebar-primary: hsl(162 72% 37%);
-  --sidebar-primary-foreground: hsl(199 66% 19%);
-  --sidebar-accent: hsl(162 72% 37% / 0.2);
-  --sidebar-accent-foreground: hsl(162 72% 37%);
-  --sidebar-border: hsl(162 72% 37% / 0.3);
-  --sidebar-ring: hsl(162 72% 37%);
+  --sidebar-primary: hsl(151 89% 54%);
+  --sidebar-primary-foreground: hsl(200 65% 23%);
+  --sidebar-accent: hsl(151 89% 54% / 0.2);
+  --sidebar-accent-foreground: hsl(151 89% 54%);
+  --sidebar-border: hsl(151 89% 54% / 0.3);
+  --sidebar-ring: hsl(151 89% 54%);
 }
 
 .dark {
