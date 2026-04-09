@@ -36,7 +36,7 @@ npm run seed:admin
 
 This creates:
 - Company: **Empresa Admin** (CNPJ: 00.000.000/0000-00)
-- User: **admin@admin.com** / **administrador.230H** (role: ADM)
+
 
 ## Development
 
@@ -76,8 +76,3 @@ npm run deploy:update
 npm run reset:server
 ```
 
-### Default admin credentials
-
-- Email: `admin@admin.com`
-- Password: `administrador.230H`
-- **Change the password immediately after first login.**
