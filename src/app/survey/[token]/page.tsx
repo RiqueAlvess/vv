@@ -65,7 +65,6 @@ type SurveyStep =
   | 'done'
   | 'declined';
 
-/** Format CPF input as 000.000.000-00 */
 function formatCpf(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 3) return digits;
@@ -98,7 +97,10 @@ export default function SurveyPage() {
 
   const questionsPerPage = 5;
   const totalPages = Math.ceil(QUESTIONS.length / questionsPerPage);
-  const currentQuestions = QUESTIONS.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
+  const currentQuestions = QUESTIONS.slice(
+    currentPage * questionsPerPage,
+    (currentPage + 1) * questionsPerPage,
+  );
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / QUESTIONS.length) * 100;
 
@@ -147,7 +149,6 @@ export default function SurveyPage() {
         return;
       }
       setValidationToken(data.validation_token);
-      // Pre-populate hierarchy from CSV registration (user can still change)
       if (data.suggested_unit_id) setSelectedUnitId(data.suggested_unit_id);
       if (data.suggested_sector_id) setSelectedSectorId(data.suggested_sector_id);
       if (data.suggested_position_id) setSelectedPositionId(data.suggested_position_id);
@@ -163,7 +164,6 @@ export default function SurveyPage() {
       setErrorMsg('Por favor, responda todas as questões');
       return;
     }
-
     setStep('submitting');
     try {
       const res = await fetch(`/api/survey/${token}`, {
@@ -180,11 +180,9 @@ export default function SurveyPage() {
           consent_accepted: true,
         }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         setErrorMsg(data.error || 'Erro ao enviar respostas');
-        // Token expired — go back to CPF verification
         if (res.status === 401) {
           setValidationToken('');
           setCpfInput('');
@@ -194,7 +192,6 @@ export default function SurveyPage() {
         }
         return;
       }
-
       setStep('done');
     } catch {
       setErrorMsg('Erro de conexão');
@@ -202,7 +199,6 @@ export default function SurveyPage() {
     }
   }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, validationToken]);
 
-  // ── Loading ──────────────────────────────────────────────────────────────
   if (step === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -219,7 +215,6 @@ export default function SurveyPage() {
     );
   }
 
-  // ── Invalid ───────────────────────────────────────────────────────────────
   if (step === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -241,7 +236,9 @@ export default function SurveyPage() {
           <CardContent className="py-12">
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Obrigado!</h2>
-            <p className="text-muted-foreground">Sua resposta foi registrada com sucesso. Você pode fechar esta página.</p>
+            <p className="text-muted-foreground">
+              Sua resposta foi registrada com sucesso. Você pode fechar esta página.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -256,11 +253,10 @@ export default function SurveyPage() {
             <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold">Participação recusada</h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado foi coletado.
+              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado
+              foi coletado.
             </p>
-            <p className="text-muted-foreground text-sm">
-              Você pode fechar esta página.
-            </p>
+            <p className="text-muted-foreground text-sm">Você pode fechar esta página.</p>
           </CardContent>
         </Card>
       </div>
@@ -300,8 +296,10 @@ export default function SurveyPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Sua participação é validada pelo CPF cadastrado pela sua empresa.
-                Após a conclusão da pesquisa, seu CPF é <strong className="text-foreground">excluído permanentemente</strong> da base de dados — não é possível recuperá-lo.
+                Sua participação é validada pelo CPF cadastrado pela sua empresa. Após a conclusão da
+                pesquisa, seu CPF é{' '}
+                <strong className="text-foreground">excluído permanentemente</strong> da base de dados
+                — não é possível recuperá-lo.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF</Label>
@@ -365,37 +363,36 @@ export default function SurveyPage() {
                   Esta pesquisa faz parte de uma iniciativa para melhorar o ambiente de trabalho e
                   promover mais saúde e bem-estar para todos.
                 </p>
-
                 <p className="text-muted-foreground">
-                  O questionário é simples e rápido, com 35 perguntas sobre o seu dia a dia no trabalho,
-                  como organização das atividades, comunicação e apoio. Não existem respostas certas ou
-                  erradas — o importante é sua percepção.
+                  O questionário é simples e rápido, com 35 perguntas sobre o seu dia a dia no
+                  trabalho, como organização das atividades, comunicação e apoio. Não existem respostas
+                  certas ou erradas — o importante é sua percepção.
                 </p>
-
                 <p className="text-muted-foreground">
                   <strong className="text-foreground">Sua participação é muito importante</strong> —
                   quanto mais pessoas responderem, mais efetivas serão as melhorias.
                 </p>
-
                 <div className="space-y-2">
                   <h3 className="font-semibold text-foreground">Sua privacidade está protegida</h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Questionário é anonimizado</li>
-                    <li>Seu CPF será usado apenas para liberar o acesso e evitar respostas duplicadas</li>
+                    <li>
+                      Seu CPF será usado apenas para liberar o acesso e evitar respostas duplicadas
+                    </li>
                     <li>Após o envio, ele é excluído definitivamente</li>
                     <li>As respostas são analisadas apenas de forma coletiva, nunca individual</li>
                   </ul>
                 </div>
-
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground">Os resultados serão utilizados exclusivamente para:</h3>
+                  <h3 className="font-semibold text-foreground">
+                    Os resultados serão utilizados exclusivamente para:
+                  </h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Identificar oportunidades de melhoria no ambiente de trabalho</li>
                     <li>Promover ações de saúde e bem-estar</li>
                     <li>Atender às exigências legais</li>
                   </ul>
                 </div>
-
                 <p className="text-muted-foreground">
                   Ao continuar, você concorda em participar da pesquisa e contribuir para a construção
                   de um ambiente de trabalho melhor para todos!
@@ -415,7 +412,11 @@ export default function SurveyPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button variant="outline" className="sm:flex-none" onClick={() => setStep('declined')}>
+                <Button
+                  variant="outline"
+                  className="sm:flex-none"
+                  onClick={() => setStep('declined')}
+                >
                   Não aceito — sair
                 </Button>
                 <Button
@@ -448,10 +449,14 @@ export default function SurveyPage() {
                   Sexo <span className="text-destructive">*</span>
                 </Label>
                 <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
                     {GENDER_OPTIONS.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                      <SelectItem key={g.value} value={g.value}>
+                        {g.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -461,19 +466,29 @@ export default function SurveyPage() {
                   Faixa Etária <span className="text-destructive">*</span>
                 </Label>
                 <Select value={ageRange} onValueChange={setAgeRange}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
                     {AGE_RANGES.map((a) => (
-                      <SelectItem key={a} value={a}>{a} anos</SelectItem>
+                      <SelectItem key={a} value={a}>
+                        {a} anos
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              {errorMsg && (
-                <p className="text-sm text-destructive">{errorMsg}</p>
-              )}
+              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { setErrorMsg(''); setStep('consent'); }}>Voltar</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setErrorMsg('');
+                    setStep('consent');
+                  }}
+                >
+                  Voltar
+                </Button>
                 <Button
                   className="flex-1"
                   disabled={!gender || !ageRange}
@@ -501,8 +516,12 @@ export default function SurveyPage() {
           <>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>{answeredCount} de {QUESTIONS.length} questões respondidas</span>
-                <span className="text-muted-foreground">Pág. {currentPage + 1}/{totalPages}</span>
+                <span>
+                  {answeredCount} de {QUESTIONS.length} questões respondidas
+                </span>
+                <span className="text-muted-foreground">
+                  Pág. {currentPage + 1}/{totalPages}
+                </span>
               </div>
               <Progress value={progress} />
             </div>
@@ -527,3 +546,54 @@ export default function SurveyPage() {
                         setResponses((prev) => ({ ...prev, [`q${q.id}`]: parseInt(v) }));
                         setErrorMsg('');
                       }}
+                      className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2"
+                    >
+                      {LIKERT_SCALE.map((option) => (
+                        <div key={option.value} className="flex items-center">
+                          <RadioGroupItem
+                            value={option.value.toString()}
+                            id={`q${q.id}-${option.value}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`q${q.id}-${option.value}`}
+                            className="w-full cursor-pointer rounded-md border px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground hover:bg-muted transition-colors select-none"
+                          >
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-2">
+              {currentPage > 0 && (
+                <Button variant="outline" onClick={() => setCurrentPage((p) => p - 1)}>
+                  Anterior
+                </Button>
+              )}
+              <div className="flex-1" />
+              {currentPage < totalPages - 1 ? (
+                <Button onClick={() => setCurrentPage((p) => p + 1)}>Próximo</Button>
+              ) : (
+                <Button onClick={handleSubmit} disabled={step === 'submitting'}>
+                  {step === 'submitting' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar Respostas'
+                  )}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
