@@ -198,10 +198,10 @@ function riskToNR(riskLevel: RiskLevel): number {
 // ─── Presentation layer ────────────────────────────────────────────────────
 
 const RISK_DISPLAY: Record<RiskLevel, { interpretation: string; color: string }> = {
-  aceitavel:  { interpretation: 'Aceitável',  color: '#22c55e' },
-  moderado:   { interpretation: 'Moderado',   color: '#eab308' },
-  importante: { interpretation: 'Importante', color: '#f97316' },
-  critico:    { interpretation: 'Crítico',    color: '#ef4444' },
+  aceitavel:  { interpretation: 'Aceitável',  color: '#009B00' },
+  moderado:   { interpretation: 'Moderado',   color: '#F7B511' },
+  importante: { interpretation: 'Importante', color: '#F75900' },
+  critico:    { interpretation: 'Crítico',    color: '#F60000' },
 };
 
 // ─── IGRP interpretation ───────────────────────────────────────────────────

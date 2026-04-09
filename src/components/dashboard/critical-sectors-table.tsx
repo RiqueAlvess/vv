@@ -79,7 +79,7 @@ export function CriticalSectorsTable({ sectors }: CriticalSectorsTableProps) {
                 {/* Rank */}
                 <span
                   className="text-sm font-bold tabular-nums"
-                  style={{ color: idx === 0 ? '#ef4444' : idx === 1 ? '#f97316' : 'hsl(var(--muted-foreground))' }}
+                  style={{ color: idx === 0 ? '#F60000' : idx === 1 ? '#F75900' : 'hsl(var(--muted-foreground))' }}
                 >
                   {idx + 1}
                 </span>
