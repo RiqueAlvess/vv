@@ -21,7 +21,7 @@ interface GenderData {
 
 const GENDER_COLORS: Record<string, string> = {
   'Masculino':     '#0D3D4F',
-  'Feminino':      '#00C896',
+  'Feminino':      '#1AA278',
   'Outro':         '#1B5F75',
   'Nao informado': '#94a3b8',
 };
@@ -33,10 +33,10 @@ function igrpFromDimensions(dimensions: Record<string, number>): number {
 }
 
 function igrpColor(igrp: number): string {
-  if (igrp > 12) return '#cc0000';
-  if (igrp > 8)  return '#cc7722';
-  if (igrp > 4)  return '#d4b000';
-  return '#8ba800';
+  if (igrp > 12) return '#F60000';
+  if (igrp > 8)  return '#F75900';
+  if (igrp > 4)  return '#F7B511';
+  return '#009B00';
 }
 
 function igrpLabel(igrp: number): string {
@@ -116,9 +116,9 @@ export function GenderRiskChart({ data }: { data: unknown[] | null | undefined }
               ticks={[0, 4, 8, 12, 16]}
               tick={{ fontSize: 10, fill: '#6B7280' }}
             />
-            <ReferenceLine y={4}  stroke="#8ba800" strokeDasharray="4 3" label={{ value: 'Aceitável', position: 'insideRight', fontSize: 9, fill: '#8ba800' }} />
-            <ReferenceLine y={8}  stroke="#d4b000" strokeDasharray="4 3" label={{ value: 'Moderado',  position: 'insideRight', fontSize: 9, fill: '#d4b000' }} />
-            <ReferenceLine y={12} stroke="#cc7722" strokeDasharray="4 3" label={{ value: 'Importante', position: 'insideRight', fontSize: 9, fill: '#cc7722' }} />
+            <ReferenceLine y={4}  stroke="#009B00" strokeDasharray="4 3" label={{ value: 'Aceitável', position: 'insideRight', fontSize: 9, fill: '#009B00' }} />
+            <ReferenceLine y={8}  stroke="#F7B511" strokeDasharray="4 3" label={{ value: 'Moderado',  position: 'insideRight', fontSize: 9, fill: '#F7B511' }} />
+            <ReferenceLine y={12} stroke="#F75900" strokeDasharray="4 3" label={{ value: 'Importante', position: 'insideRight', fontSize: 9, fill: '#F75900' }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="display_pct" radius={[6, 6, 0, 0]} maxBarSize={72}>
               <LabelList

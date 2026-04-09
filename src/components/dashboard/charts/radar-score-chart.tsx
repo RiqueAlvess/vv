@@ -78,7 +78,7 @@ export function RadarScoreChart({ dimensions }: { dimensions: unknown[] | null |
             <PolarGrid stroke="#E5E7EB" />
             <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#6B7280' }} />
             <PolarRadiusAxis angle={90} domain={[0, 16]} tick={{ fontSize: 9 }} tickCount={5} />
-            <Radar name="NR" dataKey="NR" stroke="#0D3D4F" fill="#00C896" fillOpacity={0.22} strokeWidth={2} />
+            <Radar name="NR" dataKey="NR" stroke="#1AA278" fill="#1AA278" fillOpacity={0.22} strokeWidth={2} />
             <Tooltip content={<CustomTooltip />} />
           </RadarChart>
         </ResponsiveContainer>
