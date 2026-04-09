@@ -5,7 +5,7 @@ import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock, Download, Loader2, Info, FileSpreadsheet } from 'lucide-react';
+import { AlertTriangle, Lock, Info, FileSpreadsheet } from 'lucide-react';
 import { LockedState } from './locked-state';
 import { Button } from '@/components/ui/button';
 
@@ -142,9 +142,9 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         </div>
       )}
 
-      {/* Export button row */}
-      <div className="flex justify-end gap-2 flex-wrap">
-        {user?.role === 'ADM' && (
+      {/* Export Planilha (ADM only) */}
+      {user?.role === 'ADM' && (
+        <div className="flex justify-end">
           <Button
             variant="outline"
             onClick={() => {
@@ -158,21 +158,8 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
             <FileSpreadsheet className="h-4 w-4" />
             Exportar Planilha
           </Button>
-        )}
-        <Button
-          variant="outline"
-          onClick={handleExportPGR}
-          disabled={downloading}
-          className="gap-2"
-        >
-          {downloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          {downloading ? 'Gerando PDF...' : 'Exportar Relatório PGR'}
-        </Button>
-      </div>
+        </div>
+      )}
 
       {/* ROW 2 — IGRP by dimension (full width) */}
       {Array.isArray(data.dimension_analysis) && <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />}
@@ -207,7 +194,11 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
       )}
 
       {/* ROW 7 — Position Table */}
-      <PositionTable positions={data.position_table as unknown[]} />
+      <PositionTable
+        positions={data.position_table as unknown[]}
+        onExportPGR={handleExportPGR}
+        downloading={downloading}
+      />
     </div>
   );
 }

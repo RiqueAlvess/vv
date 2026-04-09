@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Download, Loader2 } from 'lucide-react';
 
 interface PositionRow {
   position: string; sector: string; unit: string;
@@ -17,7 +18,15 @@ const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
   'Crítico':    { bg: '#cc0000', text: '#ffffff' },
 };
 
-export function PositionTable({ positions }: { positions: unknown[] }) {
+export function PositionTable({
+  positions,
+  onExportPGR,
+  downloading,
+}: {
+  positions: unknown[];
+  onExportPGR?: () => void;
+  downloading?: boolean;
+}) {
   const rows = positions as PositionRow[];
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -31,9 +40,27 @@ export function PositionTable({ positions }: { positions: unknown[] }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Análise Detalhada por Cargo</CardTitle>
-        <CardDescription>Score HSE-IT (0–4) e NR por cargo/função</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="text-base">Análise Detalhada por Cargo</CardTitle>
+          <CardDescription>Score HSE-IT (0–4) e NR por cargo/função</CardDescription>
+        </div>
+        {onExportPGR && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportPGR}
+            disabled={downloading}
+            className="gap-2 shrink-0"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            {downloading ? 'Gerando PDF...' : 'Exportar Relatório PGR'}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <Table>
