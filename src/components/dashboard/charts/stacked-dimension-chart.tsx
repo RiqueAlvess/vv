@@ -78,10 +78,10 @@ export function StackedDimensionChart({ data }: { data: unknown[] }) {
               formatter={(val: unknown) => `${val}%`}
             />
             <Legend iconSize={10} formatter={(v) => <span className="text-xs">{v}</span>} />
-            <Bar dataKey="Aceitável"  stackId="a" fill="#A2C06A" />
-            <Bar dataKey="Moderado"   stackId="a" fill="#FFFF00" />
-            <Bar dataKey="Importante" stackId="a" fill="#F79454" />
-            <Bar dataKey="Crítico"    stackId="a" fill="#FF0000" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="Aceitável"  stackId="a" fill="#009B00" />
+            <Bar dataKey="Moderado"   stackId="a" fill="#F7B511" />
+            <Bar dataKey="Importante" stackId="a" fill="#F75900" />
+            <Bar dataKey="Crítico"    stackId="a" fill="#F60000" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

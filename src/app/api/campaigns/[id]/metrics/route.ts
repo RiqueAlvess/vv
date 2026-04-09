@@ -42,15 +42,17 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const totalResponded = await prisma.surveyResponse.count({
-      where: { campaign_id: id },
-    });
+    const [totalResponded, totalEmployees] = await Promise.all([
+      prisma.surveyResponse.count({ where: { campaign_id: id } }),
+      prisma.campaignEmployee.count({ where: { campaign_id: id } }),
+    ]);
 
     return NextResponse.json({
       campaign_id: id,
       status: campaign.status,
+      total_employees: totalEmployees,
       total_responded: totalResponded,
-      response_rate: 0, // No fixed pool of invited users in QR code model
+      response_rate: totalEmployees > 0 ? Math.round((totalResponded / totalEmployees) * 100) : 0,
     });
   } catch (err) {
     console.error('Metrics error:', err);

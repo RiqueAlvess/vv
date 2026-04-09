@@ -15,6 +15,7 @@ interface User {
   role: 'ADM' | 'RH' | 'LIDERANCA';
   company_id: string;
   company_name?: string;
+  company_logo_url?: string | null;
   companies: CompanyRef[];
 }
 
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role,
           company_id: data.company_id,
           company_name: data.company?.name,
+          company_logo_url: data.company?.logo_url ?? null,
           companies: data.companies ?? [],
         });
       } else {

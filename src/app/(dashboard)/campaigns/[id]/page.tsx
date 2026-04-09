@@ -45,7 +45,9 @@ interface QRCode {
 }
 
 interface Metrics {
+  total_employees: number;
   total_responded: number;
+  response_rate: number;
 }
 
 interface Position {
@@ -395,7 +397,7 @@ export default function CampaignDetailPage() {
       )}
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Período</CardTitle>
@@ -410,11 +412,25 @@ export default function CampaignDetailPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4" />
+              Funcionários Cadastrados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg font-semibold">{metrics?.total_employees ?? 0} colaboradores</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
               Respostas
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg font-semibold">{metrics?.total_responded ?? 0} respostas</p>
+            {(metrics?.total_employees ?? 0) > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{metrics?.response_rate ?? 0}% de adesão</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -544,7 +560,11 @@ export default function CampaignDetailPage() {
               )}
 
               {/* Counters */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                  <p className="text-2xl font-bold">{metrics?.total_employees ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Funcionários cadastrados</p>
+                </div>
                 <div className="rounded-lg border bg-muted/30 p-3 text-center">
                   <p className="text-2xl font-bold">{metrics?.total_responded ?? 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Respostas recebidas</p>

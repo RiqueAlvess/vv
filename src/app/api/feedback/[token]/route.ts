@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     select: {
       id: true,
       active: true,
-      company: { select: { name: true } },
+      company: { select: { name: true, logo_url: true } },
     },
   });
 
@@ -35,6 +35,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return NextResponse.json({
     valid: true,
     company_name: channel.company.name,
+    company_logo_url: channel.company.logo_url ?? null,
   });
 }
 

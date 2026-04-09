@@ -82,9 +82,9 @@ export function IgrpBarChart({ dimensions }: IgrpBarChartProps) {
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6B7280' }} angle={-30} textAnchor="end" interval={0} />
             <YAxis domain={[0, 16]} tick={{ fontSize: 10, fill: '#6B7280' }} />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine y={4}  stroke="#A2C06A" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#A2C06A' }} />
-            <ReferenceLine y={8}  stroke="#FFFF00" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#888800' }} />
-            <ReferenceLine y={12} stroke="#F79454" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#F79454' }} />
+            <ReferenceLine y={4}  stroke="#009B00" strokeDasharray="4 2" label={{ value: 'Aceitável',  position: 'right', fontSize: 9, fill: '#009B00' }} />
+            <ReferenceLine y={8}  stroke="#F7B511" strokeDasharray="4 2" label={{ value: 'Moderado',   position: 'right', fontSize: 9, fill: '#F7B511' }} />
+            <ReferenceLine y={12} stroke="#F75900" strokeDasharray="4 2" label={{ value: 'Importante', position: 'right', fontSize: 9, fill: '#F75900' }} />
             <Bar dataKey="nr" radius={[4, 4, 0, 0]}>
               {data.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />

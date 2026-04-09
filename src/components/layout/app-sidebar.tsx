@@ -115,7 +115,7 @@ export function AppSidebar() {
 
   return (
       <Sidebar className="bg-[#0D3D4F]">
-      <SidebarHeader className="border-b border-[#00C896]/30 bg-[#0D3D4F]">
+      <SidebarHeader className="border-b border-[#1AA278]/30 bg-[#0D3D4F]">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="h-9 w-full min-w-0"><LogoImage /></div>
         </div>
@@ -128,7 +128,7 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + '/')}>
-                    <Link href={item.url} className="text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors data-[active=true]:bg-[#00C896] data-[active=true]:text-[#0D3D4F] data-[active=true]:font-semibold data-[active=true]:rounded-lg">
+                    <Link href={item.url} className="text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors data-[active=true]:bg-[#1AA278] data-[active=true]:text-[#0D3D4F] data-[active=true]:font-semibold data-[active=true]:rounded-lg">
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -146,41 +146,41 @@ export function AppSidebar() {
           {/* Floating menu — appears above the button */}
           {menuOpen && (
             <div
-              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#00C896]/30 bg-[#0D3D4F] shadow-lg"
+              className="absolute bottom-full left-2 right-2 mb-1 z-[9999] rounded-md border border-[#1AA278]/30 bg-[#0D3D4F] shadow-lg"
               style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}
             >
               <div className="py-1">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#00C896]/20 hover:text-[#00C896] transition-colors"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1AA278]/20 hover:text-[#1AA278] transition-colors"
                   onClick={() => {
                     setMenuOpen(false);
                     setPasswordOpen(true);
                   }}
                 >
-                  <KeyRound className="h-4 w-4 text-[#00C896]" />
+                  <KeyRound className="h-4 w-4 text-[#1AA278]" />
                   <span>Mudar Senha</span>
                 </button>
 
                 {hasMultipleCompanies && (
                   <>
-                    <div className="my-1 mx-2 h-px bg-[#00C896]/30" />
+                    <div className="my-1 mx-2 h-px bg-[#1AA278]/30" />
                     <button
                       type="button"
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#00C896]/20 hover:text-[#00C896] transition-colors"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-white hover:bg-[#1AA278]/20 hover:text-[#1AA278] transition-colors"
                       onClick={() => {
                         setMenuOpen(false);
                         setSwitchError('');
                         setCompanyOpen(true);
                       }}
                     >
-                      <ArrowLeftRight className="h-4 w-4 text-[#00C896]" />
+                      <ArrowLeftRight className="h-4 w-4 text-[#1AA278]" />
                       <span>Alterar Empresa</span>
                     </button>
                   </>
                 )}
 
-                <div className="my-1 mx-2 h-px bg-[#00C896]/30" />
+                <div className="my-1 mx-2 h-px bg-[#1AA278]/30" />
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -203,13 +203,23 @@ export function AppSidebar() {
             className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm text-white hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
           >
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="bg-[#00C896]/20 text-[#00C896] text-xs">
+              <AvatarFallback className="bg-[#1AA278]/20 text-[#1AA278] text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left text-sm min-w-0 flex-1">
               <span className="font-medium truncate">{user?.name}</span>
-              <span className="text-xs text-white/60 truncate">{user?.company_name ?? user?.role}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                {user?.company_logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.company_logo_url}
+                    alt={user.company_name ?? ''}
+                    className="h-3.5 max-w-[48px] object-contain opacity-80"
+                  />
+                )}
+                <span className="text-xs text-white/60 truncate">{user?.company_name ?? user?.role}</span>
+              </div>
             </div>
             <ChevronUp
               className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-200 ${
@@ -291,8 +301,8 @@ export function AppSidebar() {
                   onClick={() => handleSwitchCompany(company.id)}
                   className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-60 ${
                     isCurrent
-                      ? 'border-[#00C896]/50 bg-[#00C896]/10 font-medium'
-                      : 'border-border hover:bg-accent hover:border-[#00C896]/40'
+                      ? 'border-[#1AA278]/50 bg-[#1AA278]/10 font-medium'
+                      : 'border-border hover:bg-accent hover:border-[#1AA278]/40'
                   }`}
                 >
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0D3D4F]/10">
@@ -304,7 +314,7 @@ export function AppSidebar() {
                   </div>
                   <span className="flex-1 truncate">{company.name}</span>
                   {isCurrent && (
-                    <span className="text-xs text-[#00C896] font-medium">atual</span>
+                    <span className="text-xs text-[#1AA278] font-medium">atual</span>
                   )}
                 </button>
               );
