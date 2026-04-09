@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
             id: true,
             status: true,
             name: true,
-            company: { select: { name: true, cnpj: true } },
+            company: { select: { name: true, cnpj: true, logo_url: true } },
             units: {
               select: {
                 id: true,
@@ -76,6 +76,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       campaign_name: qrCode.campaign.name,
       company_name: qrCode.campaign.company.name,
       company_cnpj: qrCode.campaign.company.cnpj,
+      company_logo_url: qrCode.campaign.company.logo_url ?? null,
       hierarchy: qrCode.campaign.units,
     });
   } catch (err) {

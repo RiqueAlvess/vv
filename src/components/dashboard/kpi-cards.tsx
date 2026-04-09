@@ -73,9 +73,9 @@ export function KpiCards({ metrics }: KpiCardsProps) {
       {/* IGRP — overall psychosocial risk index */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium">IGRP</CardTitle>
+          <CardTitle className="text-sm font-medium leading-tight">Índice Geral de Riscos Psicossociais (IGRP)</CardTitle>
           <AlertTriangle
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
             style={{ color: RISK_COLORS[igrpLevel] }}
           />
         </CardHeader>
@@ -87,7 +87,9 @@ export function KpiCards({ metrics }: KpiCardsProps) {
           >
             {RISK_LABELS[igrpLevel]}
           </Badge>
-          <p className="text-xs text-muted-foreground mt-1">índice geral de risco psicossocial</p>
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            Indicador que resume, em um único número, o nível de risco psicossocial da organização.
+          </p>
         </CardContent>
       </Card>
     </div>

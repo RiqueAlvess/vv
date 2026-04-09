@@ -11,14 +11,14 @@ export default {
           foreground: '#FFFFFF',
         },
         accent: {
-          DEFAULT: '#00C896',
-          hover: '#00B082',
-          light: '#E8FBF5',
+          DEFAULT: '#1AA278',
+          hover: '#158c66',
+          light: '#E6F5F0',
           foreground: '#FFFFFF',
         },
         brand: {
           teal: '#0D3D4F',
-          green: '#00C896',
+          green: '#1AA278',
           white: '#FFFFFF',
           gray: '#F7F7F7',
           dark: '#1A2E35',

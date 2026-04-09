@@ -7,6 +7,7 @@ export interface Company {
   name: string;
   cnpj: string;
   cnae: string | null;
+  logo_url: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;

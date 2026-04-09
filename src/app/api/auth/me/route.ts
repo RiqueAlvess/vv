@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
     const activeCompany = await prisma.company.findUnique({
       where: { id: activeCompanyId },
-      select: { id: true, name: true, cnpj: true, cnae: true },
+      select: { id: true, name: true, cnpj: true, cnae: true, logo_url: true },
     });
 
     return NextResponse.json({

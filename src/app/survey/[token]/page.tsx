@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
@@ -87,7 +86,6 @@ export default function SurveyPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfInput, setCpfInput] = useState('');
   const [validationToken, setValidationToken] = useState('');
-  const [consentAccepted, setConsentAccepted] = useState(false);
   const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState('');
@@ -100,6 +98,7 @@ export default function SurveyPage() {
     campaign_name: string;
     company_name: string;
     company_cnpj: string;
+    company_logo_url: string | null;
   } | null>(null);
 
   const questionsPerPage = 5;
@@ -124,6 +123,7 @@ export default function SurveyPage() {
             campaign_name: data.campaign_name ?? '',
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
+            company_logo_url: data.company_logo_url ?? null,
           });
           setHierarchy(data.hierarchy ?? []);
           setStep('cpf_verify');
@@ -247,11 +247,20 @@ export default function SurveyPage() {
   if (step === 'done') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="py-12">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Obrigado!</h2>
-            <p className="text-muted-foreground">Sua resposta foi registrada com sucesso. Você pode fechar esta página.</p>
+        <Card className="w-full max-w-lg text-center">
+          <CardContent className="py-10 px-6">
+            <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#1AA278' }} />
+            <h2 className="text-xl font-semibold mb-3">Obrigado por compartilhar suas respostas!</h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              Cuidar da saúde mental é tão importante quanto a física. Algumas dicas rápidas:
+            </p>
+            <ul className="text-sm text-muted-foreground text-left space-y-2 mb-2 mx-auto max-w-xs">
+              <li className="flex items-start gap-2"><span className="mt-0.5">🌿</span> Faça pequenas pausas durante o dia</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">🚶</span> Movimente-se, mesmo que seja uma caminhada curta</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">💬</span> Converse com pessoas de confiança</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">😴</span> Priorize um sono de qualidade</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">🩺</span> Procure ajuda profissional quando precisar</li>
+            </ul>
           </CardContent>
         </Card>
       </div>
@@ -282,10 +291,21 @@ export default function SurveyPage() {
       <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="text-center py-3 sm:py-4">
-          <div className="flex justify-center mb-3">
+          <div className="flex items-center justify-center gap-4 mb-3">
             <Logo size={44} />
+            {campaignInfo?.company_logo_url && (
+              <>
+                <span className="text-muted-foreground/40 text-xl">|</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={campaignInfo.company_logo_url}
+                  alt={campaignInfo.company_name}
+                  className="h-10 max-w-[140px] object-contain"
+                />
+              </>
+            )}
           </div>
-          <h1 className="text-lg sm:text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
+          <h1 className="text-lg sm:text-xl font-bold">Mapeamento de Riscos Psicossociais</h1>
           {campaignInfo && (
             <p className="text-sm text-muted-foreground mt-1">
               {campaignInfo.company_name} — {campaignInfo.campaign_name}
@@ -364,6 +384,14 @@ export default function SurveyPage() {
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Logo size={40} />
+                {campaignInfo?.company_logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={campaignInfo.company_logo_url}
+                    alt={campaignInfo.company_name}
+                    className="h-9 max-w-[100px] object-contain"
+                  />
+                )}
                 <div>
                   <CardTitle>Termo de Consentimento Livre e Esclarecido</CardTitle>
                   <CardDescription>
@@ -473,26 +501,12 @@ export default function SurveyPage() {
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 pt-2">
-                <Checkbox
-                  id="consent"
-                  checked={consentAccepted}
-                  onCheckedChange={(checked) => setConsentAccepted(checked === true)}
-                  className="mt-0.5"
-                />
-                <Label htmlFor="consent" className="text-sm cursor-pointer leading-relaxed">
-                  Li e compreendi todas as informações deste termo. Participo voluntariamente e autorizo o
-                  tratamento dos meus dados conforme descrito acima.
-                </Label>
-              </div>
-
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Button variant="outline" className="sm:flex-none" onClick={() => setStep('declined')}>
                   Não aceito — sair
                 </Button>
                 <Button
                   className="flex-1"
-                  disabled={!consentAccepted}
                   onClick={() => {
                     setErrorMsg('');
                     setStep('hierarchy');
@@ -579,7 +593,6 @@ export default function SurveyPage() {
                 <p className="text-sm text-destructive">{errorMsg}</p>
               )}
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep('consent')}>Voltar</Button>
                 <Button
                   className="flex-1"
                   onClick={() => {
@@ -641,7 +654,6 @@ export default function SurveyPage() {
                 <p className="text-sm text-destructive">{errorMsg}</p>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { setErrorMsg(''); setStep('hierarchy'); }}>Voltar</Button>
                 <Button
                   className="flex-1"
                   disabled={!gender || !ageRange}
@@ -654,7 +666,7 @@ export default function SurveyPage() {
                     setStep('questions');
                   }}
                 >
-                  Iniciar Pesquisa →
+                  Iniciar Mapeamento →
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -681,12 +693,12 @@ export default function SurveyPage() {
               </div>
             )}
 
-            <Card>
-              <CardContent className="pt-4 sm:pt-6 space-y-5 sm:space-y-6 px-3 sm:px-6">
-                {currentQuestions.map((q) => (
-                  <div key={q.id} className="space-y-3">
+            <Card className="border-2">
+              <CardContent className="pt-4 sm:pt-6 space-y-0 px-3 sm:px-6">
+                {currentQuestions.map((q, idx) => (
+                  <div key={q.id} className={`space-y-3 py-5 ${idx < currentQuestions.length - 1 ? 'border-b border-border' : ''}`}>
                     <p className="text-sm font-medium leading-relaxed">
-                      <span className="text-muted-foreground mr-2">{q.id}.</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold mr-2 shrink-0">{q.id}</span>
                       {q.text}
                     </p>
                     <RadioGroup
@@ -702,7 +714,7 @@ export default function SurveyPage() {
                           <RadioGroupItem value={option.value.toString()} id={`q${q.id}-${option.value}`} className="peer sr-only" />
                           <Label
                             htmlFor={`q${q.id}-${option.value}`}
-                            className="w-full cursor-pointer rounded-md border px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground hover:bg-muted transition-colors select-none"
+                            className="w-full cursor-pointer rounded-md border-2 border-border/70 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-border transition-colors select-none"
                           >
                             {option.label}
                           </Label>

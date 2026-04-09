@@ -93,19 +93,19 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#6B7280' }} unit="%" domain={[0, 100]} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="Aceitável"  stackId="a" fill="#A2C06A" />
-                <Bar dataKey="Moderado"   stackId="a" fill="#FFFF00" />
-                <Bar dataKey="Importante" stackId="a" fill="#F79454" />
-                <Bar dataKey="Crítico"    stackId="a" fill="#FF0000" />
+                <Bar dataKey="Aceitável"  stackId="a" fill="#009B00" />
+                <Bar dataKey="Moderado"   stackId="a" fill="#F7B511" />
+                <Bar dataKey="Importante" stackId="a" fill="#F75900" />
+                <Bar dataKey="Crítico"    stackId="a" fill="#F60000" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="flex gap-4 justify-center mt-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#A2C06A] inline-block"/> Aceitável</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#FFFF00] inline-block border border-gray-200"/> Moderado</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F79454] inline-block"/> Importante</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#FF0000] inline-block"/> Crítico</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#009B00] inline-block"/> Aceitável</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F7B511] inline-block"/> Moderado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F75900] inline-block"/> Importante</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F60000] inline-block"/> Crítico</span>
         </div>
       </CardContent>
     </Card>
