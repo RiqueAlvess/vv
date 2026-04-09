@@ -110,9 +110,9 @@ function igrpToRiskLevel(igrp: number): RiskLevel {
 }
 
 function getResponseRateColor(rate: number): string {
-  if (rate >= 70) return '#22c55e'; // green-500
-  if (rate >= 30) return '#f97316'; // orange-500
-  return '#ef4444';                 // red-500
+  if (rate >= 70) return '#009B00';
+  if (rate >= 30) return '#F75900';
+  return '#F60000';
 }
 
 const RISK_LABELS: Record<RiskLevel, string> = {
