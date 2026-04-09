@@ -38,8 +38,16 @@ export function Header() {
       </Breadcrumb>
       <div className="ml-auto flex items-center gap-2">
         {user?.company_name && (
-          <Badge className="border-[#00C896]/30 bg-[#E8FBF5] text-xs text-[#00B082] hover:bg-[#E8FBF5]">
-            {user.company_name}
+          <Badge className="border-[#00C896]/30 bg-[#E8FBF5] text-xs text-[#00B082] hover:bg-[#E8FBF5] flex items-center gap-1.5">
+            {user?.company_logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.company_logo_url}
+                alt={user.company_name}
+                className="h-3.5 max-w-[40px] object-contain"
+              />
+            )}
+            <span>{user.company_name}</span>
           </Badge>
         )}
       </div>

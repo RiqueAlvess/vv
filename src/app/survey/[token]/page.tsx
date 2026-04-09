@@ -52,17 +52,12 @@ const QUESTIONS = [
   { id: 35, text: 'Meu chefe me incentiva no trabalho' },
 ] as const;
 
-interface HierarchyPosition { id: string; name: string; }
-interface HierarchySector { id: string; name: string; positions: HierarchyPosition[]; }
-interface HierarchyUnit { id: string; name: string; sectors: HierarchySector[]; }
-
 type SurveyStep =
   | 'loading'
   | 'invalid'
   | 'cpf_verify'
   | 'cpf_verifying'
   | 'consent'
-  | 'hierarchy'
   | 'demographics'
   | 'questions'
   | 'submitting'
@@ -85,7 +80,6 @@ export default function SurveyPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfInput, setCpfInput] = useState('');
   const [validationToken, setValidationToken] = useState('');
-  const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState('');
   const [selectedPositionId, setSelectedPositionId] = useState('');
@@ -106,9 +100,6 @@ export default function SurveyPage() {
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / QUESTIONS.length) * 100;
 
-  const availableSectors = hierarchy.find(u => u.id === selectedUnitId)?.sectors ?? [];
-  const availablePositions = availableSectors.find(s => s.id === selectedSectorId)?.positions ?? [];
-
   useEffect(() => {
     const validate = async () => {
       try {
@@ -124,7 +115,6 @@ export default function SurveyPage() {
             company_cnpj: data.company_cnpj ?? '',
             company_logo_url: data.company_logo_url ?? null,
           });
-          setHierarchy(data.hierarchy ?? []);
           setStep('cpf_verify');
         }
       } catch {
@@ -261,11 +251,11 @@ export default function SurveyPage() {
               Cuidar da saúde mental é tão importante quanto a física. Algumas dicas rápidas:
             </p>
             <ul className="text-sm text-muted-foreground text-left space-y-2 mb-2 mx-auto max-w-xs">
-              <li className="flex items-start gap-2"><span className="mt-0.5">🌿</span> Faça pequenas pausas durante o dia</li>
-              <li className="flex items-start gap-2"><span className="mt-0.5">🚶</span> Movimente-se, mesmo que seja uma caminhada curta</li>
-              <li className="flex items-start gap-2"><span className="mt-0.5">💬</span> Converse com pessoas de confiança</li>
-              <li className="flex items-start gap-2"><span className="mt-0.5">😴</span> Priorize um sono de qualidade</li>
-              <li className="flex items-start gap-2"><span className="mt-0.5">🩺</span> Procure ajuda profissional quando precisar</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[#1AA278] font-bold">→</span> Faça pequenas pausas durante o dia</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[#1AA278] font-bold">→</span> Movimente-se, mesmo que seja uma caminhada curta</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[#1AA278] font-bold">→</span> Converse com pessoas de confiança</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[#1AA278] font-bold">→</span> Priorize um sono de qualidade</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5 text-[#1AA278] font-bold">→</span> Procure ajuda profissional quando precisar</li>
             </ul>
           </CardContent>
         </Card>
@@ -457,7 +447,7 @@ export default function SurveyPage() {
                   className="flex-1"
                   onClick={() => {
                     setErrorMsg('');
-                    setStep('hierarchy');
+                    setStep('demographics');
                   }}
                 >
                   Aceito e desejo participar →
@@ -467,101 +457,7 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* Step 2: Hierarchy selection */}
-        {step === 'hierarchy' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Identificação Hierárquica</CardTitle>
-              <CardDescription>
-                Pré-preenchido com base no seu cadastro — confirme ou altere os campos obrigatórios (não identifica você individualmente)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>
-                  Unidade <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedUnitId}
-                  onValueChange={(v) => {
-                    setSelectedUnitId(v);
-                    setSelectedSectorId('');
-                    setSelectedPositionId('');
-                  }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
-                  <SelectContent>
-                    {hierarchy.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Setor <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedSectorId}
-                  onValueChange={(v) => {
-                    setSelectedSectorId(v);
-                    setSelectedPositionId('');
-                  }}
-                  disabled={!selectedUnitId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
-                  <SelectContent>
-                    {availableSectors.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Cargo <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={selectedPositionId}
-                  onValueChange={setSelectedPositionId}
-                  disabled={!selectedSectorId}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
-                  <SelectContent>
-                    {availablePositions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  className="flex-1"
-                  onClick={() => {
-                    if (!selectedUnitId || !selectedSectorId || !selectedPositionId) {
-                      setErrorMsg('Unidade, setor e cargo são obrigatórios para continuar');
-                      return;
-                    }
-                    setErrorMsg('');
-                    setStep('demographics');
-                  }}
-                >
-                  Continuar →
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-destructive">*</span> Campos obrigatórios
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Demographics */}
+        {/* Step 2: Demographics */}
         {step === 'demographics' && (
           <Card>
             <CardHeader>
@@ -676,11 +572,6 @@ export default function SurveyPage() {
             </Card>
 
             <div className="flex gap-2">
-              {currentPage > 0 && (
-                <Button variant="outline" onClick={() => setCurrentPage((p) => p - 1)}>
-                  Anterior
-                </Button>
-              )}
               <div className="flex-1" />
               {currentPage < totalPages - 1 ? (
                 <Button onClick={() => setCurrentPage((p) => p + 1)}>Próximo</Button>
