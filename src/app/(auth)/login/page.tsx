@@ -111,7 +111,7 @@ export default function LoginPage() {
               type="button"
               disabled={switchingId !== null}
               onClick={() => handleSelectCompany(company.id)}
-              className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-accent hover:border-[#00C896]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-accent hover:border-[#1AA278]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#0D3D4F]/10">
                 {switchingId === company.id ? (
@@ -139,7 +139,7 @@ export default function LoginPage() {
           Voltar ao login
         </button>
 
-        <p className="text-center text-[10px] text-muted-foreground/50 mt-8">v1.0.6</p>
+        <p className="text-center text-[10px] text-muted-foreground/50 mt-8">v1.0.7</p>
       </div>
     );
   }
@@ -215,7 +215,7 @@ export default function LoginPage() {
       <p className="text-center text-xs text-muted-foreground mt-10">
         Acesso restrito a usuários autorizados
       </p>
-      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.6</p>
+      <p className="text-center text-[10px] text-muted-foreground/50 mt-2">v1.0.7</p>
     </div>
   );
 }

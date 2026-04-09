@@ -241,6 +241,20 @@ export default function SurveyPage() {
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-lg text-center">
           <CardContent className="py-10 px-6">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <Logo size={40} />
+              {campaignInfo?.company_logo_url && (
+                <>
+                  <span className="text-muted-foreground/40 text-xl">|</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={campaignInfo.company_logo_url}
+                    alt={campaignInfo.company_name}
+                    className="h-9 max-w-[120px] object-contain"
+                  />
+                </>
+              )}
+            </div>
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#1AA278' }} />
             <h2 className="text-xl font-semibold mb-3">Obrigado por compartilhar suas respostas!</h2>
             <p className="text-muted-foreground text-sm mb-4">
@@ -267,7 +281,7 @@ export default function SurveyPage() {
             <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold">Participação recusada</h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado
+              Você optou por não participar deste mapeamento. Sua decisão foi registrada e nenhum dado
               foi coletado.
             </p>
             <p className="text-muted-foreground text-sm">Você pode fechar esta página.</p>
@@ -316,7 +330,7 @@ export default function SurveyPage() {
                 </div>
                 <div>
                   <CardTitle>Chave de Acesso</CardTitle>
-                  <CardDescription>Digite seu CPF para acessar a pesquisa</CardDescription>
+                  <CardDescription>Digite seu CPF para acessar o mapeamento</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -586,15 +600,6 @@ export default function SurveyPage() {
               {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
-                  onClick={() => {
-                    setErrorMsg('');
-                    setStep('hierarchy');
-                  }}
-                >
-                  Voltar
-                </Button>
-                <Button
                   className="flex-1"
                   disabled={!gender || !ageRange}
                   onClick={() => {
@@ -633,10 +638,10 @@ export default function SurveyPage() {
               </div>
             )}
 
-            <Card className="border-2">
+            <Card className="border-2 border-gray-300">
               <CardContent className="pt-4 sm:pt-6 space-y-0 px-3 sm:px-6">
                 {currentQuestions.map((q, idx) => (
-                  <div key={q.id} className={`space-y-3 py-5 ${idx < currentQuestions.length - 1 ? 'border-b border-border' : ''}`}>
+                  <div key={q.id} className={`space-y-3 py-5 ${idx < currentQuestions.length - 1 ? 'border-b-2 border-gray-200' : ''}`}>
                     <p className="text-sm font-medium leading-relaxed">
                       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold mr-2 shrink-0">{q.id}</span>
                       {q.text}
@@ -658,7 +663,7 @@ export default function SurveyPage() {
                           />
                           <Label
                             htmlFor={`q${q.id}-${option.value}`}
-                            className="w-full cursor-pointer rounded-md border-2 border-border/70 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-border transition-colors select-none"
+                            className="w-full cursor-pointer rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-gray-400 transition-colors select-none"
                           >
                             {option.label}
                           </Label>

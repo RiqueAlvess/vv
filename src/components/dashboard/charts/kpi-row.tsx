@@ -56,10 +56,10 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
       {/* Card 3 — IGRP */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            IGRP
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide leading-tight">
+            Índice Geral de Riscos Psicossociais (IGRP)
           </CardTitle>
-          <BarChart3 className="h-4 w-4" style={{ color: igrpColor }} />
+          <BarChart3 className="h-4 w-4 shrink-0" style={{ color: igrpColor }} />
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-bold">{((data.igrp as number) ?? 0).toFixed(1)}</p>
@@ -69,7 +69,9 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
           >
             {igrpLabel}
           </Badge>
-          <p className="text-xs text-muted-foreground mt-1">índice geral (1–16)</p>
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            Indicador que resume, em um único número, o nível de risco psicossocial da organização.
+          </p>
         </CardContent>
       </Card>
 
