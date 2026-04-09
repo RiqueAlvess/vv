@@ -69,7 +69,6 @@ type SurveyStep =
   | 'done'
   | 'declined';
 
-/** Format CPF input as 000.000.000-00 */
 function formatCpf(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 3) return digits;
@@ -157,7 +156,6 @@ export default function SurveyPage() {
         return;
       }
       setValidationToken(data.validation_token);
-      // Pre-populate hierarchy from CSV registration (user can still change)
       if (data.suggested_unit_id) setSelectedUnitId(data.suggested_unit_id);
       if (data.suggested_sector_id) setSelectedSectorId(data.suggested_sector_id);
       if (data.suggested_position_id) setSelectedPositionId(data.suggested_position_id);
@@ -173,7 +171,6 @@ export default function SurveyPage() {
       setErrorMsg('Por favor, responda todas as questões');
       return;
     }
-
     setStep('submitting');
     try {
       const res = await fetch(`/api/survey/${token}`, {
@@ -190,11 +187,9 @@ export default function SurveyPage() {
           consent_accepted: true,
         }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         setErrorMsg(data.error || 'Erro ao enviar respostas');
-        // Token expired — go back to CPF verification
         if (res.status === 401) {
           setValidationToken('');
           setCpfInput('');
@@ -204,7 +199,6 @@ export default function SurveyPage() {
         }
         return;
       }
-
       setStep('done');
     } catch {
       setErrorMsg('Erro de conexão');
@@ -212,7 +206,6 @@ export default function SurveyPage() {
     }
   }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, validationToken]);
 
-  // ── Loading ──────────────────────────────────────────────────────────────
   if (step === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -229,7 +222,6 @@ export default function SurveyPage() {
     );
   }
 
-  // ── Invalid ───────────────────────────────────────────────────────────────
   if (step === 'invalid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -275,11 +267,10 @@ export default function SurveyPage() {
             <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold">Participação recusada</h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado foi coletado.
+              Você optou por não participar desta pesquisa. Sua decisão foi registrada e nenhum dado
+              foi coletado.
             </p>
-            <p className="text-muted-foreground text-sm">
-              Você pode fechar esta página.
-            </p>
+            <p className="text-muted-foreground text-sm">Você pode fechar esta página.</p>
           </CardContent>
         </Card>
       </div>
@@ -289,6 +280,7 @@ export default function SurveyPage() {
   return (
     <div className="min-h-screen bg-muted/40 p-3 sm:p-4">
       <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
+
         {/* Header */}
         <div className="text-center py-3 sm:py-4">
           <div className="flex items-center justify-center gap-4 mb-3">
@@ -331,7 +323,9 @@ export default function SurveyPage() {
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Sua participação é validada pelo CPF cadastrado pela sua empresa.
-                Após a conclusão da pesquisa, seu CPF é <strong className="text-foreground">excluído permanentemente</strong> da base de dados — não é possível recuperá-lo.
+                Após a conclusão da pesquisa, seu CPF é{' '}
+                <strong className="text-foreground">excluído permanentemente</strong> da base de dados
+                — não é possível recuperá-lo.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF</Label>
@@ -393,116 +387,56 @@ export default function SurveyPage() {
                   />
                 )}
                 <div>
-                  <CardTitle>Termo de Consentimento Livre e Esclarecido</CardTitle>
-                  <CardDescription>
-                    Em conformidade com a LGPD (Lei nº 13.709/2018) e NR-1 (Portaria MTE nº 1.419/2024)
-                  </CardDescription>
+                  <CardTitle>Termo de Participação</CardTitle>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="h-96 overflow-y-auto rounded-lg border bg-muted/30 p-4 text-sm space-y-4 leading-relaxed">
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-4 leading-relaxed">
                 <p className="text-muted-foreground">
-                  Prezado(a) colaborador(a), antes de iniciar o questionário, leia atentamente este termo.
+                  Esta pesquisa faz parte de uma iniciativa para melhorar o ambiente de trabalho e
+                  promover mais saúde e bem-estar para todos.
                 </p>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">1. Controlador e Operador</h3>
-                  <p className="text-muted-foreground">
-                    <strong className="text-foreground">Controlador:</strong>{' '}
-                    {campaignInfo?.company_name ?? '[EMPRESA]'} (CNPJ{' '}
-                    {campaignInfo?.company_cnpj ?? '[CNPJ]'}) — responsável pela decisão de realizar
-                    esta pesquisa e pelo cumprimento da NR-1.{' '}
-                    <strong className="text-foreground">Operador:</strong> Vivamente360 — plataforma
-                    tecnológica que processa os dados em nome do Controlador, sem acesso a dados
-                    identificados dos respondentes.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">2. Finalidade</h3>
-                  <p className="text-muted-foreground">
-                    Identificação e gestão de riscos psicossociais no trabalho, conforme obrigação da NR-1
-                    (Portaria MTE nº 1.419/2024). O instrumento utilizado é o HSE-IT (35 questões,
-                    7 dimensões). Os resultados são usados{' '}
-                    <strong className="text-foreground">exclusivamente</strong> para diagnóstico
-                    organizacional e elaboração do Programa de Gerenciamento de Riscos (PGR).{' '}
-                    <strong className="text-foreground">
-                      Não serão utilizados para avaliação de desempenho individual, processos
-                      disciplinares ou qualquer decisão que afete sua relação de emprego.
-                    </strong>
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">3. Como sua anonimidade é garantida</h3>
-                  <p className="text-muted-foreground">
-                    Seu CPF é usado <strong className="text-foreground">somente</strong> para confirmar
-                    que você está cadastrado nesta campanha e garantir que cada colaborador responda
-                    apenas uma vez. Ao concluir o envio, o CPF é{' '}
-                    <strong className="text-foreground">excluído permanentemente e de forma irreversível</strong>{' '}
-                    — não é possível recuperá-lo nem vincular qualquer resposta à sua identidade.
-                    As respostas são gravadas sem nenhum campo identificável (sem nome, e-mail,
-                    matrícula, IP ou localização). A unidade, o setor e o cargo são sugeridos com base
-                    no cadastro fornecido pela empresa.{' '}
-                    <strong className="text-foreground">Você pode confirmar ou alterar esses dados, mas eles não podem ficar em branco.</strong>{' '}
-                    Os resultados são sempre apresentados de forma agregada —
-                    nunca individualmente.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">4. Dados coletados</h3>
+                <p className="text-muted-foreground">
+                  O questionário é simples e rápido, com 35 perguntas sobre o seu dia a dia no
+                  trabalho, como organização das atividades, comunicação e apoio. Não existem respostas
+                  certas ou erradas — o importante é sua percepção.
+                </p>
+                <p className="text-muted-foreground">
+                  <strong className="text-foreground">Sua participação é muito importante</strong> —
+                  quanto mais pessoas responderem, mais efetivas serão as melhorias.
+                </p>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Sua privacidade está protegida</h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Respostas às 35 perguntas do questionário HSE-IT (escala 0–4)</li>
-                    <li>
-                      Unidade, setor e cargo (pré-preenchidos com base no cadastro e obrigatórios,
-                      podendo ser ajustados por você para análise por área)
-                    </li>
-                    <li>Faixa etária e sexo (obrigatórios, para análise estatística agregada)</li>
-                    <li>Data e hora do aceite deste termo (sem vínculo com sua identidade)</li>
+                    <li>Questionário é anonimizado</li>
+                    <li>Seu CPF será usado apenas para liberar o acesso e evitar respostas duplicadas</li>
+                    <li>Após o envio, ele é excluído definitivamente</li>
+                    <li>As respostas são analisadas apenas de forma coletiva, nunca individual</li>
                   </ul>
-                  <p className="text-muted-foreground mt-2">
-                    <strong className="text-foreground">Não será retido após a conclusão:</strong> CPF
-                    (excluído imediatamente ao enviar), nome, e-mail, matrícula, endereço, telefone,
-                    endereço IP ou qualquer outro dado que permita identificação individual.
-                  </p>
                 </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">5. Base legal (LGPD)</h3>
-                  <p className="text-muted-foreground">
-                    Art. 7º, I — Consentimento livre e informado do titular.{' '}
-                    Art. 7º, II — Cumprimento de obrigação legal (NR-1).{' '}
-                    Art. 11, II, a — Proteção da vida e da saúde dos trabalhadores.
-                    Lei nº 13.709/2018 (LGPD).
-                  </p>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">
+                    Os resultados serão utilizados exclusivamente para:
+                  </h3>
+                  <ul className="text-muted-foreground space-y-1 list-disc list-inside">
+                    <li>Identificar oportunidades de melhoria no ambiente de trabalho</li>
+                    <li>Promover ações de saúde e bem-estar</li>
+                    <li>Atender às exigências legais</li>
+                  </ul>
                 </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-foreground">6. Retenção, voluntariedade e direitos</h3>
-                  <p className="text-muted-foreground">
-                    A participação é <strong className="text-foreground">completamente voluntária</strong> —
-                    recusar ou interromper não acarreta qualquer consequência trabalhista. Os dados de
-                    respostas são mantidos pelo prazo mínimo necessário ao cumprimento das obrigações
-                    legais da NR-1 e eventual defesa em processos administrativos ou judiciais. Como os
-                    dados são anonimizados após o envio, não é tecnicamente possível localizar ou excluir
-                    respostas individuais. Dúvidas sobre privacidade podem ser encaminhadas ao RH da
-                    empresa ou ao canal de privacidade da Vivamente360.
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
-                  <p>Versão 3.0 · Conforme Lei nº 13.709/2018 (LGPD) e Portaria MTE nº 1.419/2024 (NR-1)</p>
-                  <p className="mt-1">
-                    Controlador: {campaignInfo?.company_name ?? '[EMPRESA]'} (CNPJ{' '}
-                    {campaignInfo?.company_cnpj ?? '[CNPJ]'}) · Operador: Vivamente360
-                  </p>
-                </div>
+                <p className="text-muted-foreground">
+                  Ao continuar, você concorda em participar da pesquisa e contribuir para a construção
+                  de um ambiente de trabalho melhor para todos!
+                </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button variant="outline" className="sm:flex-none" onClick={() => setStep('declined')}>
+                <Button
+                  variant="outline"
+                  className="sm:flex-none"
+                  onClick={() => setStep('declined')}
+                >
                   Não aceito — sair
                 </Button>
                 <Button
@@ -589,9 +523,8 @@ export default function SurveyPage() {
                 </Select>
               </div>
 
-              {errorMsg && (
-                <p className="text-sm text-destructive">{errorMsg}</p>
-              )}
+              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+
               <div className="flex gap-2 pt-2">
                 <Button
                   className="flex-1"
@@ -650,10 +583,17 @@ export default function SurveyPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {errorMsg && (
-                <p className="text-sm text-destructive">{errorMsg}</p>
-              )}
+              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setErrorMsg('');
+                    setStep('hierarchy');
+                  }}
+                >
+                  Voltar
+                </Button>
                 <Button
                   className="flex-1"
                   disabled={!gender || !ageRange}
@@ -711,7 +651,11 @@ export default function SurveyPage() {
                     >
                       {LIKERT_SCALE.map((option) => (
                         <div key={option.value} className="flex items-center">
-                          <RadioGroupItem value={option.value.toString()} id={`q${q.id}-${option.value}`} className="peer sr-only" />
+                          <RadioGroupItem
+                            value={option.value.toString()}
+                            id={`q${q.id}-${option.value}`}
+                            className="peer sr-only"
+                          />
                           <Label
                             htmlFor={`q${q.id}-${option.value}`}
                             className="w-full cursor-pointer rounded-md border-2 border-border/70 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-border transition-colors select-none"
@@ -734,9 +678,7 @@ export default function SurveyPage() {
               )}
               <div className="flex-1" />
               {currentPage < totalPages - 1 ? (
-                <Button onClick={() => setCurrentPage((p) => p + 1)}>
-                  Próximo
-                </Button>
+                <Button onClick={() => setCurrentPage((p) => p + 1)}>Próximo</Button>
               ) : (
                 <Button onClick={handleSubmit} disabled={step === 'submitting'}>
                   {step === 'submitting' ? (

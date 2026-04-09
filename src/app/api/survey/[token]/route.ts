@@ -104,7 +104,6 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const { responses, gender, age_range, unit_id, sector_id, position_id, validation_token, consent_accepted } = parsed.data;
 
-    // Validate QR code is still active and campaign is active
     const qrCode = await prisma.campaignQRCode.findUnique({
       where: { token },
       select: {
@@ -129,7 +128,6 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const campaignId = qrCode.campaign.id;
 
-    // Validate the one-use token, ensure it belongs to this campaign and is not expired
     const employee = await prisma.campaignEmployee.findFirst({
       where: {
         campaign_id: campaignId,
@@ -155,14 +153,13 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const sessionUuid = generateToken();
 
-    // Atomic: mark employee as responded + destroy cpf_hash + create survey response
     const [, surveyResponse] = await prisma.$transaction([
       prisma.campaignEmployee.update({
         where: { id: employee.id },
         data: {
           has_responded: true,
-          cpf_hash: null,               // permanently destroy CPF hash
-          validation_token: null,        // invalidate token
+          cpf_hash: null,
+          validation_token: null,
           validation_token_expires_at: null,
         },
       }),
@@ -183,7 +180,6 @@ export async function POST(request: Request, { params }: RouteParams) {
       }),
     ]);
 
-    // Persist analytics fact rows — non-fatal
     try {
       await persistFactResponses(surveyResponse.id, campaignId, responses);
     } catch (error) {
