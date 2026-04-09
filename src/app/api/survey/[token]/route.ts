@@ -11,7 +11,7 @@ interface RouteParams {
 }
 
 // GET — validate QR code token, return campaign info + hierarchy for self-selection
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
 

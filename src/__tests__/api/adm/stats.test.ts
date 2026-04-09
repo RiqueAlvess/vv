@@ -56,7 +56,7 @@ function setupHappyPath() {
   // $queryRaw returns some sample rows (not necessarily 30 — we fill gaps)
   mockQueryRaw.mockResolvedValueOnce([
     { date: new Date('2026-03-30T00:00:00Z'), role: 'RH', count: 5 },
-    { date: new Date('2026-03-30T00:00:00Z'), role: 'LIDERANCA', count: 2 },
+    { date: new Date('2026-03-30T00:00:00Z'), role: 'RH', count: 2 },
   ]);
 }
 
@@ -78,8 +78,8 @@ describe('GET /api/adm/stats', () => {
     expect(body.error).toBe('Forbidden');
   });
 
-  it('returns 403 for non-ADM role (LIDERANCA)', async () => {
-    mockGetAuthUser.mockResolvedValueOnce({ ...RH_USER, role: 'LIDERANCA' });
+  it('returns 403 for non-ADM role (unknown role)', async () => {
+    mockGetAuthUser.mockResolvedValueOnce({ ...RH_USER, role: 'UNKNOWN' });
     const res = await GET(makeRequest());
     expect(res.status).toBe(403);
   });

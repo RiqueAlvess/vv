@@ -12,7 +12,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'ADM' | 'RH' | 'LIDERANCA';
+  role: 'ADM' | 'RH';
   company_id: string;
   company_name?: string;
   company_logo_url?: string | null;

@@ -18,7 +18,7 @@ export async function createUser(input: {
   name: string;
   email: string;
   password: string;
-  role: 'ADM' | 'RH' | 'LIDERANCA';
+  role: 'ADM' | 'RH';
   company_id: string;
 }): Promise<Result<{ id: string; email: string; role: string }>> {
   const session = await requireSession();
@@ -79,7 +79,7 @@ export async function getUser(id: string): Promise<Result<unknown>> {
 
 export async function updateUser(
   id: string,
-  input: { name?: string; role?: 'ADM' | 'RH' | 'LIDERANCA'; active?: boolean }
+  input: { name?: string; role?: 'ADM' | 'RH'; active?: boolean }
 ): Promise<Result<{ id: string; name: string; role: string }>> {
   const session = await requireSession();
   if (session.role !== 'ADM') return err('Apenas ADM pode editar usuários');
