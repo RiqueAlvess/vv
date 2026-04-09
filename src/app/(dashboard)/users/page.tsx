@@ -25,7 +25,6 @@ const PAGE_SIZE = 20;
 const roleLabels: Record<string, string> = {
   ADM: 'Administrador',
   RH: 'RH',
-  LIDERANCA: 'Liderança',
 };
 
 interface UserRow extends User {
@@ -330,7 +329,6 @@ export default function UsersPage() {
                 <SelectContent>
                   <SelectItem value="ADM">Administrador</SelectItem>
                   <SelectItem value="RH">RH</SelectItem>
-                  <SelectItem value="LIDERANCA">Liderança</SelectItem>
                 </SelectContent>
               </Select>
             </div>

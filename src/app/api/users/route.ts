@@ -30,13 +30,10 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = { active: true };
 
-    // RH sees only users from their company
-    if (user.role === 'RH') {
-      where.company_id = user.company_id;
-    } else if (user.role === 'LIDERANCA') {
+    // RH sees only users from their company; ADM sees all
+    if (user.role !== 'ADM') {
       where.company_id = user.company_id;
     }
-    // ADM sees all users
 
     if (search) {
       where.OR = [

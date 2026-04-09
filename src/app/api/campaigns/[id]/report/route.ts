@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
-import { HSE_DIMENSIONS } from '@/lib/constants';
 import { computeDimensions } from '@/lib/report-helpers';
 import type { RiskLevel } from '@/types';
 

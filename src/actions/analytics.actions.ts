@@ -138,7 +138,6 @@ export async function computeCampaignMetrics(
  * falls back to on-the-fly computation.
  *
  * DASHBOARD LOCK: returns an error if campaign is not 'closed'.
- * LIDERANCA role receives a restricted flag (sector-filtered data TBD).
  */
 export async function getCampaignDashboard(
   campaignId: string
@@ -186,7 +185,6 @@ export async function getCampaignDashboard(
       scores_by_gender: (cached.scores_by_gender ?? {}) as Record<string, unknown>,
       scores_by_age: (cached.scores_by_age ?? {}) as Record<string, unknown>,
       top_critical_groups: ((cached.top_critical_groups as unknown) ?? []) as Record<string, unknown>[],
-      ...(session.role === 'LIDERANCA' && { restricted: true }),
     };
 
     return ok(dashboardData);
@@ -254,7 +252,6 @@ export async function getCampaignDashboard(
     scores_by_gender: {},
     scores_by_age: {},
     top_critical_groups: [],
-    ...(session.role === 'LIDERANCA' && { restricted: true }),
   };
 
   return ok(dashboardData);
