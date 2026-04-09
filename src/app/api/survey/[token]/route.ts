@@ -10,7 +10,7 @@ interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
-// GET — validate QR code token, return campaign info
+// GET — validate QR code token, return campaign info + hierarchy for self-selection
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { token } = await params;
@@ -25,7 +25,25 @@ export async function GET(request: Request, { params }: RouteParams) {
             id: true,
             status: true,
             name: true,
-            company: { select: { name: true, cnpj: true } },
+            company: { select: { name: true, cnpj: true, logo_url: true } },
+            units: {
+              select: {
+                id: true,
+                name: true,
+                sectors: {
+                  select: {
+                    id: true,
+                    name: true,
+                    positions: {
+                      select: { id: true, name: true },
+                      orderBy: { name: 'asc' },
+                    },
+                  },
+                  orderBy: { name: 'asc' },
+                },
+              },
+              orderBy: { name: 'asc' },
+            },
           },
         },
       },
@@ -58,6 +76,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       campaign_name: qrCode.campaign.name,
       company_name: qrCode.campaign.company.name,
       company_cnpj: qrCode.campaign.company.cnpj,
+      company_logo_url: qrCode.campaign.company.logo_url ?? null,
+      hierarchy: qrCode.campaign.units,
     });
   } catch (err) {
     console.error('Validate QR code error:', err);
@@ -84,7 +104,6 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const { responses, gender, age_range, unit_id, sector_id, position_id, validation_token, consent_accepted } = parsed.data;
 
-    // Validate QR code is still active and campaign is active
     const qrCode = await prisma.campaignQRCode.findUnique({
       where: { token },
       select: {
@@ -109,7 +128,6 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const campaignId = qrCode.campaign.id;
 
-    // Validate the one-use token, ensure it belongs to this campaign and is not expired
     const employee = await prisma.campaignEmployee.findFirst({
       where: {
         campaign_id: campaignId,
@@ -135,14 +153,13 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const sessionUuid = generateToken();
 
-    // Atomic: mark employee as responded + destroy cpf_hash + create survey response
     const [, surveyResponse] = await prisma.$transaction([
       prisma.campaignEmployee.update({
         where: { id: employee.id },
         data: {
           has_responded: true,
-          cpf_hash: null,               // permanently destroy CPF hash
-          validation_token: null,        // invalidate token
+          cpf_hash: null,
+          validation_token: null,
           validation_token_expires_at: null,
         },
       }),
@@ -163,7 +180,6 @@ export async function POST(request: Request, { params }: RouteParams) {
       }),
     ]);
 
-    // Persist analytics fact rows — non-fatal
     try {
       await persistFactResponses(surveyResponse.id, campaignId, responses);
     } catch (error) {

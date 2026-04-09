@@ -14,16 +14,29 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
-import { Plus, Pencil, Trash2, Building2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Search, ImagePlus, X } from 'lucide-react';
 import type { Company } from '@/types';
+import { useRef } from 'react';
 
 const PAGE_SIZE = 20;
 
 function buildColumns(
   onEdit: (company: Company) => void,
-  onDelete: (company: Company) => void
+  onDelete: (company: Company) => void,
+  onLogoUpload: (company: Company) => void,
 ): ColumnDef<Company>[] {
   return [
+    {
+      id: 'logo',
+      header: 'Logo',
+      headerClassName: 'w-16',
+      cell: (c) => c.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={c.logo_url} alt={c.name} className="h-7 max-w-[56px] object-contain" />
+      ) : (
+        <span className="text-muted-foreground/40"><Building2 className="h-5 w-5" /></span>
+      ),
+    },
     {
       id: 'name',
       header: 'Nome',
@@ -51,10 +64,13 @@ function buildColumns(
     {
       id: 'actions',
       header: '',
-      headerClassName: 'w-20',
+      headerClassName: 'w-24',
       cellClassName: 'text-right',
       cell: (c) => (
         <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" title="Gerenciar logo" onClick={() => onLogoUpload(c)}>
+            <ImagePlus className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => onEdit(c)}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -91,10 +107,13 @@ export default function CompaniesPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [logoOpen, setLogoOpen] = useState(false);
   const [selected, setSelected] = useState<Company | null>(null);
   const [form, setForm] = useState({ name: '', cnpj: '', cnae: '' });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
@@ -135,6 +154,61 @@ export default function CompaniesPage() {
   function openDelete(company: Company) {
     setSelected(company);
     setDeleteOpen(true);
+  }
+
+  function openLogoUpload(company: Company) {
+    setSelected(company);
+    setLogoOpen(true);
+  }
+
+  async function handleLogoUpload(file: File) {
+    if (!selected) return;
+    setLogoUploading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await fetch(`/api/companies/${selected.id}/logo`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        notifyError(data.error || 'Erro ao fazer upload do logo');
+        return;
+      }
+      success('Logo atualizado');
+      setLogoOpen(false);
+      fetchCompanies();
+    } catch {
+      notifyError('Erro ao fazer upload do logo');
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
+  async function handleLogoDelete() {
+    if (!selected) return;
+    setLogoUploading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/companies/${selected.id}/logo`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        notifyError('Erro ao remover logo');
+        return;
+      }
+      success('Logo removido');
+      setLogoOpen(false);
+      fetchCompanies();
+    } catch {
+      notifyError('Erro ao remover logo');
+    } finally {
+      setLogoUploading(false);
+    }
   }
 
   async function handleSave() {
@@ -193,7 +267,7 @@ export default function CompaniesPage() {
     }
   }
 
-  const columns = buildColumns(openEdit, openDelete);
+  const columns = buildColumns(openEdit, openDelete, openLogoUpload);
 
   return (
     <div className="space-y-6">
@@ -302,6 +376,63 @@ export default function CompaniesPage() {
         loading={deleting}
         onConfirm={handleDelete}
       />
+
+      {/* Logo upload dialog */}
+      <Dialog open={logoOpen} onOpenChange={setLogoOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Logo de {selected?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {selected?.logo_url ? (
+              <div className="flex flex-col items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selected.logo_url}
+                  alt={selected.name}
+                  className="max-h-24 max-w-full object-contain rounded border p-2"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={handleLogoDelete}
+                  disabled={logoUploading}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Remover logo
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center">Nenhum logo cadastrado</p>
+            )}
+            <div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleLogoUpload(file);
+                  e.target.value = '';
+                }}
+              />
+              <Button
+                className="w-full"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
+              >
+                <ImagePlus className="h-4 w-4 mr-2" />
+                {logoUploading ? 'Enviando...' : selected?.logo_url ? 'Trocar logo' : 'Enviar logo'}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                JPEG, PNG, WebP ou SVG · máx 5 MB
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

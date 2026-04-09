@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
@@ -53,12 +52,17 @@ const QUESTIONS = [
   { id: 35, text: 'Meu chefe me incentiva no trabalho' },
 ] as const;
 
+interface HierarchyPosition { id: string; name: string; }
+interface HierarchySector { id: string; name: string; positions: HierarchyPosition[]; }
+interface HierarchyUnit { id: string; name: string; sectors: HierarchySector[]; }
+
 type SurveyStep =
   | 'loading'
   | 'invalid'
   | 'cpf_verify'
   | 'cpf_verifying'
   | 'consent'
+  | 'hierarchy'
   | 'demographics'
   | 'questions'
   | 'submitting'
@@ -81,7 +85,7 @@ export default function SurveyPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfInput, setCpfInput] = useState('');
   const [validationToken, setValidationToken] = useState('');
-  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [hierarchy, setHierarchy] = useState<HierarchyUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState('');
   const [selectedPositionId, setSelectedPositionId] = useState('');
@@ -93,16 +97,17 @@ export default function SurveyPage() {
     campaign_name: string;
     company_name: string;
     company_cnpj: string;
+    company_logo_url: string | null;
   } | null>(null);
 
   const questionsPerPage = 5;
   const totalPages = Math.ceil(QUESTIONS.length / questionsPerPage);
-  const currentQuestions = QUESTIONS.slice(
-    currentPage * questionsPerPage,
-    (currentPage + 1) * questionsPerPage,
-  );
+  const currentQuestions = QUESTIONS.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / QUESTIONS.length) * 100;
+
+  const availableSectors = hierarchy.find(u => u.id === selectedUnitId)?.sectors ?? [];
+  const availablePositions = availableSectors.find(s => s.id === selectedSectorId)?.positions ?? [];
 
   useEffect(() => {
     const validate = async () => {
@@ -117,7 +122,9 @@ export default function SurveyPage() {
             campaign_name: data.campaign_name ?? '',
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
+            company_logo_url: data.company_logo_url ?? null,
           });
+          setHierarchy(data.hierarchy ?? []);
           setStep('cpf_verify');
         }
       } catch {
@@ -232,13 +239,20 @@ export default function SurveyPage() {
   if (step === 'done') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="py-12">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Obrigado!</h2>
-            <p className="text-muted-foreground">
-              Sua resposta foi registrada com sucesso. Você pode fechar esta página.
+        <Card className="w-full max-w-lg text-center">
+          <CardContent className="py-10 px-6">
+            <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#1AA278' }} />
+            <h2 className="text-xl font-semibold mb-3">Obrigado por compartilhar suas respostas!</h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              Cuidar da saúde mental é tão importante quanto a física. Algumas dicas rápidas:
             </p>
+            <ul className="text-sm text-muted-foreground text-left space-y-2 mb-2 mx-auto max-w-xs">
+              <li className="flex items-start gap-2"><span className="mt-0.5">🌿</span> Faça pequenas pausas durante o dia</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">🚶</span> Movimente-se, mesmo que seja uma caminhada curta</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">💬</span> Converse com pessoas de confiança</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">😴</span> Priorize um sono de qualidade</li>
+              <li className="flex items-start gap-2"><span className="mt-0.5">🩺</span> Procure ajuda profissional quando precisar</li>
+            </ul>
           </CardContent>
         </Card>
       </div>
@@ -266,12 +280,24 @@ export default function SurveyPage() {
   return (
     <div className="min-h-screen bg-muted/40 p-3 sm:p-4">
       <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
+
         {/* Header */}
         <div className="text-center py-3 sm:py-4">
-          <div className="flex justify-center mb-3">
+          <div className="flex items-center justify-center gap-4 mb-3">
             <Logo size={44} />
+            {campaignInfo?.company_logo_url && (
+              <>
+                <span className="text-muted-foreground/40 text-xl">|</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={campaignInfo.company_logo_url}
+                  alt={campaignInfo.company_name}
+                  className="h-10 max-w-[140px] object-contain"
+                />
+              </>
+            )}
           </div>
-          <h1 className="text-lg sm:text-xl font-bold">Pesquisa de Riscos Psicossociais</h1>
+          <h1 className="text-lg sm:text-xl font-bold">Mapeamento de Riscos Psicossociais</h1>
           {campaignInfo && (
             <p className="text-sm text-muted-foreground mt-1">
               {campaignInfo.company_name} — {campaignInfo.campaign_name}
@@ -296,8 +322,8 @@ export default function SurveyPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Sua participação é validada pelo CPF cadastrado pela sua empresa. Após a conclusão da
-                pesquisa, seu CPF é{' '}
+                Sua participação é validada pelo CPF cadastrado pela sua empresa.
+                Após a conclusão da pesquisa, seu CPF é{' '}
                 <strong className="text-foreground">excluído permanentemente</strong> da base de dados
                 — não é possível recuperá-lo.
               </p>
@@ -352,6 +378,14 @@ export default function SurveyPage() {
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Logo size={40} />
+                {campaignInfo?.company_logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={campaignInfo.company_logo_url}
+                    alt={campaignInfo.company_name}
+                    className="h-9 max-w-[100px] object-contain"
+                  />
+                )}
                 <div>
                   <CardTitle>Termo de Participação</CardTitle>
                 </div>
@@ -376,9 +410,7 @@ export default function SurveyPage() {
                   <h3 className="font-semibold text-foreground">Sua privacidade está protegida</h3>
                   <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                     <li>Questionário é anonimizado</li>
-                    <li>
-                      Seu CPF será usado apenas para liberar o acesso e evitar respostas duplicadas
-                    </li>
+                    <li>Seu CPF será usado apenas para liberar o acesso e evitar respostas duplicadas</li>
                     <li>Após o envio, ele é excluído definitivamente</li>
                     <li>As respostas são analisadas apenas de forma coletiva, nunca individual</li>
                   </ul>
@@ -399,18 +431,6 @@ export default function SurveyPage() {
                 </p>
               </div>
 
-              <div className="flex items-start space-x-3 pt-2">
-                <Checkbox
-                  id="consent"
-                  checked={consentAccepted}
-                  onCheckedChange={(checked) => setConsentAccepted(checked === true)}
-                  className="mt-0.5"
-                />
-                <Label htmlFor="consent" className="text-sm cursor-pointer leading-relaxed">
-                  Concordo em participar da pesquisa.
-                </Label>
-              </div>
-
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -421,10 +441,9 @@ export default function SurveyPage() {
                 </Button>
                 <Button
                   className="flex-1"
-                  disabled={!consentAccepted}
                   onClick={() => {
                     setErrorMsg('');
-                    setStep('demographics');
+                    setStep('hierarchy');
                   }}
                 >
                   Aceito e desejo participar →
@@ -434,7 +453,101 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* Step 2: Demographics */}
+        {/* Step 2: Hierarchy selection */}
+        {step === 'hierarchy' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Identificação Hierárquica</CardTitle>
+              <CardDescription>
+                Pré-preenchido com base no seu cadastro — confirme ou altere os campos obrigatórios (não identifica você individualmente)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>
+                  Unidade <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={selectedUnitId}
+                  onValueChange={(v) => {
+                    setSelectedUnitId(v);
+                    setSelectedSectorId('');
+                    setSelectedPositionId('');
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
+                  <SelectContent>
+                    {hierarchy.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Setor <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={selectedSectorId}
+                  onValueChange={(v) => {
+                    setSelectedSectorId(v);
+                    setSelectedPositionId('');
+                  }}
+                  disabled={!selectedUnitId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSectors.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Cargo <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={selectedPositionId}
+                  onValueChange={setSelectedPositionId}
+                  disabled={!selectedSectorId}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
+                  <SelectContent>
+                    {availablePositions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    if (!selectedUnitId || !selectedSectorId || !selectedPositionId) {
+                      setErrorMsg('Unidade, setor e cargo são obrigatórios para continuar');
+                      return;
+                    }
+                    setErrorMsg('');
+                    setStep('demographics');
+                  }}
+                >
+                  Continuar →
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-destructive">*</span> Campos obrigatórios
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3: Demographics */}
         {step === 'demographics' && (
           <Card>
             <CardHeader>
@@ -449,14 +562,10 @@ export default function SurveyPage() {
                   Sexo <span className="text-destructive">*</span>
                 </Label>
                 <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {GENDER_OPTIONS.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>
-                        {g.label}
-                      </SelectItem>
+                      <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -466,14 +575,10 @@ export default function SurveyPage() {
                   Faixa Etária <span className="text-destructive">*</span>
                 </Label>
                 <Select value={ageRange} onValueChange={setAgeRange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {AGE_RANGES.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {a} anos
-                      </SelectItem>
+                      <SelectItem key={a} value={a}>{a} anos</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -484,7 +589,7 @@ export default function SurveyPage() {
                   variant="outline"
                   onClick={() => {
                     setErrorMsg('');
-                    setStep('consent');
+                    setStep('hierarchy');
                   }}
                 >
                   Voltar
@@ -501,7 +606,7 @@ export default function SurveyPage() {
                     setStep('questions');
                   }}
                 >
-                  Iniciar Pesquisa →
+                  Iniciar Mapeamento →
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -511,17 +616,13 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* Step 3: Questions */}
+        {/* Step 4: Questions */}
         {(step === 'questions' || step === 'submitting') && (
           <>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>
-                  {answeredCount} de {QUESTIONS.length} questões respondidas
-                </span>
-                <span className="text-muted-foreground">
-                  Pág. {currentPage + 1}/{totalPages}
-                </span>
+                <span>{answeredCount} de {QUESTIONS.length} questões respondidas</span>
+                <span className="text-muted-foreground">Pág. {currentPage + 1}/{totalPages}</span>
               </div>
               <Progress value={progress} />
             </div>
@@ -532,12 +633,12 @@ export default function SurveyPage() {
               </div>
             )}
 
-            <Card>
-              <CardContent className="pt-4 sm:pt-6 space-y-5 sm:space-y-6 px-3 sm:px-6">
-                {currentQuestions.map((q) => (
-                  <div key={q.id} className="space-y-3">
+            <Card className="border-2">
+              <CardContent className="pt-4 sm:pt-6 space-y-0 px-3 sm:px-6">
+                {currentQuestions.map((q, idx) => (
+                  <div key={q.id} className={`space-y-3 py-5 ${idx < currentQuestions.length - 1 ? 'border-b border-border' : ''}`}>
                     <p className="text-sm font-medium leading-relaxed">
-                      <span className="text-muted-foreground mr-2">{q.id}.</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold mr-2 shrink-0">{q.id}</span>
                       {q.text}
                     </p>
                     <RadioGroup
@@ -557,7 +658,7 @@ export default function SurveyPage() {
                           />
                           <Label
                             htmlFor={`q${q.id}-${option.value}`}
-                            className="w-full cursor-pointer rounded-md border px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground hover:bg-muted transition-colors select-none"
+                            className="w-full cursor-pointer rounded-md border-2 border-border/70 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-border transition-colors select-none"
                           >
                             {option.label}
                           </Label>

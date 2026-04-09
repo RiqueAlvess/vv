@@ -36,6 +36,7 @@ export default function FeedbackPage() {
 
   const [step, setStep] = useState<Step>('loading');
   const [companyName, setCompanyName] = useState('');
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   const [type, setType] = useState('');
   const [category, setCategory] = useState('');
   const [message, setMessage] = useState('');
@@ -47,6 +48,7 @@ export default function FeedbackPage() {
       .then(data => {
         if (!data.valid) { setStep('invalid'); return; }
         setCompanyName(data.company_name);
+        setCompanyLogoUrl(data.company_logo_url ?? null);
         setStep('form');
       })
       .catch(() => setStep('invalid'));
@@ -109,10 +111,21 @@ export default function FeedbackPage() {
       <div className="max-w-xl mx-auto space-y-4">
         {/* Header */}
         <div className="text-center py-6">
-          <div className="flex justify-center mb-3">
+          <div className="flex items-center justify-center gap-4 mb-3">
             <Logo size={44} />
+            {companyLogoUrl && (
+              <>
+                <span className="text-muted-foreground/40 text-xl">|</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={companyLogoUrl}
+                  alt={companyName}
+                  className="h-10 max-w-[140px] object-contain"
+                />
+              </>
+            )}
           </div>
-          <h1 className="text-xl font-bold">Canal de Feedback Anonimo</h1>
+          <h1 className="text-xl font-bold">Canal de Feedback Anônimo</h1>
           <p className="text-muted-foreground text-sm mt-1">{companyName}</p>
         </div>
 

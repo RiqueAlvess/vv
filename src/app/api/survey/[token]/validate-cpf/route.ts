@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     if (!employee) {
       return NextResponse.json(
-        { error: 'CPF não encontrado. Verifique se você está cadastrado nesta campanha.' },
+        { error: 'CPF não encontrado.' },
         { status: 404 }
       );
     }

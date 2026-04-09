@@ -32,7 +32,7 @@ export function LogoImage({ className, variant = 'light' }: LogoImageProps) {
         letterSpacing="-1"
       >
         <tspan fill={textColor}>Vivamente</tspan>
-        <tspan fill="#00C896">360</tspan>
+        <tspan fill="#1AA278">360</tspan>
       </text>
     </svg>
   );

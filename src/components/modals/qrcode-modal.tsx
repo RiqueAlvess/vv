@@ -49,7 +49,7 @@ export function QRCodeModal({ open, onOpenChange, surveyUrl, campaignName }: QRC
           </style>
         </head>
         <body>
-          <h2>Pesquisa de Riscos Psicossociais</h2>
+          <h2>Mapeamento de Riscos Psicossociais</h2>
           <p>${campaignName}</p>
           ${svgClone.outerHTML}
           <p style="margin-top: 12px;">${surveyUrl}</p>

@@ -87,10 +87,10 @@ export const NR_MATRIX: Record<RiskLevel, { probability: number; severity: numbe
 };
 
 export const NR_INTERPRETATION: { maxNR: number; label: string; color: string }[] = [
-  { maxNR: 4,  label: 'Baixo Risco',     color: '#8ba800' },  // olive green
-  { maxNR: 8,  label: 'Risco Médio',     color: '#d4b000' },  // yellow
-  { maxNR: 12, label: 'Risco Moderado',  color: '#cc7722' },  // brownish orange
-  { maxNR: 16, label: 'Alto Risco',      color: '#cc0000' },  // bright red
+  { maxNR: 4,  label: 'Baixo Risco',     color: '#009B00' },  // green
+  { maxNR: 8,  label: 'Risco Médio',     color: '#F7B511' },  // yellow
+  { maxNR: 12, label: 'Risco Moderado',  color: '#F75900' },  // orange
+  { maxNR: 16, label: 'Alto Risco',      color: '#F60000' },  // red
 ];
 
 // ============================================================
@@ -98,10 +98,10 @@ export const NR_INTERPRETATION: { maxNR: number; label: string; color: string }[
 // ============================================================
 
 export const RISK_COLORS: Record<RiskLevel, string> = {
-  aceitavel: '#8ba800',   // olive green  — Baixo Risco
-  moderado:  '#d4b000',   // yellow       — Risco Médio
-  importante:'#cc7722',   // brownish orange — Risco Moderado
-  critico:   '#cc0000',   // bright red   — Alto Risco
+  aceitavel: '#009B00',   // green   — Aceitável
+  moderado:  '#F7B511',   // yellow  — Moderado
+  importante:'#F75900',   // orange  — Importante
+  critico:   '#F60000',   // red     — Crítico
 };
 
 // ============================================================
