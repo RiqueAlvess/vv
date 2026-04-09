@@ -21,7 +21,8 @@ export function LogoImage({ className, variant = 'light' }: LogoImageProps) {
       role="img"
       aria-label="Vivamente360"
       className={className}
-      style={{ display: 'block', maxWidth: '220px' }}
+      overflow="visible"
+      style={{ display: 'block' }}
     >
       <text
         x="2"

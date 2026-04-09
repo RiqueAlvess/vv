@@ -34,8 +34,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#144660]/72 via-[#144660]/52 to-[#0d2a3d]/42" />
 
-          {/* Top — logo */}
-          <div className="relative z-10 flex items-center gap-3">
+          {/* Top — logos: Asta (left) and Vivamente360 (right) */}
+          <div className="relative z-10 flex items-center justify-between">
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={brand.logoUrl}
+                alt="Asta"
+                className="h-8 w-auto object-contain"
+              />
+            )}
             <div className="h-8"><LogoImage /></div>
           </div>
 
