@@ -6,7 +6,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Link2, Download, FileDown, CheckCircle2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Download, Printer, Copy, CheckCircle2 } from 'lucide-react';
 
 interface QRCodeModalProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function QRCodeModal({
   campaignName,
 }: QRCodeModalProps) {
   const [copied, setCopied] = useState(false);
+  const [generatingCard, setGeneratingCard] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLink = useCallback(async () => {
@@ -58,7 +60,7 @@ export function QRCodeModal({
     setTimeout(() => setCopied(false), 2000);
   }, [surveyUrl]);
 
-  const handleDownloadPng = useCallback(() => {
+  const handleDownloadQr = useCallback(() => {
     if (!qrRef.current) return;
     const svgEl = qrRef.current.querySelector('svg');
     if (!svgEl) return;
@@ -89,7 +91,7 @@ export function QRCodeModal({
     img.src = url;
   }, [campaignName]);
 
-  const handleDownloadPdf = useCallback(() => {
+  const handlePrint = useCallback(() => {
     if (!qrRef.current) return;
     const svgEl = qrRef.current.querySelector('svg');
     if (!svgEl) return;
@@ -146,194 +148,201 @@ export function QRCodeModal({
     printWindow.close();
   }, [campaignName, surveyUrl]);
 
-  // Card download — not exposed in UI, kept for future use
-  const _handleDownloadCard = useCallback(async () => {
+  const handleDownloadCard = useCallback(async () => {
     if (!qrRef.current) return;
     const svgEl = qrRef.current.querySelector('svg');
     if (!svgEl) return;
 
-    const W = 560;
-    const H = 800;
-    const canvas = document.createElement('canvas');
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    setGeneratingCard(true);
+    try {
+      const W = 560;
+      const H = 800;
+      const canvas = document.createElement('canvas');
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = NAVY;
-    ctx.fillRect(0, 0, W, 140);
+      ctx.fillStyle = NAVY;
+      ctx.fillRect(0, 0, W, 140);
 
-    ctx.font = 'bold 46px Arial, Helvetica, sans-serif';
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('Vivamente', 40, 82);
-    const vivW = ctx.measureText('Vivamente').width;
-    ctx.fillStyle = GREEN;
-    ctx.fillText('360', 40 + vivW, 82);
+      ctx.font = 'bold 46px Arial, Helvetica, sans-serif';
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Vivamente', 40, 82);
+      const vivW = ctx.measureText('Vivamente').width;
+      ctx.fillStyle = GREEN;
+      ctx.fillText('360', 40 + vivW, 82);
 
-    ctx.font = '15px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.fillText('Mapeamento de Riscos Psicossociais', 40, 112);
+      ctx.font = '15px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.fillText('Mapeamento de Riscos Psicossociais', 40, 112);
 
-    ctx.fillStyle = GREEN;
-    ctx.fillRect(0, 140, W, 5);
+      ctx.fillStyle = GREEN;
+      ctx.fillRect(0, 140, W, 5);
 
-    const qrBoxSize = 340;
-    const qrBoxX = (W - qrBoxSize) / 2;
-    const qrBoxY = 175;
+      const qrBoxSize = 340;
+      const qrBoxX = (W - qrBoxSize) / 2;
+      const qrBoxY = 175;
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(20,70,96,0.12)';
-    ctx.shadowBlur  = 24;
-    ctx.shadowOffsetY = 6;
-    ctx.fillStyle = '#ffffff';
-    drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 18);
-    ctx.fill();
-    ctx.restore();
+      ctx.save();
+      ctx.shadowColor = 'rgba(20,70,96,0.12)';
+      ctx.shadowBlur  = 24;
+      ctx.shadowOffsetY = 6;
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 18);
+      ctx.fill();
+      ctx.restore();
 
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 20px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = NAVY;
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 20px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = NAVY;
 
-    const maxW = W - 80;
-    let name = campaignName;
-    if (ctx.measureText(name).width > maxW) {
-      while (ctx.measureText(name + '…').width > maxW && name.length > 1)
-        name = name.slice(0, -1);
-      name += '…';
+      const maxW = W - 80;
+      let name = campaignName;
+      if (ctx.measureText(name).width > maxW) {
+        while (ctx.measureText(name + '…').width > maxW && name.length > 1)
+          name = name.slice(0, -1);
+        name += '…';
+      }
+      ctx.fillText(name, W / 2, qrBoxY + qrBoxSize + 44);
+
+      ctx.font = '14px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = MUTED;
+      ctx.fillText('Escaneie o QR Code para participar', W / 2, qrBoxY + qrBoxSize + 70);
+
+      ctx.beginPath();
+      ctx.strokeStyle = GRAY;
+      ctx.lineWidth = 1;
+      ctx.moveTo(40, qrBoxY + qrBoxSize + 94);
+      ctx.lineTo(W - 40, qrBoxY + qrBoxSize + 94);
+      ctx.stroke();
+
+      ctx.font = '11px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = LIGHT;
+      let urlText = surveyUrl;
+      const maxUrlW = W - 80;
+      while (ctx.measureText(urlText).width > maxUrlW && urlText.length > 20)
+        urlText = urlText.slice(0, -1);
+      if (urlText !== surveyUrl) urlText += '…';
+      ctx.fillText(urlText, W / 2, qrBoxY + qrBoxSize + 118);
+
+      ctx.fillStyle = NAVY;
+      ctx.fillRect(0, H - 56, W, 56);
+      ctx.font = '12px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Vivamente360 — Plataforma de Riscos Psicossociais NR-1', W / 2, H - 22);
+
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        const pad = 30;
+        ctx.drawImage(img, qrBoxX + pad, qrBoxY + pad, qrBoxSize - pad * 2, qrBoxSize - pad * 2);
+        URL.revokeObjectURL(url);
+        const link = document.createElement('a');
+        link.download = `card-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      img.src = url;
+    } finally {
+      setGeneratingCard(false);
     }
-    ctx.fillText(name, W / 2, qrBoxY + qrBoxSize + 44);
-
-    ctx.font = '14px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = MUTED;
-    ctx.fillText('Escaneie o QR Code para participar', W / 2, qrBoxY + qrBoxSize + 70);
-
-    ctx.beginPath();
-    ctx.strokeStyle = GRAY;
-    ctx.lineWidth = 1;
-    ctx.moveTo(40, qrBoxY + qrBoxSize + 94);
-    ctx.lineTo(W - 40, qrBoxY + qrBoxSize + 94);
-    ctx.stroke();
-
-    ctx.font = '11px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = LIGHT;
-    let urlText = surveyUrl;
-    const maxUrlW = W - 80;
-    while (ctx.measureText(urlText).width > maxUrlW && urlText.length > 20)
-      urlText = urlText.slice(0, -1);
-    if (urlText !== surveyUrl) urlText += '…';
-    ctx.fillText(urlText, W / 2, qrBoxY + qrBoxSize + 118);
-
-    ctx.fillStyle = NAVY;
-    ctx.fillRect(0, H - 56, W, 56);
-    ctx.font = '12px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.textAlign = 'center';
-    ctx.fillText('Vivamente360 — Plataforma de Riscos Psicossociais NR-1', W / 2, H - 22);
-
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      const pad = 30;
-      ctx.drawImage(img, qrBoxX + pad, qrBoxY + pad, qrBoxSize - pad * 2, qrBoxSize - pad * 2);
-      URL.revokeObjectURL(url);
-      const link = document.createElement('a');
-      link.download = `qrcode-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    };
-    img.src = url;
   }, [campaignName, surveyUrl]);
-
-  void _handleDownloadCard; // retained for future use
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-w-sm">
+      <DialogContent className="sm:max-w-sm max-w-[calc(100vw-2rem)]">
         <DialogHeader>
-          <DialogTitle>QR Code da Pesquisa</DialogTitle>
+          <DialogTitle>Acesso à Pesquisa</DialogTitle>
           <DialogDescription>{campaignName}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-1">
-          <p className="text-xs text-muted-foreground mb-3">Preview do Card</p>
-
-          <div className="flex gap-4 items-stretch">
-            {/* Left — card preview */}
-            <div className="flex flex-col items-center flex-1 min-w-0">
-              <div className="relative w-full rounded-xl overflow-hidden border border-border shadow-sm bg-white">
-                {/* Top-right decorative triangle */}
-                <div
-                  className="absolute top-0 right-0 w-14 h-14 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, transparent 50%, #16a34a 50%)' }}
-                />
-                {/* Bottom-left decorative triangle */}
-                <div
-                  className="absolute bottom-0 left-0 w-14 h-14 pointer-events-none"
-                  style={{ background: 'linear-gradient(315deg, transparent 50%, #16a34a 50%)' }}
-                />
-
-                {/* QR code */}
-                <div className="flex items-center justify-center px-5 pt-6 pb-4">
-                  <div ref={qrRef} className="p-2 bg-white rounded-md border border-gray-200 shadow-sm">
-                    <QRCodeSVG
-                      value={surveyUrl}
-                      size={130}
-                      level="H"
-                      includeMargin={false}
-                    />
-                  </div>
-                </div>
-
-                {/* Branding */}
-                <div className="px-3 pb-3 flex items-center gap-1">
-                  <span className="text-xs font-bold text-gray-700">Vivamente</span>
-                  <span className="text-xs font-bold text-green-600">360</span>
-                </div>
-              </div>
-
-              {/* URL below card */}
-              <p className="text-[10px] text-muted-foreground text-center break-all px-1 mt-2 leading-tight">
-                {surveyUrl}
-              </p>
+        <div className="flex flex-col items-center gap-5 py-1">
+          {/* QR Code card with shadow */}
+          <div
+            ref={qrRef}
+            className="p-5 bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center gap-3 w-full"
+          >
+            <QRCodeSVG
+              value={surveyUrl}
+              size={220}
+              level="H"
+              includeMargin={false}
+              imageSettings={{
+                src: '/logo.png',
+                height: 36,
+                width: 90,
+                excavate: true,
+              }}
+            />
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-bold" style={{ color: NAVY }}>Vivamente</span>
+              <span className="text-xs font-bold" style={{ color: '#16a34a' }}>360</span>
             </div>
+          </div>
 
-            {/* Right — action buttons */}
-            <div className="flex flex-col gap-2.5 w-[140px] shrink-0">
+          {/* Link field + copy button */}
+          <div className="w-full space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Link Curto</p>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={surveyUrl}
+                className="text-xs h-9 select-all"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
               <Button
-                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
-                style={{ backgroundColor: '#1B6157' }}
+                size="sm"
+                variant="outline"
                 onClick={handleCopyLink}
+                className="shrink-0 h-9 px-3 gap-1.5"
               >
-                {copied ? <CheckCircle2 className="h-5 w-5" /> : <Link2 className="h-5 w-5" />}
-                <span>{copied ? 'Copiado!' : 'Copiar Link'}</span>
-              </Button>
-
-              <Button
-                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
-                style={{ backgroundColor: '#1B6157' }}
-                onClick={handleDownloadPng}
-              >
-                <Download className="h-5 w-5" />
-                <span>Baixar PNG</span>
-              </Button>
-
-              <Button
-                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
-                style={{ backgroundColor: '#16a34a' }}
-                onClick={handleDownloadPdf}
-              >
-                <FileDown className="h-5 w-5" />
-                <span className="text-center leading-tight">Baixar PDF para Impressão</span>
+                {copied
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  : <Copy className="h-3.5 w-3.5" />}
+                <span className="text-xs">{copied ? 'Copiado' : 'Copiar'}</span>
               </Button>
             </div>
+          </div>
+
+          {/* Primary — download QR */}
+          <Button
+            className="w-full h-11 text-sm font-semibold text-white gap-2"
+            style={{ backgroundColor: '#22c55e' }}
+            onClick={handleDownloadQr}
+          >
+            <Download className="h-4 w-4" />
+            Baixar QR Code
+          </Button>
+
+          {/* Secondary — print + card */}
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="outline"
+              className="flex-1 h-9 text-sm gap-2"
+              onClick={handlePrint}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 h-9 text-sm gap-2"
+              onClick={handleDownloadCard}
+              disabled={generatingCard}
+            >
+              <Download className="h-4 w-4" />
+              {generatingCard ? 'Gerando...' : 'Baixar Card de Divulgação'}
+            </Button>
           </div>
         </div>
       </DialogContent>
