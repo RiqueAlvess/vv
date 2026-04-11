@@ -39,10 +39,17 @@ export async function POST(request: Request) {
 
   for (const campaign of expiredCampaigns) {
     try {
-      await prisma.campaign.update({
-        where: { id: campaign.id },
-        data: { status: 'closed', updated_at: new Date() },
-      });
+      await prisma.$transaction([
+        prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { status: 'closed', updated_at: new Date() },
+        }),
+        // Drop all remaining cpf_hash for anonymity compliance
+        prisma.campaignEmployee.updateMany({
+          where: { campaign_id: campaign.id, cpf_hash: { not: null } },
+          data: { cpf_hash: null },
+        }),
+      ]);
 
       log('AUDIT', {
         action: 'campaign.auto_close',
