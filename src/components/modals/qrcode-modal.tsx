@@ -1,13 +1,12 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Copy, Printer, Download, CheckCircle2, ImageDown } from 'lucide-react';
-import { useState } from 'react';
+import { Link2, Download, FileDown, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface QRCodeModalProps {
@@ -32,7 +31,6 @@ export function QRCodeModal({
   companyLogoUrl,
 }: QRCodeModalProps) {
   const [copied, setCopied] = useState(false);
-  const [generatingCard, setGeneratingCard] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLink = useCallback(async () => {
@@ -41,43 +39,7 @@ export function QRCodeModal({
     setTimeout(() => setCopied(false), 2000);
   }, [surveyUrl]);
 
-  const handlePrint = useCallback(() => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !qrRef.current) return;
-
-    const svgEl = qrRef.current.querySelector('svg');
-    if (!svgEl) return;
-
-    const svgClone = svgEl.cloneNode(true) as SVGElement;
-    svgClone.setAttribute('width', '300');
-    svgClone.setAttribute('height', '300');
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>QR Code — ${campaignName}</title>
-          <style>
-            body { margin: 0; display: flex; flex-direction: column; align-items: center;
-                   justify-content: center; min-height: 100vh; font-family: sans-serif; }
-            h2 { font-size: 18px; margin-bottom: 8px; }
-            p { font-size: 12px; color: #666; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <h2>Mapeamento de Riscos Psicossociais</h2>
-          <p>${campaignName}</p>
-          ${svgClone.outerHTML}
-          <p style="margin-top: 12px;">${surveyUrl}</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  }, [campaignName, surveyUrl]);
-
-  const handleDownload = useCallback(() => {
+  const handleDownloadPng = useCallback(() => {
     if (!qrRef.current) return;
     const svgEl = qrRef.current.querySelector('svg');
     if (!svgEl) return;
@@ -100,7 +62,6 @@ export function QRCodeModal({
     img.onload = () => {
       ctx.drawImage(img, 0, 0, size, size);
       URL.revokeObjectURL(url);
-
       const link = document.createElement('a');
       link.download = `qrcode-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -109,9 +70,47 @@ export function QRCodeModal({
     img.src = url;
   }, [campaignName]);
 
-  const handleDownloadCard = useCallback(async () => {
+  const handleDownloadPdf = useCallback(() => {
     if (!qrRef.current) return;
-    setGeneratingCard(true);
+    const svgEl = qrRef.current.querySelector('svg');
+    if (!svgEl) return;
+
+    const svgClone = svgEl.cloneNode(true) as SVGElement;
+    svgClone.setAttribute('width', '300');
+    svgClone.setAttribute('height', '300');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>QR Code — ${campaignName}</title>
+          <style>
+            @media print { @page { margin: 20mm; } }
+            body { margin: 0; display: flex; flex-direction: column; align-items: center;
+                   justify-content: center; min-height: 100vh; font-family: sans-serif; background: #fff; }
+            h2 { font-size: 18px; margin-bottom: 8px; color: #111; }
+            p { font-size: 12px; color: #666; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h2>Mapeamento de Riscos Psicossociais</h2>
+          <p>${campaignName}</p>
+          ${svgClone.outerHTML}
+          <p style="margin-top: 12px;">${surveyUrl}</p>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  }, [campaignName, surveyUrl]);
+
+  // Keep card download for future use (not exposed in UI)
+  const _handleDownloadCard = useCallback(async () => {
+    if (!qrRef.current) return;
 
     try {
       const W = 800;
@@ -122,7 +121,6 @@ export function QRCodeModal({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Helper: load an image from a URL, resolves null on error
       const loadImg = (src: string): Promise<HTMLImageElement | null> =>
         new Promise((resolve) => {
           const img = new Image();
@@ -132,26 +130,19 @@ export function QRCodeModal({
           img.src = src;
         });
 
-      // ── 1. Background ────────────────────────────────────────────────
       const bgImg = await loadImg('/bg.jpeg');
       if (bgImg) {
         const imgAR = bgImg.width / bgImg.height;
         const canAR = W / H;
         let sx = 0, sy = 0, sw = bgImg.width, sh = bgImg.height;
-        if (imgAR > canAR) {
-          sw = bgImg.height * canAR;
-          sx = (bgImg.width - sw) / 2;
-        } else {
-          sh = bgImg.width / canAR;
-          sy = (bgImg.height - sh) / 2;
-        }
+        if (imgAR > canAR) { sw = bgImg.height * canAR; sx = (bgImg.width - sw) / 2; }
+        else { sh = bgImg.width / canAR; sy = (bgImg.height - sh) / 2; }
         ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, W, H);
       } else {
         ctx.fillStyle = '#0D3D4F';
         ctx.fillRect(0, 0, W, H);
       }
 
-      // ── 2. Dark gradient overlay ─────────────────────────────────────
       const grad = ctx.createLinearGradient(0, 0, W, H);
       grad.addColorStop(0, 'rgba(13,61,79,0.82)');
       grad.addColorStop(0.5, 'rgba(13,61,79,0.68)');
@@ -159,7 +150,6 @@ export function QRCodeModal({
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      // ── 3. "Vivamente" (white) + "360" (green) title ─────────────────
       ctx.textBaseline = 'alphabetic';
       ctx.font = '900 72px Arial, sans-serif';
       const vivText = 'Vivamente';
@@ -172,18 +162,12 @@ export function QRCodeModal({
       ctx.fillStyle = '#1AA278';
       ctx.fillText(num360, titleStartX + vivW, 120);
 
-      // ── 4. Subtitle ──────────────────────────────────────────────────
       ctx.textAlign = 'center';
       ctx.font = '26px Arial, sans-serif';
       ctx.fillStyle = '#1AA278';
       ctx.fillText('Mapeamento Psicossocial:', W / 2, 158);
 
-      // ── 5. White rounded box ─────────────────────────────────────────
-      const BOX_W = 400;
-      const BOX_H = 400;
-      const BOX_X = (W - BOX_W) / 2;
-      const BOX_Y = 185;
-      const R = 20;
+      const BOX_W = 400, BOX_H = 400, BOX_X = (W - BOX_W) / 2, BOX_Y = 185, R = 20;
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
       ctx.moveTo(BOX_X + R, BOX_Y);
@@ -198,7 +182,6 @@ export function QRCodeModal({
       ctx.closePath();
       ctx.fill();
 
-      // ── 6. QR code ───────────────────────────────────────────────────
       const svgEl = qrRef.current.querySelector('svg');
       if (svgEl) {
         const svgClone = svgEl.cloneNode(true) as SVGElement;
@@ -210,42 +193,29 @@ export function QRCodeModal({
         const blobUrl = URL.createObjectURL(blob);
         const qrImg = await loadImg(blobUrl);
         URL.revokeObjectURL(blobUrl);
-        if (qrImg) {
-          ctx.drawImage(qrImg, BOX_X + 20, BOX_Y + 20, QR_SIZE, QR_SIZE);
-        }
+        if (qrImg) ctx.drawImage(qrImg, BOX_X + 20, BOX_Y + 20, QR_SIZE, QR_SIZE);
       }
 
-      // ── 7. Company / campaign name ───────────────────────────────────
       const textY = BOX_Y + BOX_H + 58;
       ctx.textAlign = 'center';
       ctx.font = 'bold 36px Arial, sans-serif';
       ctx.fillStyle = '#FFFFFF';
       let displayName = (companyName || campaignName).toUpperCase();
-      // Truncate if too wide for canvas
-      while (ctx.measureText(displayName).width > W - 80 && displayName.length > 8) {
+      while (ctx.measureText(displayName).width > W - 80 && displayName.length > 8)
         displayName = displayName.slice(0, -4) + '...';
-      }
       ctx.fillText(displayName, W / 2, textY);
 
-      // ── 8. "CAMPANHA:" label ─────────────────────────────────────────
       ctx.font = '20px Arial, sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.70)';
       ctx.fillText('CAMPANHA:', W / 2, textY + 46);
 
-      // ── 9. Date range ────────────────────────────────────────────────
-      const startStr = campaignStartDate
-        ? format(new Date(campaignStartDate), 'dd/MM/yyyy')
-        : '—';
-      const endStr = campaignEndDate
-        ? format(new Date(campaignEndDate), 'dd/MM/yyyy')
-        : '—';
+      const startStr = campaignStartDate ? format(new Date(campaignStartDate), 'dd/MM/yyyy') : '—';
+      const endStr = campaignEndDate ? format(new Date(campaignEndDate), 'dd/MM/yyyy') : '—';
       ctx.font = 'bold 32px Arial, sans-serif';
       ctx.fillStyle = '#FFFFFF';
       ctx.fillText(`${startStr} – ${endStr}`, W / 2, textY + 88);
 
-      // ── 10. Bottom logos ─────────────────────────────────────────────
-      const LOGO_H = 48;
-      const LOGO_Y = 880;
+      const LOGO_H = 48, LOGO_Y = 880;
       const astaLogoUrl = process.env.NEXT_PUBLIC_LOGO_URL || '/logo.png';
       const [astaImg, compImg] = await Promise.all([
         loadImg(astaLogoUrl),
@@ -255,92 +225,113 @@ export function QRCodeModal({
       if (astaImg && compImg) {
         const astaW = Math.round(astaImg.width * (LOGO_H / astaImg.height));
         const compW = Math.round(compImg.width * (LOGO_H / compImg.height));
-        const GAP = 32;
-        const midX = W / 2;
-        // Vertical divider
+        const GAP = 32, midX = W / 2;
         ctx.strokeStyle = 'rgba(255,255,255,0.30)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(midX, LOGO_Y - 8);
         ctx.lineTo(midX, LOGO_Y + LOGO_H + 8);
         ctx.stroke();
-        // Asta logo right-aligned to center
         ctx.drawImage(astaImg, midX - GAP - astaW, LOGO_Y, astaW, LOGO_H);
-        // Company logo left-aligned from center
         ctx.drawImage(compImg, midX + GAP, LOGO_Y, compW, LOGO_H);
       } else if (astaImg) {
         const astaW = Math.round(astaImg.width * (LOGO_H / astaImg.height));
         ctx.drawImage(astaImg, (W - astaW) / 2, LOGO_Y, astaW, LOGO_H);
       }
 
-      // ── 11. Download ─────────────────────────────────────────────────
       const link = document.createElement('a');
       link.download = `card-qr-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    } finally {
-      setGeneratingCard(false);
-    }
+    } catch { /* silent */ }
   }, [campaignName, campaignStartDate, campaignEndDate, companyName, companyLogoUrl]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-md max-w-sm">
         <DialogHeader>
           <DialogTitle>QR Code da Pesquisa</DialogTitle>
           <DialogDescription>{campaignName}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-6 py-2">
-          {/* QR Code */}
-          <div ref={qrRef} className="p-4 bg-white rounded-xl border shadow-sm">
-            <QRCodeSVG
-              value={surveyUrl}
-              size={220}
-              level="H"
-              includeMargin={false}
-            />
-          </div>
+        <div className="py-1">
+          <p className="text-xs text-muted-foreground mb-3">Preview do Card</p>
 
-          {/* URL display */}
-          <p className="text-xs text-muted-foreground text-center break-all px-2 max-w-xs">
-            {surveyUrl}
-          </p>
+          <div className="flex gap-4 items-stretch">
+            {/* Left — card preview */}
+            <div className="flex flex-col items-center flex-1 min-w-0">
+              <div className="relative w-full rounded-xl overflow-hidden border border-border shadow-sm bg-white">
+                {/* Top-right decorative triangle */}
+                <div
+                  className="absolute top-0 right-0 w-14 h-14 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(135deg, transparent 50%, #16a34a 50%)',
+                  }}
+                />
+                {/* Bottom-left decorative triangle */}
+                <div
+                  className="absolute bottom-0 left-0 w-14 h-14 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(315deg, transparent 50%, #16a34a 50%)',
+                  }}
+                />
 
-          {/* Actions */}
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleCopyLink}
-            >
-              {copied ? (
-                <><CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />Copiado!</>
-              ) : (
-                <><Copy className="h-4 w-4 mr-2" />Copiar link</>
-              )}
-            </Button>
-          </div>
-          <div className="flex gap-2 w-full">
-            <Button variant="outline" className="flex-1" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Baixar QR
-            </Button>
-          </div>
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleDownloadCard}
-              disabled={generatingCard}
-            >
-              <ImageDown className="h-4 w-4 mr-2" />
-              {generatingCard ? 'Gerando...' : 'Baixar Card'}
-            </Button>
+                {/* QR code */}
+                <div className="flex items-center justify-center px-5 pt-6 pb-4">
+                  <div ref={qrRef} className="p-2 bg-white rounded-md border border-gray-200 shadow-sm">
+                    <QRCodeSVG
+                      value={surveyUrl}
+                      size={130}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  </div>
+                </div>
+
+                {/* Branding */}
+                <div className="px-3 pb-3 flex items-center gap-1">
+                  <span className="text-xs font-bold text-gray-700">Vivamente</span>
+                  <span className="text-xs font-bold text-green-600">360</span>
+                </div>
+              </div>
+
+              {/* URL below card */}
+              <p className="text-[10px] text-muted-foreground text-center break-all px-1 mt-2 leading-tight">
+                {surveyUrl}
+              </p>
+            </div>
+
+            {/* Right — action buttons */}
+            <div className="flex flex-col gap-2.5 w-[140px] shrink-0">
+              <Button
+                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
+                style={{ backgroundColor: '#1B6157', hover: undefined }}
+                onClick={handleCopyLink}
+              >
+                {copied
+                  ? <CheckCircle2 className="h-5 w-5" />
+                  : <Link2 className="h-5 w-5" />}
+                <span>{copied ? 'Copiado!' : 'Copiar Link'}</span>
+              </Button>
+
+              <Button
+                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
+                style={{ backgroundColor: '#1B6157' }}
+                onClick={handleDownloadPng}
+              >
+                <Download className="h-5 w-5" />
+                <span>Baixar PNG</span>
+              </Button>
+
+              <Button
+                className="w-full h-16 flex-col gap-1 text-xs font-semibold rounded-xl text-white"
+                style={{ backgroundColor: '#16a34a' }}
+                onClick={handleDownloadPdf}
+              >
+                <FileDown className="h-5 w-5" />
+                <span className="text-center leading-tight">Baixar PDF para Impressão</span>
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
