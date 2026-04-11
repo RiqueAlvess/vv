@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Download, Printer, Copy, CheckCircle2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface QRCodeModalProps {
   open: boolean;
@@ -23,9 +24,6 @@ interface QRCodeModalProps {
 // Brand colors
 const NAVY  = '#144660';
 const GREEN = '#1ff28d';
-const GRAY  = '#ebf0eb';
-const MUTED = '#6B7280';
-const LIGHT = '#9CA3AF';
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -44,11 +42,27 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
+/** Loads an image via Promise; resolves null on error or timeout */
+function loadImg(src: string, timeoutMs = 8000): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = window.setTimeout(() => resolve(null), timeoutMs);
+    img.onload  = () => { clearTimeout(timer); resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = src;
+  });
+}
+
 export function QRCodeModal({
   open,
   onOpenChange,
   surveyUrl,
   campaignName,
+  campaignStartDate,
+  campaignEndDate,
+  companyName,
+  companyLogoUrl,
 }: QRCodeModalProps) {
   const [copied, setCopied] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
@@ -76,8 +90,8 @@ export function QRCodeModal({
     ctx.fillRect(0, 0, size, size);
 
     const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
 
     const img = new Image();
     img.onload = () => {
@@ -118,7 +132,7 @@ export function QRCodeModal({
             .subtitle { color: rgba(255,255,255,0.65); font-size: 13px; margin-top: 4px; }
             .body { padding: 32px 40px; display: flex; flex-direction: column; align-items: center; }
             h2 { font-size: 17px; color: ${NAVY}; margin: 0 0 4px; text-align: center; }
-            p { font-size: 12px; color: ${MUTED}; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
+            p { font-size: 12px; color: #6B7280; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
             .accent-bar { height: 4px; background: ${GREEN}; width: 100%; }
             .footer { background: ${NAVY}; width: 100%; padding: 12px; text-align: center;
                       font-size: 11px; color: rgba(255,255,255,0.5); }
@@ -133,9 +147,9 @@ export function QRCodeModal({
           </div>
           <div class="body">
             <h2>${campaignName}</h2>
-            <p style="margin-bottom:16px;color:${MUTED}">Escaneie o QR Code para participar</p>
+            <p style="margin-bottom:16px">Escaneie o QR Code para participar</p>
             ${svgClone.outerHTML}
-            <p style="margin-top:16px;color:${LIGHT};">${surveyUrl}</p>
+            <p style="margin-top:16px;color:#9CA3AF">${surveyUrl}</p>
           </div>
           <div class="accent-bar"></div>
           <div class="footer">Vivamente360 — Plataforma de Riscos Psicossociais NR-1</div>
@@ -153,110 +167,139 @@ export function QRCodeModal({
     const svgEl = qrRef.current.querySelector('svg');
     if (!svgEl) return;
 
+    // Snapshot SVG synchronously before any async operations
+    const QR_SIZE = 360;
+    const svgClone = svgEl.cloneNode(true) as SVGElement;
+    svgClone.setAttribute('width', String(QR_SIZE));
+    svgClone.setAttribute('height', String(QR_SIZE));
+    const svgData = new XMLSerializer().serializeToString(svgClone);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgBlobUrl = URL.createObjectURL(svgBlob);
+
     setGeneratingCard(true);
     try {
-      const W = 560;
-      const H = 800;
+      const W = 800, H = 1000;
       const canvas = document.createElement('canvas');
-      canvas.width  = W;
+      canvas.width = W;
       canvas.height = H;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      ctx.fillStyle = '#ffffff';
+      // Load all images in parallel (QR + background + logos)
+      const astaLogoSrc = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LOGO_URL) || '/logo.png';
+      const [bgImg, qrImg, astaImg, compImg] = await Promise.all([
+        loadImg('/bg.jpeg'),
+        loadImg(svgBlobUrl),
+        loadImg(astaLogoSrc),
+        companyLogoUrl ? loadImg(companyLogoUrl) : Promise.resolve(null),
+      ]);
+      URL.revokeObjectURL(svgBlobUrl);
+
+      // ── 1. Background photo ──────────────────────────────────────────
+      if (bgImg) {
+        const imgAR = bgImg.width / bgImg.height;
+        const canAR = W / H;
+        let sx = 0, sy = 0, sw = bgImg.width, sh = bgImg.height;
+        if (imgAR > canAR) { sw = bgImg.height * canAR; sx = (bgImg.width - sw) / 2; }
+        else { sh = bgImg.width / canAR; sy = (bgImg.height - sh) / 2; }
+        ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = '#0D3D4F';
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      // ── 2. Dark gradient overlay ─────────────────────────────────────
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0,   'rgba(13,61,79,0.82)');
+      grad.addColorStop(0.5, 'rgba(13,61,79,0.68)');
+      grad.addColorStop(1,   'rgba(26,46,53,0.60)');
+      ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      ctx.fillStyle = NAVY;
-      ctx.fillRect(0, 0, W, 140);
-
-      ctx.font = 'bold 46px Arial, Helvetica, sans-serif';
+      // ── 3. "Vivamente" (white) + "360" (green) title ─────────────────
       ctx.textBaseline = 'alphabetic';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('Vivamente', 40, 82);
-      const vivW = ctx.measureText('Vivamente').width;
+      ctx.font = '900 72px Arial, sans-serif';
+      const vivText = 'Vivamente';
+      const num360  = '360';
+      const vivTextW = ctx.measureText(vivText).width;
+      const num360W  = ctx.measureText(num360).width;
+      const titleX   = (W - vivTextW - num360W) / 2;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(vivText, titleX, 120);
       ctx.fillStyle = GREEN;
-      ctx.fillText('360', 40 + vivW, 82);
+      ctx.fillText(num360, titleX + vivTextW, 120);
 
-      ctx.font = '15px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.65)';
-      ctx.fillText('Mapeamento de Riscos Psicossociais', 40, 112);
-
+      // ── 4. Subtitle ──────────────────────────────────────────────────
+      ctx.textAlign = 'center';
+      ctx.font = '26px Arial, sans-serif';
       ctx.fillStyle = GREEN;
-      ctx.fillRect(0, 140, W, 5);
+      ctx.fillText('Mapeamento Psicossocial:', W / 2, 158);
 
-      const qrBoxSize = 340;
-      const qrBoxX = (W - qrBoxSize) / 2;
-      const qrBoxY = 175;
-
-      ctx.save();
-      ctx.shadowColor = 'rgba(20,70,96,0.12)';
-      ctx.shadowBlur  = 24;
-      ctx.shadowOffsetY = 6;
-      ctx.fillStyle = '#ffffff';
-      drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 18);
+      // ── 5. White rounded box ─────────────────────────────────────────
+      const BOX_W = 400, BOX_H = 400;
+      const BOX_X = (W - BOX_W) / 2;
+      const BOX_Y = 185;
+      ctx.fillStyle = '#FFFFFF';
+      drawRoundedRect(ctx, BOX_X, BOX_Y, BOX_W, BOX_H, 20);
       ctx.fill();
-      ctx.restore();
 
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 20px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = NAVY;
-
-      const maxW = W - 80;
-      let name = campaignName;
-      if (ctx.measureText(name).width > maxW) {
-        while (ctx.measureText(name + '…').width > maxW && name.length > 1)
-          name = name.slice(0, -1);
-        name += '…';
+      // ── 6. QR code (drawn synchronously from pre-loaded image) ───────
+      if (qrImg) {
+        const pad = 20;
+        ctx.drawImage(qrImg, BOX_X + pad, BOX_Y + pad, BOX_W - pad * 2, BOX_H - pad * 2);
       }
-      ctx.fillText(name, W / 2, qrBoxY + qrBoxSize + 44);
 
-      ctx.font = '14px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = MUTED;
-      ctx.fillText('Escaneie o QR Code para participar', W / 2, qrBoxY + qrBoxSize + 70);
-
-      ctx.beginPath();
-      ctx.strokeStyle = GRAY;
-      ctx.lineWidth = 1;
-      ctx.moveTo(40, qrBoxY + qrBoxSize + 94);
-      ctx.lineTo(W - 40, qrBoxY + qrBoxSize + 94);
-      ctx.stroke();
-
-      ctx.font = '11px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = LIGHT;
-      let urlText = surveyUrl;
-      const maxUrlW = W - 80;
-      while (ctx.measureText(urlText).width > maxUrlW && urlText.length > 20)
-        urlText = urlText.slice(0, -1);
-      if (urlText !== surveyUrl) urlText += '…';
-      ctx.fillText(urlText, W / 2, qrBoxY + qrBoxSize + 118);
-
-      ctx.fillStyle = NAVY;
-      ctx.fillRect(0, H - 56, W, 56);
-      ctx.font = '12px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      // ── 7. Company / campaign name ───────────────────────────────────
+      const textY = BOX_Y + BOX_H + 58;
       ctx.textAlign = 'center';
-      ctx.fillText('Vivamente360 — Plataforma de Riscos Psicossociais NR-1', W / 2, H - 22);
+      ctx.font = 'bold 36px Arial, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      let displayName = (companyName || campaignName).toUpperCase();
+      while (ctx.measureText(displayName).width > W - 80 && displayName.length > 8)
+        displayName = displayName.slice(0, -4) + '...';
+      ctx.fillText(displayName, W / 2, textY);
 
-      const svgData = new XMLSerializer().serializeToString(svgEl);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
+      // ── 8. "CAMPANHA:" label ─────────────────────────────────────────
+      ctx.font = '20px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.70)';
+      ctx.fillText('CAMPANHA:', W / 2, textY + 46);
 
-      const img = new Image();
-      img.onload = () => {
-        const pad = 30;
-        ctx.drawImage(img, qrBoxX + pad, qrBoxY + pad, qrBoxSize - pad * 2, qrBoxSize - pad * 2);
-        URL.revokeObjectURL(url);
-        const link = document.createElement('a');
-        link.download = `card-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      };
-      img.src = url;
+      // ── 9. Date range ────────────────────────────────────────────────
+      const startStr = campaignStartDate ? format(new Date(campaignStartDate), 'dd/MM/yyyy') : '—';
+      const endStr   = campaignEndDate   ? format(new Date(campaignEndDate),   'dd/MM/yyyy') : '—';
+      ctx.font = 'bold 32px Arial, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(`${startStr} – ${endStr}`, W / 2, textY + 88);
+
+      // ── 10. Bottom logos ─────────────────────────────────────────────
+      const LOGO_H = 48, LOGO_Y = 880;
+      if (astaImg && compImg) {
+        const astaW = Math.round(astaImg.width * (LOGO_H / astaImg.height));
+        const compW = Math.round(compImg.width * (LOGO_H / compImg.height));
+        const GAP = 32, midX = W / 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(midX, LOGO_Y - 8);
+        ctx.lineTo(midX, LOGO_Y + LOGO_H + 8);
+        ctx.stroke();
+        ctx.drawImage(astaImg, midX - GAP - astaW, LOGO_Y, astaW, LOGO_H);
+        ctx.drawImage(compImg,  midX + GAP,         LOGO_Y, compW, LOGO_H);
+      } else if (astaImg) {
+        const astaW = Math.round(astaImg.width * (LOGO_H / astaImg.height));
+        ctx.drawImage(astaImg, (W - astaW) / 2, LOGO_Y, astaW, LOGO_H);
+      }
+
+      // ── 11. Download ─────────────────────────────────────────────────
+      const link = document.createElement('a');
+      link.download = `card-qr-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
     } finally {
       setGeneratingCard(false);
     }
-  }, [campaignName, surveyUrl]);
+  }, [campaignName, campaignStartDate, campaignEndDate, companyName, companyLogoUrl, surveyUrl]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -267,7 +310,7 @@ export function QRCodeModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-5 py-1">
-          {/* QR Code card with shadow */}
+          {/* QR Code — clean, no logo hole */}
           <div
             ref={qrRef}
             className="p-5 bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center gap-3 w-full"
@@ -275,14 +318,8 @@ export function QRCodeModal({
             <QRCodeSVG
               value={surveyUrl}
               size={220}
-              level="H"
+              level="M"
               includeMargin={false}
-              imageSettings={{
-                src: '/logo.png',
-                height: 36,
-                width: 90,
-                excavate: true,
-              }}
             />
             <div className="flex items-center gap-1">
               <span className="text-xs font-bold" style={{ color: NAVY }}>Vivamente</span>
@@ -297,7 +334,7 @@ export function QRCodeModal({
               <Input
                 readOnly
                 value={surveyUrl}
-                className="text-xs h-9 select-all"
+                className="text-xs h-9"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <Button
@@ -314,10 +351,9 @@ export function QRCodeModal({
             </div>
           </div>
 
-          {/* Primary — download QR */}
+          {/* Primary — download QR (with hover effect via Tailwind) */}
           <Button
-            className="w-full h-11 text-sm font-semibold text-white gap-2"
-            style={{ backgroundColor: '#22c55e' }}
+            className="w-full h-11 text-sm font-semibold text-white gap-2 bg-green-500 hover:bg-green-600 active:bg-green-700 transition-colors"
             onClick={handleDownloadQr}
           >
             <Download className="h-4 w-4" />
