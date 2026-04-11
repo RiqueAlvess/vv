@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { CSVUploadModal } from '@/components/modals/csv-upload-modal';
 import { QRCodeModal } from '@/components/modals/qrcode-modal';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
@@ -608,11 +608,13 @@ export default function CampaignDetailPage() {
                     {/* Right: QR image + button */}
                     <div className="flex flex-col items-center gap-2 shrink-0" ref={qrInlineRef}>
                       <div className="bg-white p-2 rounded-xl border shadow-sm">
-                        <QRCodeSVG
+                        <QRCodeCanvas
                           value={surveyUrl}
                           size={96}
                           level="H"
-                          includeMargin={false}
+                          marginSize={0}
+                          bgColor="#FFFFFF"
+                          fgColor="#000000"
                         />
                       </div>
                       <div className="flex gap-1.5">
