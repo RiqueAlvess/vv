@@ -1,13 +1,13 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Copy, Printer, Download, CheckCircle2, ImageDown } from 'lucide-react';
-import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Download, Printer, Copy, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 // High-resolution off-screen QR source used for all downloads/print.
@@ -25,6 +25,13 @@ interface QRCodeModalProps {
   companyName?: string;
   companyLogoUrl?: string;
 }
+
+// Brand colors
+const NAVY  = '#144660';
+const GREEN = '#1ff28d';
+const GRAY  = '#ebf0eb';
+const MUTED = '#6B7280';
+const LIGHT = '#9CA3AF';
 
 export function QRCodeModal({
   open,
@@ -49,43 +56,7 @@ export function QRCodeModal({
     setTimeout(() => setCopied(false), 2000);
   }, [surveyUrl]);
 
-  const handlePrint = useCallback(() => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !qrRef.current) return;
-
-    const canvasEl = qrRef.current.querySelector('canvas');
-    if (!canvasEl) return;
-
-    // Use the high-res canvas directly to guarantee a crisp, complete QR.
-    const dataUrl = canvasEl.toDataURL('image/png');
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>QR Code — ${campaignName}</title>
-          <style>
-            body { margin: 0; display: flex; flex-direction: column; align-items: center;
-                   justify-content: center; min-height: 100vh; font-family: sans-serif; }
-            h2 { font-size: 18px; margin-bottom: 8px; }
-            img { width: 300px; height: 300px; image-rendering: pixelated; }
-            p { font-size: 12px; color: #666; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <h2>Mapeamento de Riscos Psicossociais</h2>
-          <p>${campaignName}</p>
-          <img src="${dataUrl}" alt="QR Code" />
-          <p style="margin-top: 12px;">${surveyUrl}</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  }, [campaignName, surveyUrl]);
-
-  const handleDownload = useCallback(() => {
+  const handleDownloadQr = useCallback(() => {
     if (!qrRef.current) return;
     const sourceCanvas = qrRef.current.querySelector('canvas');
     if (!sourceCanvas) return;
@@ -108,6 +79,63 @@ export function QRCodeModal({
     link.href = out.toDataURL('image/png');
     link.click();
   }, [campaignName]);
+
+  const handlePrint = useCallback(() => {
+    if (!qrRef.current) return;
+    const canvasEl = qrRef.current.querySelector('canvas');
+    if (!canvasEl) return;
+
+    // Use the high-res canvas directly to guarantee a crisp, complete QR.
+    const dataUrl = canvasEl.toDataURL('image/png');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>QR Code — ${campaignName}</title>
+          <style>
+            @media print { @page { margin: 0; } }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, sans-serif; background: #fff; }
+            .header { background: ${NAVY}; width: 100%; padding: 24px 40px 20px; }
+            .logo { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+            .logo-main { color: #fff; }
+            .logo-360 { color: ${GREEN}; }
+            .subtitle { color: rgba(255,255,255,0.65); font-size: 13px; margin-top: 4px; }
+            .body { padding: 32px 40px; display: flex; flex-direction: column; align-items: center; }
+            h2 { font-size: 17px; color: ${NAVY}; margin: 0 0 4px; text-align: center; }
+            p { font-size: 12px; color: ${MUTED}; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
+            img.qr { width: 300px; height: 300px; image-rendering: pixelated; }
+            .accent-bar { height: 4px; background: ${GREEN}; width: 100%; }
+            .footer { background: ${NAVY}; width: 100%; padding: 12px; text-align: center;
+                      font-size: 11px; color: rgba(255,255,255,0.5); }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">
+              <span class="logo-main">Vivamente</span><span class="logo-360">360</span>
+            </div>
+            <div class="subtitle">Mapeamento de Riscos Psicossociais</div>
+          </div>
+          <div class="body">
+            <h2>${campaignName}</h2>
+            <p style="margin-bottom:16px;color:${MUTED}">Escaneie o QR Code para participar</p>
+            <img class="qr" src="${dataUrl}" alt="QR Code" />
+            <p style="margin-top:16px;color:${LIGHT};">${surveyUrl}</p>
+          </div>
+          <div class="accent-bar"></div>
+          <div class="footer">Vivamente360 — Plataforma de Riscos Psicossociais NR-1</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  }, [campaignName, surveyUrl]);
 
   const handleDownloadCard = useCallback(async () => {
     if (!qrRef.current) return;
@@ -302,7 +330,7 @@ export function QRCodeModal({
 
       // ── 11. Download ─────────────────────────────────────────────────
       const link = document.createElement('a');
-      link.download = `card-qr-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.download = `card-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } finally {
@@ -312,17 +340,17 @@ export function QRCodeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-sm max-w-[calc(100vw-2rem)]">
         <DialogHeader>
-          <DialogTitle>QR Code da Pesquisa</DialogTitle>
+          <DialogTitle>Acesso à Pesquisa</DialogTitle>
           <DialogDescription>{campaignName}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-6 py-2">
+        <div className="flex flex-col items-center gap-5 py-1">
           {/* Visible preview — dedicated 220px canvas. Completely isolated
               from the hidden hi-res source below so layout/CSS tweaks on
               either one never affect the other. */}
-          <div className="p-4 bg-white rounded-xl border shadow-sm">
+          <div className="p-5 bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center gap-3 w-full">
             <QRCodeCanvas
               value={surveyUrl}
               size={220}
@@ -331,6 +359,10 @@ export function QRCodeModal({
               bgColor="#FFFFFF"
               fgColor="#000000"
             />
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-bold" style={{ color: NAVY }}>Vivamente</span>
+              <span className="text-xs font-bold" style={{ color: '#16a34a' }}>360</span>
+            </div>
           </div>
 
           {/* Hidden hi-res source used by every download / print path.
@@ -360,52 +392,57 @@ export function QRCodeModal({
             />
           </div>
 
-          {/* URL display */}
-          <p className="text-xs text-muted-foreground text-center break-all px-2 max-w-xs">
-            {surveyUrl}
-          </p>
-
-          {/* Actions */}
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
-              onClick={handleCopyLink}
-            >
-              {copied ? (
-                <><CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />Copiado!</>
-              ) : (
-                <><Copy className="h-4 w-4 mr-2" />Copiar link</>
-              )}
-            </Button>
+          {/* Link field + copy button */}
+          <div className="w-full space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Link Curto</p>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={surveyUrl}
+                className="text-xs h-9 select-all"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyLink}
+                className="shrink-0 h-9 px-3 gap-1.5 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md"
+              >
+                {copied
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  : <Copy className="h-3.5 w-3.5" />}
+                <span className="text-xs">{copied ? 'Copiado' : 'Copiar'}</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Primary — download QR */}
+          <Button
+            className="w-full h-11 text-sm font-semibold text-white gap-2 bg-[#22c55e] transition-all hover:bg-[#16a34a] hover:shadow-lg hover:-translate-y-0.5"
+            onClick={handleDownloadQr}
+          >
+            <Download className="h-4 w-4" />
+            Baixar QR Code
+          </Button>
+
+          {/* Secondary — print + card */}
           <div className="flex gap-2 w-full">
             <Button
               variant="outline"
-              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
+              className="flex-1 h-9 text-sm gap-2 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
               onClick={handlePrint}
             >
-              <Printer className="h-4 w-4 mr-2" />
+              <Printer className="h-4 w-4" />
               Imprimir
             </Button>
             <Button
               variant="outline"
-              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
-              onClick={handleDownload}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Baixar QR
-            </Button>
-          </div>
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
+              className="flex-1 h-9 text-sm gap-2 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
               onClick={handleDownloadCard}
               disabled={generatingCard}
             >
-              <ImageDown className="h-4 w-4 mr-2" />
-              {generatingCard ? 'Gerando...' : 'Baixar Card'}
+              <Download className="h-4 w-4" />
+              {generatingCard ? 'Gerando...' : 'Baixar Card de Divulgação'}
             </Button>
           </div>
         </div>
