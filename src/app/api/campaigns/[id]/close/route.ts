@@ -50,13 +50,20 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const updated = await prisma.campaign.update({
-      where: { id },
-      data: {
-        status: 'closed',
-        updated_at: new Date(),
-      },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.campaign.update({
+        where: { id },
+        data: {
+          status: 'closed',
+          updated_at: new Date(),
+        },
+      }),
+      // Drop all remaining cpf_hash for anonymity compliance
+      prisma.campaignEmployee.updateMany({
+        where: { campaign_id: id, cpf_hash: { not: null } },
+        data: { cpf_hash: null },
+      }),
+    ]);
 
     log('AUDIT', {
       action: 'campaign.close',

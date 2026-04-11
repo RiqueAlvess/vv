@@ -87,6 +87,7 @@ export default function SurveyPage() {
   const [ageRange, setAgeRange] = useState('');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(0);
+  const [invalidQIds, setInvalidQIds] = useState<Set<number>>(new Set());
   const [campaignInfo, setCampaignInfo] = useState<{
     campaign_name: string;
     company_name: string;
@@ -536,45 +537,68 @@ export default function SurveyPage() {
 
             <Card className="border-2 border-gray-300">
               <CardContent className="pt-4 sm:pt-6 space-y-0 px-3 sm:px-6">
-                {currentQuestions.map((q, idx) => (
-                  <div key={q.id} className={`space-y-3 py-5 ${idx < currentQuestions.length - 1 ? 'border-b-2 border-gray-200' : ''}`}>
-                    <p className="text-sm font-medium leading-relaxed">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold mr-2 shrink-0">{q.id}</span>
-                      {q.text}
-                    </p>
-                    <RadioGroup
-                      value={responses[`q${q.id}`]?.toString() ?? ''}
-                      onValueChange={(v) => {
-                        setResponses((prev) => ({ ...prev, [`q${q.id}`]: parseInt(v) }));
-                        setErrorMsg('');
-                      }}
-                      className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2"
+                {currentQuestions.map((q, idx) => {
+                  const isInvalid = invalidQIds.has(q.id);
+                  return (
+                    <div
+                      key={q.id}
+                      className={`space-y-3 py-5 transition-colors ${idx < currentQuestions.length - 1 ? 'border-b-2 border-gray-200' : ''} ${isInvalid ? 'border-l-4 border-l-destructive pl-3 -ml-3' : ''}`}
                     >
-                      {LIKERT_SCALE.map((option) => (
-                        <div key={option.value} className="flex items-center">
-                          <RadioGroupItem
-                            value={option.value.toString()}
-                            id={`q${q.id}-${option.value}`}
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor={`q${q.id}-${option.value}`}
-                            className="w-full cursor-pointer rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-gray-400 transition-colors select-none"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                ))}
+                      <p className="text-sm font-medium leading-relaxed">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-2 shrink-0 ${isInvalid ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>{q.id}</span>
+                        {q.text}
+                        {isInvalid && <span className="ml-2 text-xs font-normal text-destructive">— obrigatório</span>}
+                      </p>
+                      <RadioGroup
+                        value={responses[`q${q.id}`]?.toString() ?? ''}
+                        onValueChange={(v) => {
+                          setResponses((prev) => ({ ...prev, [`q${q.id}`]: parseInt(v) }));
+                          setErrorMsg('');
+                          setInvalidQIds((prev) => {
+                            if (!prev.has(q.id)) return prev;
+                            const next = new Set(prev);
+                            next.delete(q.id);
+                            return next;
+                          });
+                        }}
+                        className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2"
+                      >
+                        {LIKERT_SCALE.map((option) => (
+                          <div key={option.value} className="flex items-center">
+                            <RadioGroupItem
+                              value={option.value.toString()}
+                              id={`q${q.id}-${option.value}`}
+                              className="peer sr-only"
+                            />
+                            <Label
+                              htmlFor={`q${q.id}-${option.value}`}
+                              className={`w-full cursor-pointer rounded-md border-2 px-3 py-2 text-xs text-center peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground peer-data-[state=checked]:border-primary hover:bg-muted hover:border-gray-400 transition-colors select-none ${isInvalid ? 'border-destructive/40' : 'border-gray-300'}`}
+                            >
+                              {option.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
 
             <div className="flex gap-2">
               <div className="flex-1" />
               {currentPage < totalPages - 1 ? (
-                <Button onClick={() => setCurrentPage((p) => p + 1)}>Próximo</Button>
+                <Button onClick={() => {
+                  const unanswered = currentQuestions
+                    .filter((q) => responses[`q${q.id}`] === undefined)
+                    .map((q) => q.id);
+                  if (unanswered.length > 0) {
+                    setInvalidQIds(new Set(unanswered));
+                    return;
+                  }
+                  setInvalidQIds(new Set());
+                  setCurrentPage((p) => p + 1);
+                }}>Próximo</Button>
               ) : (
                 <Button onClick={handleSubmit} disabled={step === 'submitting'}>
                   {step === 'submitting' ? (
