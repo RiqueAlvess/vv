@@ -10,8 +10,6 @@ import { LockedState } from './locked-state';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
-import { IgrpBarChart } from './charts/igrp-bar-chart';
-import { WorkersRiskDonut } from './charts/workers-risk-donut';
 import { StackedDimensionChart } from './charts/stacked-dimension-chart';
 import { StackedQuestionChart } from './charts/stacked-question-chart';
 import { RadarScoreChart } from './charts/radar-score-chart';
@@ -161,44 +159,38 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         </div>
       )}
 
-      {/* ROW 2 — IGRP by dimension (full width) */}
-      {Array.isArray(data.dimension_analysis) && <IgrpBarChart dimensions={data.dimension_analysis as unknown[]} />}
-
-      {/* ROW 3 — Donut + Stacked by dimension */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <WorkersRiskDonut
-          highRiskPct={(data.workers_high_risk_pct as number) ?? 0}
-          criticalPct={(data.workers_critical_pct as number) ?? 0}
-          totalResponded={data.total_responded as number}
-        />
-        <StackedDimensionChart data={data.stacked_by_dimension as unknown[]} />
-      </div>
-
-      {/* ROW 4 — Stacked by question */}
-      <StackedQuestionChart data={data.stacked_by_question as unknown[]} />
-
-      {/* ROW 5 — Radar + Heatmap */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {Array.isArray(data.dimension_analysis) && data.dimension_analysis.length > 0 && (
-          <RadarScoreChart dimensions={data.dimension_analysis as unknown[]} />
-        )}
-        <HeatmapChart heatmap={data.heatmap as unknown[]} />
-      </div>
-
-      {/* ROW 6 — Demographic risk analysis */}
-      {((data.gender_risk as unknown[])?.length > 0 || (data.age_risk as unknown[])?.length > 0) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <GenderRiskChart data={(data.gender_risk as unknown[]) as Parameters<typeof GenderRiskChart>[0]['data']} />
-          <AgeRiskChart data={(data.age_risk as unknown[]) as Parameters<typeof AgeRiskChart>[0]['data']} />
+      {/* ROW 2 — Stacked by dimension (wider) + Radar */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <StackedDimensionChart data={data.stacked_by_dimension as unknown[]} />
         </div>
-      )}
+        <div className="lg:col-span-2">
+          {Array.isArray(data.dimension_analysis) && data.dimension_analysis.length > 0 && (
+            <RadarScoreChart dimensions={data.dimension_analysis as unknown[]} />
+          )}
+        </div>
+      </div>
 
-      {/* ROW 7 — Position Table */}
-      <PositionTable
-        positions={data.position_table as unknown[]}
-        onExportPGR={handleExportPGR}
-        downloading={downloading}
-      />
+      {/* ROW 3 — Question distribution (left) + Demographic profiling (right) */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <StackedQuestionChart data={data.stacked_by_question as unknown[]} />
+        {((data.gender_risk as unknown[])?.length > 0 || (data.age_risk as unknown[])?.length > 0) && (
+          <div className="space-y-6">
+            <GenderRiskChart data={(data.gender_risk as unknown[]) as Parameters<typeof GenderRiskChart>[0]['data']} />
+            <AgeRiskChart data={(data.age_risk as unknown[]) as Parameters<typeof AgeRiskChart>[0]['data']} />
+          </div>
+        )}
+      </div>
+
+      {/* ROW 4 — Heatmap (left) + Position Table (right) */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <HeatmapChart heatmap={data.heatmap as unknown[]} />
+        <PositionTable
+          positions={data.position_table as unknown[]}
+          onExportPGR={handleExportPGR}
+          downloading={downloading}
+        />
+      </div>
     </div>
   );
 }
@@ -206,15 +198,28 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+      {/* KPI cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
-      <Skeleton className="h-64 rounded-xl" />
+      {/* Stacked dimension + Radar */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Skeleton className="lg:col-span-3 h-72 rounded-xl" />
+        <Skeleton className="lg:col-span-2 h-72 rounded-xl" />
+      </div>
+      {/* Question chart + Demographics */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-96 rounded-xl" />
+        <div className="space-y-6">
+          <Skeleton className="h-44 rounded-xl" />
+          <Skeleton className="h-44 rounded-xl" />
+        </div>
+      </div>
+      {/* Heatmap + Position table */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
       </div>
-      <Skeleton className="h-96 rounded-xl" />
     </div>
   );
 }
