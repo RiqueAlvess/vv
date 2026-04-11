@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -9,6 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Copy, Printer, Download, CheckCircle2, ImageDown } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
+
+// High-resolution off-screen QR source used for all downloads/print.
+// Rendering the QR directly on a <canvas> at the final pixel size guarantees
+// crisp modules with no rasterization artifacts (no "hole" in the middle).
+const QR_HI_RES = 1024;
 
 interface QRCodeModalProps {
   open: boolean;
@@ -33,6 +38,9 @@ export function QRCodeModal({
 }: QRCodeModalProps) {
   const [copied, setCopied] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
+  // Hidden container holding the high-res source canvas used by every
+  // download/print path. Kept completely separate from the visible preview
+  // so neither layout changes nor CSS accidentally affect the pixel buffer.
   const qrRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLink = useCallback(async () => {
@@ -45,12 +53,11 @@ export function QRCodeModal({
     const printWindow = window.open('', '_blank');
     if (!printWindow || !qrRef.current) return;
 
-    const svgEl = qrRef.current.querySelector('svg');
-    if (!svgEl) return;
+    const canvasEl = qrRef.current.querySelector('canvas');
+    if (!canvasEl) return;
 
-    const svgClone = svgEl.cloneNode(true) as SVGElement;
-    svgClone.setAttribute('width', '300');
-    svgClone.setAttribute('height', '300');
+    // Use the high-res canvas directly to guarantee a crisp, complete QR.
+    const dataUrl = canvasEl.toDataURL('image/png');
 
     printWindow.document.write(`
       <html>
@@ -60,13 +67,14 @@ export function QRCodeModal({
             body { margin: 0; display: flex; flex-direction: column; align-items: center;
                    justify-content: center; min-height: 100vh; font-family: sans-serif; }
             h2 { font-size: 18px; margin-bottom: 8px; }
+            img { width: 300px; height: 300px; image-rendering: pixelated; }
             p { font-size: 12px; color: #666; margin: 4px 0; word-break: break-all; max-width: 300px; text-align: center; }
           </style>
         </head>
         <body>
           <h2>Mapeamento de Riscos Psicossociais</h2>
           <p>${campaignName}</p>
-          ${svgClone.outerHTML}
+          <img src="${dataUrl}" alt="QR Code" />
           <p style="margin-top: 12px;">${surveyUrl}</p>
         </body>
       </html>
@@ -79,34 +87,26 @@ export function QRCodeModal({
 
   const handleDownload = useCallback(() => {
     if (!qrRef.current) return;
-    const svgEl = qrRef.current.querySelector('svg');
-    if (!svgEl) return;
+    const sourceCanvas = qrRef.current.querySelector('canvas');
+    if (!sourceCanvas) return;
 
-    const canvas = document.createElement('canvas');
-    const size = 512;
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
+    // Re-render onto a clean canvas with a guaranteed white background.
+    // The hi-res source canvas already has one, but this protects against
+    // any future changes that make the source transparent.
+    const size = QR_HI_RES;
+    const out = document.createElement('canvas');
+    out.width = size;
+    out.height = size;
+    const ctx = out.getContext('2d');
     if (!ctx) return;
-
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(sourceCanvas, 0, 0, size, size);
 
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, size, size);
-      URL.revokeObjectURL(url);
-
-      const link = document.createElement('a');
-      link.download = `qrcode-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    };
-    img.src = url;
+    const link = document.createElement('a');
+    link.download = `qrcode-${campaignName.replace(/\s+/g, '-').toLowerCase()}.png`;
+    link.href = out.toDataURL('image/png');
+    link.click();
   }, [campaignName]);
 
   const handleDownloadCard = useCallback(async () => {
@@ -122,15 +122,44 @@ export function QRCodeModal({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Helper: load an image from a URL, resolves null on error
-      const loadImg = (src: string): Promise<HTMLImageElement | null> =>
-        new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        });
+      // Robust image loader: fetch → Blob → object URL. This bypasses all
+      // crossOrigin / canvas-taint issues for same-origin assets (bg.jpeg,
+      // /logo.png) and works for any cross-origin asset whose host sends
+      // CORS headers (Supabase storage). Falls back to a plain Image load
+      // only as a last resort.
+      const loadImg = async (src: string): Promise<HTMLImageElement | null> => {
+        const fromObjectUrl = async (): Promise<HTMLImageElement | null> => {
+          try {
+            const res = await fetch(src, { cache: 'no-store' });
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+            return await new Promise<HTMLImageElement | null>((resolve) => {
+              const img = new Image();
+              img.onload = () => {
+                URL.revokeObjectURL(objUrl);
+                resolve(img);
+              };
+              img.onerror = () => {
+                URL.revokeObjectURL(objUrl);
+                resolve(null);
+              };
+              img.src = objUrl;
+            });
+          } catch {
+            return null;
+          }
+        };
+        const fromDirect = (): Promise<HTMLImageElement | null> =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+          });
+        return (await fromObjectUrl()) ?? (await fromDirect());
+      };
 
       // ── 1. Background ────────────────────────────────────────────────
       const bgImg = await loadImg('/bg.jpeg');
@@ -199,20 +228,18 @@ export function QRCodeModal({
       ctx.fill();
 
       // ── 6. QR code ───────────────────────────────────────────────────
-      const svgEl = qrRef.current.querySelector('svg');
-      if (svgEl) {
-        const svgClone = svgEl.cloneNode(true) as SVGElement;
-        const QR_SIZE = 360;
-        svgClone.setAttribute('width', String(QR_SIZE));
-        svgClone.setAttribute('height', String(QR_SIZE));
-        const svgData = new XMLSerializer().serializeToString(svgClone);
-        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-        const qrImg = await loadImg(blobUrl);
-        URL.revokeObjectURL(blobUrl);
-        if (qrImg) {
-          ctx.drawImage(qrImg, BOX_X + 20, BOX_Y + 20, QR_SIZE, QR_SIZE);
-        }
+      // Draw from the off-screen hi-res <canvas> (pixel-perfect, no SVG
+      // rasterization artifacts, guaranteed complete — no "hole in the
+      // middle"). The source canvas is already rendered with a white
+      // background so nothing from the underlying card bleeds through.
+      // High-quality smoothing gives a cleaner 1024→360 downscale than
+      // nearest-neighbor for this non-integer ratio.
+      const qrCanvas = qrRef.current.querySelector('canvas');
+      const QR_SIZE = 360;
+      if (qrCanvas) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(qrCanvas, BOX_X + 20, BOX_Y + 20, QR_SIZE, QR_SIZE);
       }
 
       // ── 7. Company / campaign name ───────────────────────────────────
@@ -292,13 +319,44 @@ export function QRCodeModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-6 py-2">
-          {/* QR Code */}
-          <div ref={qrRef} className="p-4 bg-white rounded-xl border shadow-sm">
-            <QRCodeSVG
+          {/* Visible preview — dedicated 220px canvas. Completely isolated
+              from the hidden hi-res source below so layout/CSS tweaks on
+              either one never affect the other. */}
+          <div className="p-4 bg-white rounded-xl border shadow-sm">
+            <QRCodeCanvas
               value={surveyUrl}
               size={220}
               level="H"
-              includeMargin={false}
+              marginSize={0}
+              bgColor="#FFFFFF"
+              fgColor="#000000"
+            />
+          </div>
+
+          {/* Hidden hi-res source used by every download / print path.
+              Renders a pristine 1024×1024 canvas — no logo, no image
+              overlay, no SVG rasterization step — so the QR is always
+              pixel-perfect and complete (no "hole in the middle"). */}
+          <div
+            ref={qrRef}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: -99999,
+              top: -99999,
+              width: 1,
+              height: 1,
+              overflow: 'hidden',
+              pointerEvents: 'none',
+            }}
+          >
+            <QRCodeCanvas
+              value={surveyUrl}
+              size={QR_HI_RES}
+              level="H"
+              marginSize={0}
+              bgColor="#FFFFFF"
+              fgColor="#000000"
             />
           </div>
 
@@ -311,7 +369,7 @@ export function QRCodeModal({
           <div className="flex gap-2 w-full">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
               onClick={handleCopyLink}
             >
               {copied ? (
@@ -322,11 +380,19 @@ export function QRCodeModal({
             </Button>
           </div>
           <div className="flex gap-2 w-full">
-            <Button variant="outline" className="flex-1" onClick={handlePrint}>
+            <Button
+              variant="outline"
+              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
+              onClick={handlePrint}
+            >
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
-            <Button variant="outline" className="flex-1" onClick={handleDownload}>
+            <Button
+              variant="outline"
+              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
+              onClick={handleDownload}
+            >
               <Download className="h-4 w-4 mr-2" />
               Baixar QR
             </Button>
@@ -334,7 +400,7 @@ export function QRCodeModal({
           <div className="flex gap-2 w-full">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 transition-all hover:bg-[#1ff28d] hover:text-[#144660] hover:border-[#1ff28d] hover:shadow-md hover:-translate-y-0.5"
               onClick={handleDownloadCard}
               disabled={generatingCard}
             >
