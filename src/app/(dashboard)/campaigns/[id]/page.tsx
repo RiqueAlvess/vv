@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmModal } from '@/components/modals/confirm-modal';
 import { CSVUploadModal } from '@/components/modals/csv-upload-modal';
 import { QRCodeModal } from '@/components/modals/qrcode-modal';
+import { QRCodeSVG } from 'qrcode.react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
@@ -20,6 +21,7 @@ import {
   ArrowLeft, Play, Square, Upload, BarChart3,
   Users, QrCode, ClipboardCheck, Download,
   Plus, Trash2, Eye, RefreshCw, FileSpreadsheet, FileText,
+  ChevronDown, Calendar, MessageSquare,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -68,6 +70,29 @@ interface Unit {
   sectors: Sector[];
 }
 
+function CampaignStatusBadge({ status }: { status: string }) {
+  if (status === 'active') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        {statusLabels[status]}
+      </span>
+    );
+  }
+  if (status === 'closed') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+        {statusLabels[status]}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+      {statusLabels[status]}
+    </span>
+  );
+}
+
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -76,6 +101,7 @@ export default function CampaignDetailPage() {
   const { success, error: notifyError } = useNotifications();
   const queryClient = useQueryClient();
   const campaignId = params.id as string;
+  const qrInlineRef = useRef<HTMLDivElement>(null);
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [companyData, setCompanyData] = useState<{ name: string; logo_url: string | null } | null>(null);
@@ -94,6 +120,15 @@ export default function CampaignDetailPage() {
   const [qrViewModalOpen, setQrViewModalOpen] = useState(false);
   const [selectedQRId, setSelectedQRId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Respondents filter state
+  const [selectedUnit, setSelectedUnit] = useState('');
+  const [selectedSector, setSelectedSector] = useState('');
+  const [selectedPosition, setSelectedPosition] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [unitFilterOpen, setUnitFilterOpen] = useState(false);
+  const [sectorFilterOpen, setSectorFilterOpen] = useState(false);
+  const [positionFilterOpen, setPositionFilterOpen] = useState(false);
 
   const appUrl = typeof window !== 'undefined'
     ? window.location.origin
@@ -205,7 +240,6 @@ export default function CampaignDetailPage() {
         notifyError(data.error || 'Erro ao ativar campanha');
         return;
       }
-      // Auto-create first QR code
       await post(`/api/campaigns/${campaignId}/qrcode`);
       success('Campanha ativada', 'QR Code gerado automaticamente');
       setActivateModalOpen(false);
@@ -229,7 +263,6 @@ export default function CampaignDetailPage() {
       }
       success('Campanha encerrada');
       setCloseModalOpen(false);
-      // Invalidate the closed-campaigns list so DashboardPage refetches on next visit
       queryClient.invalidateQueries({ queryKey: ['campaigns', 'closed'] });
       fetchCampaign();
       fetchQRCodes();
@@ -284,7 +317,7 @@ export default function CampaignDetailPage() {
     }
   };
 
-  // Flatten hierarchy into a list of rows for the respondents tab
+  // Flatten hierarchy into rows
   const respondentRows = units.flatMap(unit =>
     unit.sectors.flatMap(sector =>
       sector.positions.map(pos => ({
@@ -295,6 +328,27 @@ export default function CampaignDetailPage() {
       }))
     )
   ).sort((a, b) => b.response_count - a.response_count);
+
+  // Filter derived data
+  const uniqueUnits = [...new Set(respondentRows.map(r => r.unit))];
+  const uniqueSectors = [...new Set(
+    respondentRows
+      .filter(r => !selectedUnit || r.unit === selectedUnit)
+      .map(r => r.sector)
+  )];
+  const uniquePositions = [...new Set(
+    respondentRows
+      .filter(r =>
+        (!selectedUnit || r.unit === selectedUnit) &&
+        (!selectedSector || r.sector === selectedSector)
+      )
+      .map(r => r.position)
+  )];
+  const filteredRespondentRows = respondentRows.filter(r =>
+    (!selectedUnit || r.unit === selectedUnit) &&
+    (!selectedSector || r.sector === selectedSector) &&
+    (!selectedPosition || r.position === selectedPosition)
+  );
 
   if (loading) {
     return (
@@ -312,23 +366,25 @@ export default function CampaignDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" asChild className="shrink-0">
           <Link href="/campaigns"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{campaign.name}</h1>
-          {campaign.description && <p className="text-muted-foreground">{campaign.description}</p>}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold truncate">{campaign.name}</h1>
+            <CampaignStatusBadge status={campaign.status} />
+          </div>
+          {campaign.description && (
+            <p className="text-sm text-muted-foreground mt-0.5 truncate">{campaign.description}</p>
+          )}
         </div>
-        <Badge variant={campaign.status === 'active' ? 'default' : campaign.status === 'closed' ? 'outline' : 'secondary'}>
-          {statusLabels[campaign.status]}
-        </Badge>
       </div>
 
       {/* Action Buttons */}
       {canManage && (
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => { window.location.href = '/api/campaigns/csv-template'; }}>
+          <Button variant="outline" size="sm" onClick={() => { window.location.href = '/api/campaigns/csv-template'; }}>
             <Download className="h-4 w-4 mr-2" />
             Baixar Modelo CSV
           </Button>
@@ -339,6 +395,7 @@ export default function CampaignDetailPage() {
                 <span>
                   <Button
                     variant="outline"
+                    size="sm"
                     disabled={campaign.status === 'closed'}
                     onClick={() => setCsvModalOpen(true)}
                     className={campaign.status === 'closed' ? 'pointer-events-none opacity-50' : ''}
@@ -355,26 +412,27 @@ export default function CampaignDetailPage() {
           </TooltipProvider>
 
           {campaign.status === 'draft' && (
-            <Button onClick={() => setActivateModalOpen(true)}>
+            <Button size="sm" onClick={() => setActivateModalOpen(true)}>
               <Play className="h-4 w-4 mr-2" />
               Ativar Campanha
             </Button>
           )}
           {campaign.status === 'active' && (
-            <Button variant="destructive" onClick={() => setCloseModalOpen(true)}>
+            <Button size="sm" variant="destructive" onClick={() => setCloseModalOpen(true)}>
               <Square className="h-4 w-4 mr-2" />
               Encerrar Campanha
             </Button>
           )}
           {campaign.status === 'closed' && (
             <>
-              <Button asChild>
+              <Button size="sm" asChild>
                 <Link href="/dashboard">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Ver Dashboard
                 </Link>
               </Button>
               <Button
+                size="sm"
                 variant="outline"
                 onClick={() => {
                   const a = document.createElement('a');
@@ -388,6 +446,7 @@ export default function CampaignDetailPage() {
               </Button>
               {user?.role === 'ADM' && (
                 <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => {
                     const a = document.createElement('a');
@@ -407,60 +466,82 @@ export default function CampaignDetailPage() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Período</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold">
-              {format(new Date(campaign.start_date), 'dd/MM/yyyy')} – {format(new Date(campaign.end_date), 'dd/MM/yyyy')}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Funcionários Cadastrados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold">{metrics?.total_employees ?? 0} colaboradores</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Respostas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold">{metrics?.total_responded ?? 0} respostas</p>
-            {(metrics?.total_employees ?? 0) > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">{metrics?.response_rate ?? 0}% de adesão</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <QrCode className="h-4 w-4" />
-              QR Code
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeQR ? (
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-green-600">Ativo</span>
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-muted/60">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-muted-foreground/40" />
-                <span className="text-sm text-muted-foreground">Inativo</span>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Período</p>
+                <p className="text-sm font-semibold leading-tight">
+                  {format(new Date(campaign.start_date), 'dd/MM/yyyy')}
+                  <span className="text-muted-foreground font-normal"> – </span>
+                  {format(new Date(campaign.end_date), 'dd/MM/yyyy')}
+                </p>
               </div>
-            )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-muted/60">
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Funcionários Cadastrados</p>
+                <p className="text-sm font-semibold">
+                  {metrics?.total_employees ?? 0} colaboradores
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-muted/60">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Respostas</p>
+                <p className="text-sm font-semibold">
+                  {metrics?.total_responded ?? 0} respostas
+                </p>
+                {(metrics?.total_employees ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {metrics?.response_rate ?? 0}% de adesão
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-muted/60">
+                <QrCode className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground font-medium mb-1">QR Code</p>
+                {activeQR ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-sm font-semibold text-emerald-700">Ativo</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-gray-300 shrink-0" />
+                    <span className="text-sm text-muted-foreground">Inativo</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -484,7 +565,7 @@ export default function CampaignDetailPage() {
 
         {/* ── QR Code tab ───────────────────────────────────────────────── */}
         <TabsContent value="qrcode">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -492,7 +573,7 @@ export default function CampaignDetailPage() {
                   <CardDescription>Compartilhe com sua equipe para iniciar a pesquisa</CardDescription>
                 </div>
                 {canManage && campaign.status !== 'closed' && (
-                  <Button variant="outline" onClick={() => setNewQRModalOpen(true)} disabled={actionLoading}>
+                  <Button variant="outline" size="sm" onClick={() => setNewQRModalOpen(true)} disabled={actionLoading}>
                     <Plus className="h-4 w-4 mr-2" />
                     {activeQR ? 'Novo QR Code' : 'Criar QR Code'}
                   </Button>
@@ -501,38 +582,61 @@ export default function CampaignDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {activeQR ? (
-                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4 flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
-                      <p className="text-sm font-semibold">QR Code Ativo</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground font-mono break-all">{surveyUrl}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Criado em {format(new Date(activeQR.created_at), 'dd/MM/yyyy HH:mm')}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => setQrViewModalOpen(true)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      Abrir
-                    </Button>
-                    {canManage && campaign.status !== 'closed' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => { setSelectedQRId(activeQR.id); setDeactivateQRModalOpen(true); }}
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-5">
+                  <div className="flex items-start gap-4">
+                    {/* Left: info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                        <p className="text-sm font-semibold">
+                          QR Code <span className="text-emerald-600">● Ativo</span>
+                        </p>
+                      </div>
+                      <a
+                        href={surveyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline font-mono break-all block"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Desativar
-                      </Button>
-                    )}
+                        {surveyUrl}
+                      </a>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Criado em {format(new Date(activeQR.created_at), 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    </div>
+
+                    {/* Right: QR image + button */}
+                    <div className="flex flex-col items-center gap-2 shrink-0" ref={qrInlineRef}>
+                      <div className="bg-white p-2 rounded-xl border shadow-sm">
+                        <QRCodeSVG
+                          value={surveyUrl}
+                          size={96}
+                          level="H"
+                          includeMargin={false}
+                        />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => setQrViewModalOpen(true)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          Abrir
+                        </Button>
+                        {canManage && campaign.status !== 'closed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => { setSelectedQRId(activeQR.id); setDeactivateQRModalOpen(true); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-                  <QrCode className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
+                  <QrCode className="h-10 w-10 mx-auto mb-3 opacity-25" />
                   <p className="text-sm">
                     {campaign.status === 'draft'
                       ? 'O QR Code será gerado automaticamente ao ativar a campanha.'
@@ -553,7 +657,7 @@ export default function CampaignDetailPage() {
                     {qrCodes.filter((q) => !q.is_active).map((qr) => (
                       <div
                         key={qr.id}
-                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30 text-xs"
+                        className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/40 text-xs"
                       >
                         <span className="font-mono text-muted-foreground">{qr.token.slice(0, 8)}…</span>
                         <span className="text-muted-foreground">
@@ -570,15 +674,15 @@ export default function CampaignDetailPage() {
 
               {/* Counters */}
               <div className="grid grid-cols-3 gap-3 pt-2">
-                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <div className="rounded-xl border bg-muted/30 p-4 text-center">
                   <p className="text-2xl font-bold">{metrics?.total_employees ?? 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Funcionários cadastrados</p>
                 </div>
-                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <div className="rounded-xl border bg-muted/30 p-4 text-center">
                   <p className="text-2xl font-bold">{metrics?.total_responded ?? 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">Respostas recebidas</p>
                 </div>
-                <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <div className="rounded-xl border bg-muted/30 p-4 text-center">
                   <p className="text-2xl font-bold">{qrCodes.length}</p>
                   <p className="text-xs text-muted-foreground mt-1">QR Codes gerados</p>
                 </div>
@@ -589,91 +693,229 @@ export default function CampaignDetailPage() {
 
         {/* ── Respondents tab ───────────────────────────────────────────── */}
         <TabsContent value="hierarchy">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Respondentes por Cargo</CardTitle>
-                  <CardDescription>Cargos com respostas registradas, agrupados por unidade e setor</CardDescription>
-                </div>
-                <Button variant="ghost" size="sm" onClick={fetchHierarchy} disabled={hierarchyLoading}>
-                  <RefreshCw className={`h-4 w-4 ${hierarchyLoading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {hierarchyLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : respondentRows.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma hierarquia importada. Use &quot;Importar CSV&quot; para adicionar unidades, setores e cargos.
+          <div className="rounded-xl border shadow-sm overflow-hidden bg-card flex">
+            {/* Sidebar */}
+            <aside className="w-56 border-r flex-shrink-0 flex flex-col">
+              <div className="px-4 py-3 border-b bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Navegação e Filtros
                 </p>
-              ) : (
-                <>
-                  <div className="rounded-md border overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unidade</th>
-                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Setor</th>
-                          <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
-                          <th className="text-center px-4 py-3 font-medium text-muted-foreground">Respostas</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {respondentRows
-                          .slice((respondentsPage - 1) * RESPONDENTS_PAGE_SIZE, respondentsPage * RESPONDENTS_PAGE_SIZE)
-                          .map((row, i) => (
-                            <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.unit}</td>
-                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.sector}</td>
-                              <td className="px-4 py-2.5 font-medium">{row.position}</td>
-                              <td className="px-4 py-2.5 text-center">
-                                {row.response_count > 0 ? (
-                                  <Badge variant="secondary">{row.response_count}</Badge>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Pagination */}
-                  {respondentRows.length > RESPONDENTS_PAGE_SIZE && (
-                    <div className="flex items-center justify-between pt-4">
-                      <p className="text-xs text-muted-foreground">
-                        {(respondentsPage - 1) * RESPONDENTS_PAGE_SIZE + 1}–{Math.min(respondentsPage * RESPONDENTS_PAGE_SIZE, respondentRows.length)} de {respondentRows.length} cargos
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={respondentsPage === 1}
-                          onClick={() => setRespondentsPage(p => p - 1)}
+              </div>
+
+              <div className="p-2 flex-1 overflow-y-auto">
+                {/* Active view item */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium mb-1">
+                  <Users className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Análise de Respondentes</span>
+                </div>
+
+                {/* Filtros Ativos */}
+                <div className="mt-2">
+                  <button
+                    onClick={() => setFiltersOpen(!filtersOpen)}
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50 transition-colors"
+                  >
+                    <span>Filtros Ativos</span>
+                    <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${filtersOpen ? '' : '-rotate-90'}`} />
+                  </button>
+
+                  {filtersOpen && (
+                    <div className="space-y-0.5 pl-1 mt-0.5">
+                      {/* Unidade filter */}
+                      <div>
+                        <button
+                          onClick={() => setUnitFilterOpen(!unitFilterOpen)}
+                          className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors"
                         >
-                          Anterior
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={respondentsPage * RESPONDENTS_PAGE_SIZE >= respondentRows.length}
-                          onClick={() => setRespondentsPage(p => p + 1)}
+                          <span>Unidade</span>
+                          <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${unitFilterOpen ? '' : '-rotate-90'}`} />
+                        </button>
+                        {unitFilterOpen && (
+                          <div className="pl-3 space-y-0.5 py-0.5">
+                            <button
+                              onClick={() => { setSelectedUnit(''); setSelectedSector(''); setSelectedPosition(''); }}
+                              className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors ${!selectedUnit ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                            >
+                              Todas
+                            </button>
+                            {uniqueUnits.map(unit => (
+                              <button
+                                key={unit}
+                                onClick={() => { setSelectedUnit(unit); setSelectedSector(''); setSelectedPosition(''); setRespondentsPage(1); }}
+                                className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors truncate ${selectedUnit === unit ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                              >
+                                {unit}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Setor filter */}
+                      <div>
+                        <button
+                          onClick={() => setSectorFilterOpen(!sectorFilterOpen)}
+                          className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors"
                         >
-                          Próximo
-                        </Button>
+                          <span>Setor</span>
+                          <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${sectorFilterOpen ? '' : '-rotate-90'}`} />
+                        </button>
+                        {sectorFilterOpen && (
+                          <div className="pl-3 space-y-0.5 py-0.5">
+                            <button
+                              onClick={() => { setSelectedSector(''); setSelectedPosition(''); }}
+                              className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors ${!selectedSector ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                            >
+                              Todos
+                            </button>
+                            {uniqueSectors.map(sector => (
+                              <button
+                                key={sector}
+                                onClick={() => { setSelectedSector(sector); setSelectedPosition(''); setRespondentsPage(1); }}
+                                className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors truncate ${selectedSector === sector ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                              >
+                                {sector}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cargo filter */}
+                      <div>
+                        <button
+                          onClick={() => setPositionFilterOpen(!positionFilterOpen)}
+                          className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors"
+                        >
+                          <span>Cargo</span>
+                          <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${positionFilterOpen ? '' : '-rotate-90'}`} />
+                        </button>
+                        {positionFilterOpen && (
+                          <div className="pl-3 space-y-0.5 py-0.5">
+                            <button
+                              onClick={() => setSelectedPosition('')}
+                              className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors ${!selectedPosition ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                            >
+                              Todos
+                            </button>
+                            {uniquePositions.map(pos => (
+                              <button
+                                key={pos}
+                                onClick={() => { setSelectedPosition(pos); setRespondentsPage(1); }}
+                                className={`w-full text-left px-2 py-1 text-xs rounded-md hover:bg-muted/50 transition-colors truncate ${selectedPosition === pos ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+                              >
+                                {pos}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </div>
+
+                {/* Outras Visualizações */}
+                <div className="mt-4">
+                  <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Outras Visualizações
+                  </p>
+                </div>
+              </div>
+            </aside>
+
+            {/* Main content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="text-base font-semibold">Análise de Respondentes</h3>
+                <Button variant="outline" size="sm" onClick={fetchHierarchy} disabled={hierarchyLoading}>
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${hierarchyLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="p-5">
+                {hierarchyLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ) : respondentRows.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma hierarquia importada. Use &quot;Importar CSV&quot; para adicionar unidades, setores e cargos.
+                    </p>
+                  </div>
+                ) : filteredRespondentRows.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum resultado para os filtros selecionados.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/40">
+                            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unidade</th>
+                            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Setor</th>
+                            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
+                            <th className="text-center px-4 py-3 font-medium text-muted-foreground">Respostas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRespondentRows
+                            .slice((respondentsPage - 1) * RESPONDENTS_PAGE_SIZE, respondentsPage * RESPONDENTS_PAGE_SIZE)
+                            .map((row, i) => (
+                              <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                                <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.unit}</td>
+                                <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.sector}</td>
+                                <td className="px-4 py-2.5 font-medium text-sm">{row.position}</td>
+                                <td className="px-4 py-2.5 text-center">
+                                  {row.response_count > 0 ? (
+                                    <Badge variant="secondary">{row.response_count}</Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {filteredRespondentRows.length > RESPONDENTS_PAGE_SIZE && (
+                      <div className="flex items-center justify-between pt-4">
+                        <p className="text-xs text-muted-foreground">
+                          {(respondentsPage - 1) * RESPONDENTS_PAGE_SIZE + 1}–{Math.min(respondentsPage * RESPONDENTS_PAGE_SIZE, filteredRespondentRows.length)} de {filteredRespondentRows.length} cargos
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={respondentsPage === 1}
+                            onClick={() => setRespondentsPage(p => p - 1)}
+                          >
+                            Anterior
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={respondentsPage * RESPONDENTS_PAGE_SIZE >= filteredRespondentRows.length}
+                            onClick={() => setRespondentsPage(p => p + 1)}
+                          >
+                            Próximo
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         {/* ── Checklist tab ─────────────────────────────────────────────── */}
