@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
-import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
+
+const PLATFORM_LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL || '/logo.png';
 
 const QUESTIONS = [
   { id: 1,  text: 'Tenho clareza sobre o que se espera do meu trabalho' },
@@ -233,18 +234,13 @@ export default function SurveyPage() {
         <Card className="w-full max-w-lg text-center">
           <CardContent className="py-10 px-6">
             <div className="flex items-center justify-center gap-4 mb-6">
-              <Logo size={40} />
-              {campaignInfo?.company_logo_url && (
-                <>
-                  <span className="text-muted-foreground/40 text-xl">|</span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={campaignInfo.company_logo_url}
-                    alt={campaignInfo.company_name}
-                    className="h-9 max-w-[120px] object-contain"
-                  />
-                </>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={PLATFORM_LOGO_URL}
+                alt="Vivamente360"
+                className="h-10 object-contain"
+                style={{ background: '#144660', borderRadius: 8, padding: '6px 12px' }}
+              />
             </div>
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#1AA278' }} />
             <h2 className="text-xl font-semibold mb-3">Obrigado por compartilhar suas respostas!</h2>
@@ -288,19 +284,14 @@ export default function SurveyPage() {
 
         {/* Header */}
         <div className="text-center py-3 sm:py-4">
-          <div className="flex items-center justify-center gap-4 mb-3">
-            <Logo size={44} />
-            {campaignInfo?.company_logo_url && (
-              <>
-                <span className="text-muted-foreground/40 text-xl">|</span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={campaignInfo.company_logo_url}
-                  alt={campaignInfo.company_name}
-                  className="h-10 max-w-[140px] object-contain"
-                />
-              </>
-            )}
+          <div className="flex items-center justify-center mb-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={PLATFORM_LOGO_URL}
+              alt="Vivamente360"
+              className="h-11 object-contain"
+              style={{ background: '#144660', borderRadius: 8, padding: '6px 14px' }}
+            />
           </div>
           <h1 className="text-lg sm:text-xl font-bold">Mapeamento de Riscos Psicossociais</h1>
           {campaignInfo && (
@@ -382,15 +373,13 @@ export default function SurveyPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <Logo size={40} />
-                {campaignInfo?.company_logo_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={campaignInfo.company_logo_url}
-                    alt={campaignInfo.company_name}
-                    className="h-9 max-w-[100px] object-contain"
-                  />
-                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={PLATFORM_LOGO_URL}
+                  alt="Vivamente360"
+                  className="h-9 object-contain shrink-0"
+                  style={{ background: '#144660', borderRadius: 8, padding: '5px 10px' }}
+                />
                 <div>
                   <CardTitle>Termo de Participação</CardTitle>
                 </div>
