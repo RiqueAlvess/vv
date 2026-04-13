@@ -13,18 +13,17 @@ export function Logo({
   variant?: 'light' | 'dark';
 }) {
   const textColor = variant === 'light' ? '#FFFFFF' : '#144660';
-  // Maintain aspect ratio: viewBox 380×56, height-based scaling
-  const width = Math.round((size * 380) / 56);
+  // viewBox wider than text to prevent the trailing "0" from being clipped
+  const width = Math.round((size * 420) / 56);
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 380 56"
+      viewBox="0 0 420 56"
       width={width}
       height={size}
       role="img"
       aria-label="Vivamente360"
-      overflow="visible"
     >
       <text
         x="0"
