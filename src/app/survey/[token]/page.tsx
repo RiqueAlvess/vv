@@ -470,7 +470,7 @@ export default function SurveyPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>
-                  Sexo <span className="text-destructive">*</span>
+                  Gênero <span className="text-destructive">*</span>
                 </Label>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -501,7 +501,7 @@ export default function SurveyPage() {
                   disabled={!gender || !ageRange}
                   onClick={() => {
                     if (!gender || !ageRange) {
-                      setErrorMsg('Selecione sexo e faixa etária para continuar');
+                      setErrorMsg('Selecione gênero e faixa etária para continuar');
                       return;
                     }
                     setErrorMsg('');
