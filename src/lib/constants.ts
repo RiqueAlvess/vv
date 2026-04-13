@@ -126,9 +126,13 @@ export const AGE_RANGES: string[] = [
 ];
 
 export const GENDER_OPTIONS: { value: string; label: string }[] = [
-  { value: 'M', label: 'Masculino' },
-  { value: 'F', label: 'Feminino' },
-  { value: 'N', label: 'Prefiro não informar' },
+  { value: 'MULHER_CIS', label: 'Mulher Cisgênero' },
+  { value: 'MULHER_TRANS', label: 'Mulher Transgênero' },
+  { value: 'HOMEM_CIS', label: 'Homem Cisgênero' },
+  { value: 'HOMEM_TRANS', label: 'Homem Transgênero' },
+  { value: 'NAO_BINARIO', label: 'Não binário' },
+  { value: 'OUTRO', label: 'Outro' },
+  { value: 'NAO_INFORMAR', label: 'Prefiro não informar' },
 ];
 
 // ============================================================
