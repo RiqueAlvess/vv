@@ -198,10 +198,10 @@ export default function CampaignsPage() {
                     <TableRow key={campaign.id} className="group">
                       <TableCell className="pl-6 font-medium">{campaign.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(campaign.start_date), 'dd/MM/yyyy')}
+                        {format(new Date(campaign.start_date.slice(0, 10) + 'T12:00:00'), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(campaign.end_date), 'dd/MM/yyyy')}
+                        {format(new Date(campaign.end_date.slice(0, 10) + 'T12:00:00'), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={campaign.status} />

@@ -289,10 +289,10 @@ export function QRCodeModal({
 
       // ── 9. Date range ────────────────────────────────────────────────
       const startStr = campaignStartDate
-        ? format(new Date(campaignStartDate), 'dd/MM/yyyy')
+        ? format(new Date(campaignStartDate.slice(0, 10) + 'T12:00:00'), 'dd/MM/yyyy')
         : '—';
       const endStr = campaignEndDate
-        ? format(new Date(campaignEndDate), 'dd/MM/yyyy')
+        ? format(new Date(campaignEndDate.slice(0, 10) + 'T12:00:00'), 'dd/MM/yyyy')
         : '—';
       ctx.font = 'bold 32px Arial, sans-serif';
       ctx.fillStyle = '#FFFFFF';
