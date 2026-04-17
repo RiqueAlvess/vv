@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { ScoreService } from './score.service';
-import { HSE_DIMENSIONS, AGE_RANGES } from '@/lib/constants';
+import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS } from '@/lib/constants';
 import { DASHBOARD_CACHE_VERSION } from '@/lib/dashboard-cache';
 import type { DimensionType, RiskLevel } from '@/types';
 
@@ -17,13 +17,6 @@ type ParsedResponse = {
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const GENDER_LABELS: Record<string, string> = {
-  M: 'Masculino',
-  F: 'Feminino',
-  O: 'Outro',
-  N: 'Não informado',
-};
 
 const RISK_LEVEL_WEIGHT: Record<RiskLevel, number> = {
   critico: 4,

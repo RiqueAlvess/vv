@@ -135,6 +135,13 @@ export const GENDER_OPTIONS: { value: string; label: string }[] = [
   { value: 'NAO_INFORMAR', label: 'Prefiro não informar' },
 ];
 
+export const GENDER_LABELS: Record<string, string> = {
+  M: 'Masculino',
+  F: 'Feminino',
+  O: 'Outro',
+  N: 'Prefiro não informar',
+};
+
 // ============================================================
 // HSE-IT Question Texts (35 questions)
 // ============================================================
