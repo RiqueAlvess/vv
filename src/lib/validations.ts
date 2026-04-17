@@ -44,7 +44,10 @@ export const campaignSchema = z.object({
 
 export const surveyResponseSchema = z.object({
   responses: z.record(z.string(), z.number().min(0).max(4)),
-  gender: z.enum(['M', 'F', 'N'], { error: 'Selecione um sexo válido' }),
+  gender: z.preprocess(
+    (v) => (typeof v !== 'string' || v === '' ? undefined : v),
+    z.enum(['M', 'F', 'N', 'O']).optional()
+  ),
   age_range: z.string().min(1, 'Selecione uma faixa etária'),
   unit_id: z.string().uuid().optional(),
   sector_id: z.string().uuid().optional(),

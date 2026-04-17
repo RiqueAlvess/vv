@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { AGE_RANGES, HSE_DIMENSIONS } from '@/lib/constants';
+import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import { enqueueJob } from '@/lib/jobs';
@@ -11,12 +11,6 @@ import type { DimensionType, RiskLevel } from '@/types';
 export const dynamic = 'force-dynamic';
 
 interface RouteParams { params: Promise<{ id: string }> }
-
-const GENDER_LABELS: Record<string, string> = {
-  M: 'Masculino',
-  F: 'Feminino',
-  N: 'Não informado',
-};
 
 const RISK_LEVEL_WEIGHT: Record<RiskLevel, number> = {
   critico: 4,

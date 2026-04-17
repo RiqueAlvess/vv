@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -50,7 +50,6 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
     ...dimensionAnalysis.map(d => [d.dimensao, d.score_medio, d.nivel_risco, d.nr, d.nivel_final]),
   ];
 
-  const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Feminino', O: 'Outro', N: 'Não informado' };
   const genderMap: Record<string, { count: number }> = {};
   for (const r of responses) {
     const g = GENDER_LABELS[r.gender ?? 'N'] ?? 'Não informado';
