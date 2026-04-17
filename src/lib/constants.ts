@@ -126,20 +126,23 @@ export const AGE_RANGES: string[] = [
 ];
 
 export const GENDER_OPTIONS: { value: string; label: string }[] = [
-  { value: 'MULHER_CIS', label: 'Mulher Cisgênero' },
+  { value: 'MULHER_CIS',   label: 'Mulher Cisgênero' },
   { value: 'MULHER_TRANS', label: 'Mulher Transgênero' },
-  { value: 'HOMEM_CIS', label: 'Homem Cisgênero' },
-  { value: 'HOMEM_TRANS', label: 'Homem Transgênero' },
-  { value: 'NAO_BINARIO', label: 'Não binário' },
-  { value: 'OUTRO', label: 'Outro' },
+  { value: 'HOMEM_CIS',    label: 'Homem Cisgênero' },
+  { value: 'HOMEM_TRANS',  label: 'Homem Transgênero' },
+  { value: 'NAO_BINARIO',  label: 'Não binário' },
+  { value: 'OUTRO',        label: 'Outro' },
   { value: 'NAO_INFORMAR', label: 'Prefiro não informar' },
 ];
 
 export const GENDER_LABELS: Record<string, string> = {
-  M: 'Masculino',
-  F: 'Feminino',
-  O: 'Outro',
-  N: 'Prefiro não informar',
+  MULHER_CIS:   'Mulher Cisgênero',
+  MULHER_TRANS: 'Mulher Transgênero',
+  HOMEM_CIS:    'Homem Cisgênero',
+  HOMEM_TRANS:  'Homem Transgênero',
+  NAO_BINARIO:  'Não binário',
+  OUTRO:        'Outro',
+  NAO_INFORMAR: 'Prefiro não informar',
 };
 
 // ============================================================
