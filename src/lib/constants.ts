@@ -135,15 +135,9 @@ export const GENDER_OPTIONS: { value: string; label: string }[] = [
   { value: 'NAO_INFORMAR', label: 'Prefiro não informar' },
 ];
 
-export const GENDER_LABELS: Record<string, string> = {
-  MULHER_CIS:   'Mulher Cisgênero',
-  MULHER_TRANS: 'Mulher Transgênero',
-  HOMEM_CIS:    'Homem Cisgênero',
-  HOMEM_TRANS:  'Homem Transgênero',
-  NAO_BINARIO:  'Não binário',
-  OUTRO:        'Outro',
-  NAO_INFORMAR: 'Prefiro não informar',
-};
+export const GENDER_LABELS: Record<string, string> = Object.fromEntries(
+  GENDER_OPTIONS.map(({ value, label }) => [value, label])
+);
 
 // ============================================================
 // HSE-IT Question Texts (35 questions)

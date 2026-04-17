@@ -189,7 +189,7 @@ model SurveyResponse {
   unit_id             String?   @db.Uuid
   sector_id           String?   @db.Uuid
   position_id         String?   @db.Uuid
-  gender              String?   @db.VarChar(1)
+  gender              String?   @db.VarChar(20)
   age_range           String?   @db.VarChar(20)
   consent_accepted    Boolean   @default(true)
   consent_accepted_at DateTime? @db.Timestamptz()
