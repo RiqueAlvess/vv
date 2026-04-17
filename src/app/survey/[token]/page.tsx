@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const PLATFORM_LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL || '/logo.png';
@@ -233,14 +234,16 @@ export default function SurveyPage() {
       <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-lg text-center">
           <CardContent className="py-10 px-6">
-            <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="flex items-center justify-center gap-3 mb-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={PLATFORM_LOGO_URL}
                 alt="Vivamente360"
-                className="h-10 object-contain"
+                className="h-9 object-contain"
                 style={{ background: '#144660', borderRadius: 8, padding: '6px 12px' }}
               />
+              <span className="text-muted-foreground/40 text-xl">|</span>
+              <Logo size={36} />
             </div>
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: '#1AA278' }} />
             <h2 className="text-xl font-semibold mb-3">Obrigado por compartilhar suas respostas!</h2>
@@ -284,14 +287,16 @@ export default function SurveyPage() {
 
         {/* Header */}
         <div className="text-center py-3 sm:py-4">
-          <div className="flex items-center justify-center mb-3">
+          <div className="flex items-center justify-center gap-3 mb-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={PLATFORM_LOGO_URL}
               alt="Vivamente360"
-              className="h-11 object-contain"
+              className="h-10 object-contain"
               style={{ background: '#144660', borderRadius: 8, padding: '6px 14px' }}
             />
+            <span className="text-muted-foreground/40 text-xl">|</span>
+            <Logo size={40} />
           </div>
           <h1 className="text-lg sm:text-xl font-bold">Mapeamento de Riscos Psicossociais</h1>
           {campaignInfo && (
@@ -372,18 +377,18 @@ export default function SurveyPage() {
         {step === 'consent' && (
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={PLATFORM_LOGO_URL}
                   alt="Vivamente360"
-                  className="h-9 object-contain shrink-0"
+                  className="h-8 object-contain shrink-0"
                   style={{ background: '#144660', borderRadius: 8, padding: '5px 10px' }}
                 />
-                <div>
-                  <CardTitle>Termo de Participação</CardTitle>
-                </div>
+                <span className="text-muted-foreground/40 text-xl shrink-0">|</span>
+                <Logo size={32} />
               </div>
+              <CardTitle>Termo de Participação</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-4 leading-relaxed">
@@ -459,7 +464,7 @@ export default function SurveyPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>
-                  Sexo <span className="text-destructive">*</span>
+                  Gênero <span className="text-destructive">*</span>
                 </Label>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -490,7 +495,7 @@ export default function SurveyPage() {
                   disabled={!gender || !ageRange}
                   onClick={() => {
                     if (!gender || !ageRange) {
-                      setErrorMsg('Selecione sexo e faixa etária para continuar');
+                      setErrorMsg('Selecione gênero e faixa etária para continuar');
                       return;
                     }
                     setErrorMsg('');
