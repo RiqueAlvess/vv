@@ -46,7 +46,7 @@ export const surveyResponseSchema = z.object({
   responses: z.record(z.string(), z.number().min(0).max(4)),
   gender: z.preprocess(
     (v) => (typeof v !== 'string' || v === '' ? undefined : v),
-    z.enum(['MULHER_CIS', 'MULHER_TRANS', 'HOMEM_CIS', 'HOMEM_TRANS', 'NAO_BINARIO', 'OUTRO', 'NAO_INFORMAR', 'M', 'F', 'O', 'N']).optional()
+    z.enum(['MULHER_CIS', 'MULHER_TRANS', 'HOMEM_CIS', 'HOMEM_TRANS', 'NAO_BINARIO', 'OUTRO', 'NAO_INFORMAR']).optional()
   ),
   age_range: z.string().min(1, 'Selecione uma faixa etária'),
   unit_id: z.string().uuid().optional(),
