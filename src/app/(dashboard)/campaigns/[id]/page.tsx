@@ -21,7 +21,7 @@ import {
   ArrowLeft, Play, Square, Upload, BarChart3,
   Users, QrCode, ClipboardCheck, Download,
   Plus, Trash2, Eye, RefreshCw, FileSpreadsheet, FileText,
-  ChevronDown, Calendar, MessageSquare,
+  ChevronDown, Calendar, MessageSquare, ListChecks,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { CampaignChecklist } from '@/components/checklist/campaign-checklist';
+import { ActionPlanPanel } from '@/components/action-plan/action-plan-panel';
 import type { Campaign } from '@/types';
 
 const statusLabels: Record<string, string> = {
@@ -561,6 +562,10 @@ export default function CampaignDetailPage() {
             <ClipboardCheck className="h-4 w-4 mr-2" />
             Checklist NR-1
           </TabsTrigger>
+          <TabsTrigger value="action-plan">
+            <ListChecks className="h-4 w-4 mr-2" />
+            Plano de Ação
+          </TabsTrigger>
         </TabsList>
 
         {/* ── QR Code tab ───────────────────────────────────────────────── */}
@@ -923,6 +928,15 @@ export default function CampaignDetailPage() {
         {/* ── Checklist tab ─────────────────────────────────────────────── */}
         <TabsContent value="checklist">
           <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
+        </TabsContent>
+
+        {/* ── Action Plan tab ────────────────────────────────────────────── */}
+        <TabsContent value="action-plan">
+          <ActionPlanPanel
+            campaignId={campaignId}
+            campaignStatus={campaign.status}
+            canEdit={canManage}
+          />
         </TabsContent>
       </Tabs>
 
