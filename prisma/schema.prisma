@@ -117,6 +117,7 @@ model Campaign {
   facts       FactResponse[]
   dim_sectors DimSector[]
   checklist   ChecklistProgress?
+  action_plan ActionPlan?
 
   @@map("campaigns")
   @@schema("survey")
@@ -237,6 +238,20 @@ model SurveyQuestion {
   active          Boolean @default(true)
 
   @@map("survey_questions")
+  @@schema("survey")
+}
+
+model ActionPlan {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id  String   @unique @db.Uuid
+  model_used   String?  @db.VarChar(100)
+  problems     Json     @default("[]")
+  generated_at DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@map("action_plans")
   @@schema("survey")
 }
 
