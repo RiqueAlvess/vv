@@ -1,22 +1,26 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { useApi } from '@/hooks/use-api';
 import { useNotifications } from '@/hooks/use-notifications';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Sparkles, ChevronDown, ChevronUp, Download,
-  RefreshCw, Save, AlertTriangle, CheckCircle2,
-  Info, Shield, Plus, Trash2,
+  AlertTriangle, CheckCircle2,
+  Info, Shield, Plus, Trash2, FilePlus,
 } from 'lucide-react';
 import type { ActionPlanProblem, PlannedAction, ActionType, ActionStatus } from '@/lib/hse-agent';
+import { HSE_DIMENSIONS } from '@/lib/constants';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -224,14 +228,17 @@ function ProblemCard({
   campaignId,
   canEdit,
   onChange,
+  onDelete,
 }: {
   problem: ActionPlanProblem;
   index: number;
   campaignId: string;
   canEdit: boolean;
   onChange: (updated: ActionPlanProblem) => void;
+  onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(index < 2);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const cfg = RISK_CONFIG[problem.risk_level] ?? RISK_CONFIG.aceitavel;
 
   const completedCount = problem.actions.filter(a => a.status === 'concluida').length;
@@ -306,6 +313,41 @@ function ProblemCard({
             >
               <Download className="h-3.5 w-3.5" />
             </button>
+
+            {canEdit && !confirmDelete && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+                className="p-1.5 rounded hover:bg-red-50 transition-colors text-muted-foreground hover:text-destructive"
+                title="Excluir problema"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {canEdit && confirmDelete && (
+              <div
+                className="flex items-center gap-1"
+                onClick={e => e.stopPropagation()}
+              >
+                <span className="text-xs text-destructive font-medium whitespace-nowrap">Excluir?</span>
+                <button
+                  type="button"
+                  onClick={() => onDelete()}
+                  className="px-2 py-0.5 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors"
+                >
+                  Sim
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-2 py-0.5 text-xs border rounded hover:bg-muted transition-colors"
+                >
+                  Não
+                </button>
+              </div>
+            )}
+
             {expanded
               ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
               : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -424,6 +466,22 @@ function ProblemCard({
 // Main panel
 // ---------------------------------------------------------------------------
 
+const DIMENSION_OPTIONS = HSE_DIMENSIONS.map(d => ({ value: d.key, label: d.name }));
+
+const RISK_LEVEL_OPTIONS: { value: string; label: string }[] = [
+  { value: 'critico',    label: 'Crítico' },
+  { value: 'importante', label: 'Importante' },
+  { value: 'moderado',   label: 'Moderado' },
+  { value: 'aceitavel',  label: 'Aceitável' },
+];
+
+const EMPTY_NEW_PROBLEM = {
+  dimension_key: 'demandas',
+  risk_level: 'moderado',
+  problem_title: '',
+  problem_description: '',
+};
+
 export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionPlanPanelProps) {
   const { get, post, patch } = useApi();
   const { success, error: notifyError } = useNotifications();
@@ -434,6 +492,9 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showAddProblem, setShowAddProblem] = useState(false);
+  const [newProblem, setNewProblem] = useState(EMPTY_NEW_PROBLEM);
 
   // ── Load existing plan ──────────────────────────────────────────────────
   const loadPlan = useCallback(async () => {
@@ -499,6 +560,43 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
       return { ...prev, problems };
     });
   }, [scheduleSave]);
+
+  const handleProblemDelete = useCallback((index: number) => {
+    setPlan(prev => {
+      if (!prev) return prev;
+      const problems = prev.problems.filter((_, i) => i !== index);
+      scheduleSave(problems);
+      return { ...prev, problems };
+    });
+  }, [scheduleSave]);
+
+  const handleAddProblem = useCallback(() => {
+    const dim = HSE_DIMENSIONS.find(d => d.key === newProblem.dimension_key)!;
+    const created: ActionPlanProblem = {
+      id: `prob_manual_${Date.now()}`,
+      dimension_key: newProblem.dimension_key,
+      dimension_name: dim?.name ?? newProblem.dimension_key,
+      risk_level: newProblem.risk_level as ActionPlanProblem['risk_level'],
+      score: 0,
+      nr: 0,
+      problem_title: newProblem.problem_title.trim(),
+      problem_description: newProblem.problem_description.trim(),
+      root_causes: [],
+      impact: '',
+      legal_reference: '',
+      monitoring: '',
+      actions: [],
+    };
+    setPlan(prev => {
+      if (!prev) return prev;
+      const problems = [...prev.problems, created];
+      scheduleSave(problems);
+      return { ...prev, problems };
+    });
+    setNewProblem(EMPTY_NEW_PROBLEM);
+    setShowAddProblem(false);
+    success('Problema adicionado.');
+  }, [newProblem, scheduleSave, success]);
 
   // ── Loading skeleton ────────────────────────────────────────────────────
   if (loading) {
@@ -614,21 +712,16 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
                 onClick={() => window.open(`/api/campaigns/${campaignId}/action-plan/pdf`, '_blank')}
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
-                Exportar PDF completo
+                Exportar PDF
               </Button>
               {canEdit && (
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={handleGenerate}
-                  disabled={generating}
+                  variant="default"
+                  onClick={() => setShowAddProblem(true)}
                 >
-                  {generating ? (
-                    <div className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin mr-1.5" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  Regenerar
+                  <FilePlus className="h-3.5 w-3.5 mr-1.5" />
+                  Adicionar Problema
                 </Button>
               )}
             </div>
@@ -651,8 +744,112 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
           campaignId={campaignId}
           canEdit={canEdit}
           onChange={updated => handleProblemChange(i, updated)}
+          onDelete={() => handleProblemDelete(i)}
         />
       ))}
+
+      {plan.problems.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-10 gap-2">
+            <FilePlus className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Nenhum problema no plano. Adicione um manualmente.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dialog: add problem manually */}
+      <Dialog open={showAddProblem} onOpenChange={setShowAddProblem}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FilePlus className="h-4 w-4 text-primary" />
+              Adicionar Problema Manualmente
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Dimensão
+                </label>
+                <Select
+                  value={newProblem.dimension_key}
+                  onValueChange={v => setNewProblem(p => ({ ...p, dimension_key: v }))}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIMENSION_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Nível de Risco
+                </label>
+                <Select
+                  value={newProblem.risk_level}
+                  onValueChange={v => setNewProblem(p => ({ ...p, risk_level: v }))}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RISK_LEVEL_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Título do Problema <span className="text-destructive">*</span>
+              </label>
+              <Input
+                value={newProblem.problem_title}
+                onChange={e => setNewProblem(p => ({ ...p, problem_title: e.target.value }))}
+                placeholder="Ex: Sobrecarga de trabalho e falta de autonomia"
+                className="text-sm"
+                maxLength={120}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Descrição
+              </label>
+              <Textarea
+                value={newProblem.problem_description}
+                onChange={e => setNewProblem(p => ({ ...p, problem_description: e.target.value }))}
+                placeholder="Descreva o problema identificado, contexto e evidências..."
+                className="text-sm min-h-[88px] resize-none"
+                maxLength={500}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setShowAddProblem(false); setNewProblem(EMPTY_NEW_PROBLEM); }}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddProblem}
+              disabled={!newProblem.problem_title.trim()}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

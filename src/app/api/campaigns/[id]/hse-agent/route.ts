@@ -66,6 +66,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
   }
 
+  // Guard: allow generation only once per campaign
+  const existing = await prisma.actionPlan.findUnique({ where: { campaign_id: id }, select: { id: true } });
+  if (existing) {
+    return NextResponse.json(
+      { error: 'O plano de ação já foi gerado para esta campanha e não pode ser substituído.' },
+      { status: 409 },
+    );
+  }
+
   // Load dashboard metrics (use cached if available, otherwise compute on demand)
   const responses = await prisma.surveyResponse.findMany({
     where: { campaign_id: id },
@@ -118,17 +127,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
   }
 
-  // Upsert — allow regeneration
-  const plan = await prisma.actionPlan.upsert({
-    where: { campaign_id: id },
-    create: {
+  const plan = await prisma.actionPlan.create({
+    data: {
       campaign_id: id,
-      model_used: generated.model_used,
-      problems: generated.problems as never,
-      generated_at: new Date(),
-      updated_at: new Date(),
-    },
-    update: {
       model_used: generated.model_used,
       problems: generated.problems as never,
       generated_at: new Date(),
