@@ -65,7 +65,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   const dimSuffix = dimensionKey ? `_${dimensionKey}` : '';
   const filename = `plano-acao${dimSuffix}_${id.slice(0, 8)}.pdf`;
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',
