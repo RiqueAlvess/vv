@@ -59,7 +59,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       filterDimensionKey: dimensionKey,
       igrp,
       igrpLabel,
-    }),
+    }) as unknown as Parameters<typeof renderToBuffer>[0],
   );
 
   const dimSuffix = dimensionKey ? `_${dimensionKey}` : '';
