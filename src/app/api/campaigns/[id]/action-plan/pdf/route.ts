@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   const { searchParams } = new URL(request.url);
   const dimensionKey = searchParams.get('dimension') ?? undefined;
 
-  const problems = plan.problems as ActionPlanProblem[];
+  const problems = plan.problems as unknown as ActionPlanProblem[];
   const generatedAt = format(plan.generated_at, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
   // Compute IGRP from problems NR values for the summary KPIs
