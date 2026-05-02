@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   const buffer = Buffer.from(artifact.base64, 'base64');
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': artifact.contentType ?? 'application/octet-stream',
