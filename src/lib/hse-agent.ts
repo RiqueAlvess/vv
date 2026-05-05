@@ -1,6 +1,6 @@
-// HSE Agent — multi-provider LLM client for psychosocial risk action plan generation.
-// Supports: openrouter (default), openai, anthropic.
-// Set LLM_PROVIDER env var to choose. Falls back to openrouter.
+// HSE Agent — LLM client for psychosocial risk action plan generation.
+// When AI_SERVICE_URL is set, delegates to the Python FastAPI service (port 8001).
+// Otherwise falls back to direct provider calls (openrouter/openai/anthropic).
 
 export type ActionType = 'corretiva' | 'preventiva' | 'contingencia' | 'paliativa';
 export type ActionStatus = 'pendente' | 'em_andamento' | 'concluida';
@@ -233,10 +233,194 @@ async function callAnthropic(messages: ChatMessage[]): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Python service integration
+// ---------------------------------------------------------------------------
+
+interface PythonW5H2Action {
+  id: string;
+  what: string;
+  why: string;
+  who: string;
+  where: string;
+  when: string;
+  how: string;
+  how_much: string;
+  status: string;
+}
+
+interface PythonProblem {
+  titulo: string;
+  descricao: string;
+  nivel_risco: string;
+  dimensao_afetada: string;
+}
+
+interface PythonAnalysisResponse {
+  analysis: string;
+  problems: PythonProblem[];
+  action_plan: PythonW5H2Action[];
+  pdca: { plan: string[]; do: string[]; check: string[]; act: string[] };
+  rag_used: boolean;
+  model: string;
+}
+
+function normalizeStr(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+const NIVEL_TO_RISK: Record<string, RiskLevelKey> = {
+  critico: 'critico', importante: 'importante', moderado: 'moderado', aceitavel: 'aceitavel',
+};
+
+const DIM_KEYWORDS: Array<{ key: string; keywords: string[] }> = [
+  { key: 'demandas',             keywords: ['demanda'] },
+  { key: 'controle',             keywords: ['controle'] },
+  { key: 'apoio_chefia',         keywords: ['chefia', 'lideranca', 'superior', 'gestor'] },
+  { key: 'apoio_colegas',        keywords: ['colega', 'par ', 'equipe', 'colegas'] },
+  { key: 'relacionamentos',      keywords: ['relacionamento', 'conflito', 'assedio'] },
+  { key: 'cargo',                keywords: ['cargo', 'funcao', 'papel', 'reconhecimento'] },
+  { key: 'comunicacao_mudancas', keywords: ['comunicacao', 'mudanca'] },
+];
+
+function resolveDimension(dimensao: string): string {
+  const norm = normalizeStr(dimensao);
+  for (const { key, keywords } of DIM_KEYWORDS) {
+    if (keywords.some(kw => norm.includes(kw))) return key;
+  }
+  return 'demandas';
+}
+
+function mapW5H2ToPlannedAction(
+  a: PythonW5H2Action,
+  dimKey: string,
+  riskLevel: RiskLevelKey,
+  idx: number,
+): PlannedAction {
+  const typeByRisk: Record<RiskLevelKey, ActionType> = {
+    critico: 'corretiva', importante: 'corretiva',
+    moderado: 'preventiva', aceitavel: 'paliativa',
+  };
+  const resources = [a.how, a.how_much].filter(Boolean).join(' — ');
+  const rawStatus = a.status ?? '';
+  const status: ActionStatus =
+    rawStatus === 'em_andamento' ? 'em_andamento' :
+    rawStatus === 'concluida'    ? 'concluida' : 'pendente';
+
+  return {
+    id: a.id || `act_${dimKey}_${String(idx + 1).padStart(2, '0')}`,
+    type: typeByRisk[riskLevel] ?? 'preventiva',
+    action: a.what,
+    responsible: a.who,
+    deadline: a.when,
+    resources,
+    indicator: a.why,
+    status,
+  };
+}
+
+function mapPythonToGeneratedPlan(response: PythonAnalysisResponse, input: AgentInput): GeneratedActionPlan {
+  const problemCount = response.problems.length;
+
+  const problems: ActionPlanProblem[] = response.problems.map((p, i) => {
+    const risk_level: RiskLevelKey = NIVEL_TO_RISK[normalizeStr(p.nivel_risco)] ?? 'moderado';
+    const dimension_key = resolveDimension(p.dimensao_afetada);
+    const dimInput = input.dimensions.find(d => d.key === dimension_key);
+    const dimension_name = dimInput?.name ?? p.dimensao_afetada;
+    const score = dimInput?.avg_score ?? 0;
+    const nr = dimInput?.nr ?? 0;
+
+    // Distribute actions round-robin across problems
+    const myActions = response.action_plan.filter((_, ai) => ai % Math.max(problemCount, 1) === i);
+
+    return {
+      id: `prob_${dimension_key}_${i + 1}`,
+      dimension_key,
+      dimension_name,
+      risk_level,
+      score,
+      nr,
+      problem_title: p.titulo,
+      problem_description: p.descricao,
+      root_causes: [],
+      impact: '',
+      legal_reference: '',
+      monitoring: '',
+      actions: myActions.map((a, ai) => mapW5H2ToPlannedAction(a, dimension_key, risk_level, ai)),
+    };
+  });
+
+  // Fallback: no problems returned but actions exist
+  if (problems.length === 0 && response.action_plan.length > 0) {
+    const igrpRisk: RiskLevelKey =
+      input.igrp >= 13 ? 'critico' :
+      input.igrp >= 9  ? 'importante' :
+      input.igrp >= 5  ? 'moderado' : 'aceitavel';
+
+    problems.push({
+      id: 'prob_geral_1',
+      dimension_key: 'demandas',
+      dimension_name: 'Análise Geral',
+      risk_level: igrpRisk,
+      score: input.igrp,
+      nr: input.igrp,
+      problem_title: 'Plano de Ação Psicossocial',
+      problem_description: response.analysis,
+      root_causes: [],
+      impact: '',
+      legal_reference: '',
+      monitoring: '',
+      actions: response.action_plan.map((a, ai) => mapW5H2ToPlannedAction(a, 'demandas', igrpRisk, ai)),
+    });
+  }
+
+  return { problems, model_used: response.model };
+}
+
+async function callPythonService(input: AgentInput): Promise<GeneratedActionPlan> {
+  const serviceUrl = process.env.AI_SERVICE_URL!;
+  const secretKey = process.env.AI_SECRET_KEY ?? '';
+
+  const res = await fetch(`${serviceUrl}/insights/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${secretKey}`,
+    },
+    body: JSON.stringify({
+      chart_key: 'campaign_full_analysis',
+      chart_label: 'Análise Psicossocial Completa — HSE-IT',
+      chart_data: {
+        company_name: input.company_name,
+        total_responded: input.total_responded,
+        igrp: input.igrp,
+        igrp_label: input.igrp_label,
+        dimensions: input.dimensions,
+      },
+      campaign_name: input.campaign_name,
+      use_rag: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Python AI service error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as PythonAnalysisResponse;
+  return mapPythonToGeneratedPlan(data, input);
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
 export async function generateActionPlan(input: AgentInput): Promise<GeneratedActionPlan> {
+  // Delegate to Python service when AI_SERVICE_URL is configured
+  if (process.env.AI_SERVICE_URL) {
+    return callPythonService(input);
+  }
+
+  // Direct provider fallback (openrouter / openai / anthropic)
   const provider = (process.env.LLM_PROVIDER ?? 'openrouter') as 'openrouter' | 'openai' | 'anthropic';
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
