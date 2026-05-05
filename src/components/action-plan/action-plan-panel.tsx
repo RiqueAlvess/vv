@@ -229,6 +229,7 @@ function ProblemCard({
   canEdit,
   onChange,
   onDelete,
+  onDownloadPdf,
 }: {
   problem: ActionPlanProblem;
   index: number;
@@ -236,6 +237,7 @@ function ProblemCard({
   canEdit: boolean;
   onChange: (updated: ActionPlanProblem) => void;
   onDelete: () => void;
+  onDownloadPdf: (url: string) => void;
 }) {
   const [expanded, setExpanded] = useState(index < 2);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -306,7 +308,7 @@ function ProblemCard({
               type="button"
               onClick={e => {
                 e.stopPropagation();
-                window.open(`/api/campaigns/${campaignId}/action-plan/pdf?dimension=${problem.dimension_key}`, '_blank');
+                onDownloadPdf(`/api/campaigns/${campaignId}/action-plan/pdf?dimension=${problem.dimension_key}`);
               }}
               className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
               title="Exportar este problema como PDF"
@@ -495,6 +497,20 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
 
   const [showAddProblem, setShowAddProblem] = useState(false);
   const [newProblem, setNewProblem] = useState(EMPTY_NEW_PROBLEM);
+
+  // ── PDF download via authenticated fetch (avoids 401 on window.open) ──────
+  const downloadPdf = useCallback(async (url: string) => {
+    try {
+      const res = await get(url);
+      if (!res.ok) { notifyError('Erro ao gerar PDF. Tente novamente.'); return; }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+    } catch {
+      notifyError('Erro ao baixar PDF.');
+    }
+  }, [get, notifyError]);
 
   // ── Load existing plan ──────────────────────────────────────────────────
   const loadPlan = useCallback(async () => {
@@ -709,7 +725,7 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => window.open(`/api/campaigns/${campaignId}/action-plan/pdf`, '_blank')}
+                onClick={() => downloadPdf(`/api/campaigns/${campaignId}/action-plan/pdf`)}
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Exportar PDF
@@ -745,6 +761,7 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
           canEdit={canEdit}
           onChange={updated => handleProblemChange(i, updated)}
           onDelete={() => handleProblemDelete(i)}
+          onDownloadPdf={downloadPdf}
         />
       ))}
 

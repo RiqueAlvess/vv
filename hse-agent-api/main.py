@@ -110,7 +110,11 @@ class Problem(BaseModel):
     titulo:           str
     descricao:        str
     nivel_risco:      str
-    dimensao_afetada: str = ""
+    dimensao_afetada: str       = ""
+    causas_raiz:      list[str] = []
+    impacto:          str       = ""
+    referencia_legal: str       = ""
+    monitoramento:    str       = ""
 
 
 class AnalysisResponse(BaseModel):
@@ -178,6 +182,10 @@ def _parse_analysis(raw: dict, model: str, rag_used: bool = False) -> AnalysisRe
             descricao=p.get("descricao", ""),
             nivel_risco=p.get("nivel_risco", ""),
             dimensao_afetada=p.get("dimensao_afetada", ""),
+            causas_raiz=p.get("causas_raiz", []),
+            impacto=p.get("impacto", ""),
+            referencia_legal=p.get("referencia_legal", ""),
+            monitoramento=p.get("monitoramento", ""),
         )
         for p in raw.get("problems", [])
     ]
