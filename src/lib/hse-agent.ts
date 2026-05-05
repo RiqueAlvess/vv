@@ -253,6 +253,10 @@ interface PythonProblem {
   descricao: string;
   nivel_risco: string;
   dimensao_afetada: string;
+  causas_raiz: string[];
+  impacto: string;
+  referencia_legal: string;
+  monitoramento: string;
 }
 
 interface PythonAnalysisResponse {
@@ -341,10 +345,10 @@ function mapPythonToGeneratedPlan(response: PythonAnalysisResponse, input: Agent
       nr,
       problem_title: p.titulo,
       problem_description: p.descricao,
-      root_causes: [],
-      impact: '',
-      legal_reference: '',
-      monitoring: '',
+      root_causes: p.causas_raiz ?? [],
+      impact: p.impacto ?? '',
+      legal_reference: p.referencia_legal ?? '',
+      monitoring: p.monitoramento ?? '',
       actions: myActions.map((a, ai) => mapW5H2ToPlannedAction(a, dimension_key, risk_level, ai)),
     };
   });
@@ -367,7 +371,7 @@ function mapPythonToGeneratedPlan(response: PythonAnalysisResponse, input: Agent
       problem_description: response.analysis,
       root_causes: [],
       impact: '',
-      legal_reference: '',
+      legal_reference: 'NR-1, item 1.5 — Identificação de perigos e avaliação de riscos ocupacionais',
       monitoring: '',
       actions: response.action_plan.map((a, ai) => mapW5H2ToPlannedAction(a, 'demandas', igrpRisk, ai)),
     });
