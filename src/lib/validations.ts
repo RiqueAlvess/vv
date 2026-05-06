@@ -49,9 +49,9 @@ export const surveyResponseSchema = z.object({
     z.enum(['MULHER_CIS', 'MULHER_TRANS', 'HOMEM_CIS', 'HOMEM_TRANS', 'NAO_BINARIO', 'OUTRO', 'NAO_INFORMAR']).optional()
   ),
   age_range: z.string().min(1, 'Selecione uma faixa etária'),
-  unit_id: z.string().uuid().optional(),
-  sector_id: z.string().uuid().optional(),
-  position_id: z.string().uuid().optional(),
+  unit_id: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().uuid().optional()),
+  sector_id: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().uuid().optional()),
+  position_id: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().uuid().optional()),
   validation_token: z.string().uuid('Token de acesso inválido'),
   consent_accepted: z.literal(true, { error: 'É necessário aceitar o termo de consentimento' }),
 });
