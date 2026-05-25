@@ -7,7 +7,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, ArrowLeft, Shield, Lock } from 'lucide-react';
-import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const QUESTIONS = [
@@ -99,7 +98,8 @@ export default function TrialSurveyPage() {
       {/* ── Minimal top bar ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <Link href="/trial">
-          <Logo size={28} variant="dark" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Asta" className="h-8 w-auto object-contain" />
         </Link>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Shield className="h-3.5 w-3.5" style={{ color: '#1AA278' }} />
