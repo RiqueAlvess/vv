@@ -98,8 +98,10 @@ export default function TrialSurveyPage() {
       {/* ── Minimal top bar ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <Link href="/trial">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Asta" className="h-8 w-auto object-contain" />
+          <div className="rounded-lg px-3 py-1.5" style={{ background: '#144660' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Asta" className="h-6 w-auto object-contain" />
+          </div>
         </Link>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Shield className="h-3.5 w-3.5" style={{ color: '#1AA278' }} />

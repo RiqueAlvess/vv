@@ -124,7 +124,7 @@ const FEATURES = [
 const STEPS = [
   {
     n: '01', title: 'Configure a Campanha',
-    desc: 'Crie sua campanha em minutos. Registre colaboradores em massa via upload — sem necessidade de identificar individualmente cada pessoa.',
+    desc: 'Crie sua campanha em minutos. Registre colaboradores em massa via upload.',
   },
   {
     n: '02', title: 'Gere os Acessos',
@@ -132,7 +132,7 @@ const STEPS = [
   },
   {
     n: '03', title: 'Respostas Anônimas',
-    desc: 'Colaboradores respondem 35 questões HSE-IT com garantia total de anonimato. Sem cadastro, sem senha, sem identificação.',
+    desc: 'Colaboradores respondem 35 questões HSE-IT com garantia total de anonimato. Sem cadastro.',
   },
   {
     n: '04', title: 'Relatório Instantâneo',
@@ -240,7 +240,7 @@ export default function TrialLandingPage() {
           </h1>
           {/* Vivamente360 with brand colors */}
           <div className="flex justify-center mb-6">
-            <svg viewBox="0 0 338 52" height="52" className="w-auto max-w-full" aria-label="Vivamente360">
+            <svg viewBox="0 0 415 52" height="52" style={{ overflow: 'visible' }} className="w-auto max-w-full" aria-label="Vivamente360">
               <text x="0" y="44" fontFamily="Arial, Helvetica, sans-serif" fontWeight="800" fontSize="46" letterSpacing="-1">
                 <tspan fill="#FFFFFF">Vivamente</tspan><tspan fill="#1ff28d">360</tspan>
               </text>
@@ -482,8 +482,10 @@ export default function TrialLandingPage() {
       <section className="py-32 px-4 bg-[#f7f8f6] flex flex-col items-center text-center">
         <Reveal>
           <div className="max-w-md mx-auto space-y-7">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Asta" className="h-8 w-auto object-contain mx-auto" />
+            <div className="inline-flex rounded-lg px-4 py-2 mx-auto" style={{ background: '#144660' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Asta" className="h-7 w-auto object-contain" />
+            </div>
             <p className="text-3xl sm:text-4xl font-extrabold text-[#0d2a3d] leading-tight">
               Veja como sua empresa está de verdade.
             </p>
