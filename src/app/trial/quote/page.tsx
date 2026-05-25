@@ -193,7 +193,7 @@ export default function TrialQuotePage() {
             </div>
 
             <Button
-              className="w-full py-4 font-bold"
+              className="w-full py-4 font-bold text-white"
               style={{ background: '#144660' }}
               onClick={() => { setShowExitPopup(false); track('exit_intent_stayed'); }}
             >
@@ -213,8 +213,10 @@ export default function TrialQuotePage() {
       <div className="bg-white border-b">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/trial">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Asta" className="h-8 w-auto object-contain" />
+            <div className="rounded-lg px-3 py-1.5" style={{ background: '#144660' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Asta" className="h-6 w-auto object-contain" />
+            </div>
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Shield className="h-3.5 w-3.5" style={{ color: '#1AA278' }} />
@@ -385,7 +387,7 @@ export default function TrialQuotePage() {
         {/* ── Submit ───────────────────────────────────────────────────── */}
         <div className="space-y-3 pb-4">
           <Button
-            className="w-full py-6 text-base font-bold gap-2"
+            className="w-full py-6 text-base font-bold gap-2 text-white"
             style={{ background: '#144660' }}
             onClick={handleSubmit}
             disabled={submitting}

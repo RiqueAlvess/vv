@@ -463,3 +463,26 @@ model CampaignMetrics {
   @@map("campaign_metrics")
   @@schema("analytics")
 }
+
+// ============================================================
+// SCHEMA: core — Trial Leads
+// ============================================================
+
+model TrialLead {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  email        String
+  phone        String?
+  company_name String
+  company_size String
+  sector       String?
+  role         String?
+  pain_points  String[]
+  interest     Int
+  message      String?
+  analytics    Json?
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@map("trial_leads")
+  @@schema("core")
+}
