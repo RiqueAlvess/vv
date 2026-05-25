@@ -6,7 +6,6 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip,
 } from 'recharts';
 import { ArrowRight, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
-import { Logo } from '@/components/ui/logo';
 import { calculateHSEITScores, type HSEITScoreResult, type DimensionScore } from '@/lib/scoring';
 
 const SHORT: Record<string, string> = {
@@ -142,7 +141,10 @@ export default function TrialResultsPage() {
 
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-        <Link href="/trial"><Logo size={28} variant="dark" /></Link>
+        <Link href="/trial">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Asta" className="h-8 w-auto object-contain" />
+        </Link>
         <Link href="/trial/survey" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#0d2a3d] transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" />
           Refazer

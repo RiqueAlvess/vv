@@ -53,11 +53,13 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     '/login',
     '/survey',
+    '/trial',
     '/feedback',
     '/api/auth/login',
     '/api/auth/refresh',
     '/api/health',
     '/api/survey',
+    '/api/trial',
     '/api/feedback',
     '/api/campaigns/csv-template',
     '/api/jobs/',
