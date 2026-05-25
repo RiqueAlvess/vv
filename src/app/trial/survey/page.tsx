@@ -3,14 +3,11 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Shield, ArrowLeft, ArrowRight, CheckCircle2, Clock, Lock } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Shield, Lock } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
 
 const QUESTIONS = [
@@ -51,8 +48,8 @@ const QUESTIONS = [
   { id: 35, text: 'Meu chefe me incentiva no trabalho' },
 ] as const;
 
-const QUESTIONS_PER_PAGE = 5;
-const TOTAL_PAGES = Math.ceil(QUESTIONS.length / QUESTIONS_PER_PAGE);
+const PER_PAGE = 5;
+const TOTAL_PAGES = Math.ceil(QUESTIONS.length / PER_PAGE);
 
 type Step = 'welcome' | 'demographics' | 'questions' | 'submitting';
 
@@ -63,248 +60,195 @@ export default function TrialSurveyPage() {
   const [gender, setGender] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [responses, setResponses] = useState<Record<string, number>>({});
-  const [currentPage, setCurrentPage] = useState(0);
+  const [page, setPage] = useState(0);
   const [invalidIds, setInvalidIds] = useState<Set<number>>(new Set());
 
-  const currentQuestions = QUESTIONS.slice(
-    currentPage * QUESTIONS_PER_PAGE,
-    (currentPage + 1) * QUESTIONS_PER_PAGE,
-  );
-  const answeredCount = Object.keys(responses).length;
-  const progress = (answeredCount / QUESTIONS.length) * 100;
+  const currentQs = QUESTIONS.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  const answered = Object.keys(responses).length;
+  const progress = answered / QUESTIONS.length;
 
-  const handleFinish = useCallback(async () => {
+  const finish = useCallback(async () => {
     setStep('submitting');
-    try {
-      localStorage.setItem('trial_responses', JSON.stringify(responses));
-      localStorage.setItem('trial_demographics', JSON.stringify({ gender, ageRange }));
-      localStorage.setItem('trial_completed_at', new Date().toISOString());
-    } catch {
-      // localStorage may be unavailable — pass data via sessionStorage
-      sessionStorage.setItem('trial_responses', JSON.stringify(responses));
-    }
+    try { localStorage.setItem('trial_responses', JSON.stringify(responses)); } catch { /* noop */ }
+    try { sessionStorage.setItem('trial_responses', JSON.stringify(responses)); } catch { /* noop */ }
     router.push('/trial/results');
-  }, [responses, gender, ageRange, router]);
+  }, [responses, router]);
 
-  const advancePage = useCallback(() => {
-    const unanswered = currentQuestions
-      .filter((q) => responses[`q${q.id}`] === undefined)
-      .map((q) => q.id);
-
-    if (unanswered.length > 0) {
-      setInvalidIds(new Set(unanswered));
-      return;
-    }
+  const advance = useCallback(() => {
+    const missing = currentQs.filter((q) => responses[`q${q.id}`] === undefined).map((q) => q.id);
+    if (missing.length) { setInvalidIds(new Set(missing)); return; }
     setInvalidIds(new Set());
-
-    if (currentPage < TOTAL_PAGES - 1) {
-      setCurrentPage((p) => p + 1);
+    if (page < TOTAL_PAGES - 1) {
+      setPage((p) => p + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      handleFinish();
+      finish();
     }
-  }, [currentQuestions, responses, currentPage, handleFinish]);
+  }, [currentQs, responses, page, finish]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafb]">
+    <div className="min-h-screen bg-white flex flex-col">
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.5s ease both; }
+      `}</style>
 
-      {/* ── Nav bar ─────────────────────────────────────────────────────── */}
-      <header className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div
-            className="rounded px-3 py-1.5 text-white text-sm font-bold"
-            style={{ background: '#144660' }}
-          >
-            VIVAMENTE360
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Shield className="h-4 w-4" style={{ color: '#1AA278' }} />
-            <span className="hidden sm:inline">Mapeamento Anônimo</span>
-            <Badge variant="secondary" className="text-xs">Demo</Badge>
-          </div>
+      {/* ── Minimal top bar ──────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <Link href="/trial">
+          <Logo size={28} variant="dark" />
+        </Link>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Shield className="h-3.5 w-3.5" style={{ color: '#1AA278' }} />
+          <span>Anônimo e seguro</span>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+      {/* ── Progress bar (questions only) ────────────────────────────────── */}
+      {step === 'questions' || step === 'submitting' ? (
+        <div className="h-0.5 bg-gray-100">
+          <div
+            className="h-full transition-all duration-500"
+            style={{ width: `${progress * 100}%`, background: '#1ff28d' }}
+          />
+        </div>
+      ) : null}
 
-        {/* ── STEP: Welcome ────────────────────────────────────────────── */}
-        {step === 'welcome' && (
-          <Card className="border-2 overflow-hidden">
-            <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #144660, #1ff28d)' }} />
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="rounded-xl p-2.5" style={{ background: 'rgba(20,70,96,0.08)' }}>
-                  <Clock className="h-5 w-5" style={{ color: '#144660' }} />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Mapeamento de Riscos Psicossociais</CardTitle>
-                  <CardDescription>Instrumento HSE-IT · NR-1 · 35 questões · ~8 minutos</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="rounded-xl border bg-muted/30 p-4 text-sm space-y-3 leading-relaxed">
-                <p className="text-muted-foreground">
-                  Este questionário avalia sete dimensões psicossociais do seu ambiente de trabalho —
-                  Demandas, Controle, Apoio da Chefia, Apoio dos Colegas, Relacionamentos, Cargo/Função e Comunicação.
+      <div className="flex-1 flex items-start justify-center px-4 py-10 sm:py-16">
+        <div className="w-full max-w-xl">
+
+          {/* ── WELCOME ────────────────────────────────────────────────── */}
+          {step === 'welcome' && (
+            <div className="fade-up space-y-8">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0d2a3d] mb-2">
+                  Mapeamento de Riscos Psicossociais
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Instrumento HSE-IT · NR-1 · 35 questões · ~8 minutos
                 </p>
-                <p className="text-muted-foreground">
-                  <strong className="text-foreground">Não existem respostas certas ou erradas.</strong>{' '}
-                  O importante é a sua percepção real do cotidiano.
-                </p>
-                <div className="pt-1 space-y-2">
-                  <h3 className="font-semibold text-foreground flex items-center gap-2">
-                    <Lock className="h-4 w-4" style={{ color: '#1AA278' }} />
-                    Sua privacidade está 100% protegida
-                  </h3>
-                  <ul className="text-muted-foreground space-y-1 list-disc list-inside text-xs">
-                    <li>Nenhuma informação pessoal é solicitada ou armazenada</li>
-                    <li>Tecnologia Blind-Drop™ — respostas sem vínculo de identidade</li>
-                    <li>Dados desta demo são processados apenas localmente</li>
-                  </ul>
-                </div>
               </div>
 
-              <Button
-                className="w-full py-5 text-base font-semibold gap-2"
-                style={{ background: '#144660' }}
-                onClick={() => setStep('demographics')}
-              >
-                Começar Mapeamento
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-
-              <p className="text-center text-xs text-muted-foreground">
-                <Link href="/trial" className="hover:underline">← Voltar para a página inicial</Link>
+              <p className="text-[#0d2a3d]/75 leading-relaxed">
+                Este questionário avalia sete dimensões psicossociais do seu ambiente de trabalho —
+                Demandas, Controle, Apoio da Chefia, Apoio dos Colegas, Relacionamentos, Cargo/Função e Comunicação.
               </p>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* ── STEP: Demographics ───────────────────────────────────────── */}
-        {step === 'demographics' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Dados Demográficos</CardTitle>
-              <CardDescription>
-                Usados apenas para análise estatística agregada — não identificam você
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Gênero <span className="text-destructive">*</span></Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Faixa Etária <span className="text-destructive">*</span></Label>
-                <Select value={ageRange} onValueChange={setAgeRange}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {AGE_RANGES.map((a) => (
-                      <SelectItem key={a} value={a}>{a} anos</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep('welcome')}>
-                  <ArrowLeft className="h-4 w-4 mr-1" />Voltar
-                </Button>
-                <Button
-                  className="flex-1"
-                  disabled={!gender || !ageRange}
-                  onClick={() => { setStep('questions'); window.scrollTo({ top: 0 }); }}
-                  style={{ background: '#144660' }}
-                >
-                  Iniciar Questionário →
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              <p className="text-[#0d2a3d]/75 leading-relaxed">
+                <strong className="text-[#0d2a3d]">Não existem respostas certas ou erradas.</strong>{' '}
+                O importante é a sua percepção real do cotidiano.
+              </p>
 
-        {/* ── STEP: Questions ──────────────────────────────────────────── */}
-        {(step === 'questions' || step === 'submitting') && (
-          <>
-            {/* Progress */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {answeredCount} de {QUESTIONS.length} questões respondidas
-                </span>
-                <span className="font-medium text-[#144660]">
-                  Página {currentPage + 1} de {TOTAL_PAGES}
-                </span>
+              <div className="rounded-xl border border-gray-100 bg-[#f7f8f6] p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="h-4 w-4" style={{ color: '#1AA278' }} />
+                  <span className="text-sm font-semibold text-[#0d2a3d]">Sua privacidade está 100% protegida</span>
+                </div>
+                <ul className="space-y-1.5">
+                  {[
+                    'Nenhuma informação pessoal é solicitada ou armazenada',
+                    'Tecnologia Blind-Drop™ — respostas sem vínculo de identidade',
+                    'Dados desta demo são processados apenas localmente',
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#1AA278' }} />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <Progress value={progress} className="h-2" />
+
+              <div className="flex justify-end pt-2">
+                <NextButton onClick={() => setStep('demographics')} />
+              </div>
             </div>
+          )}
 
-            {/* Questions card */}
-            <Card className="border-2">
-              <CardContent className="pt-5 px-4 sm:px-6 space-y-0">
-                {currentQuestions.map((q, idx) => {
-                  const isInvalid = invalidIds.has(q.id);
+          {/* ── DEMOGRAPHICS ───────────────────────────────────────────── */}
+          {step === 'demographics' && (
+            <div className="fade-up space-y-8">
+              <div>
+                <h2 className="text-xl font-bold text-[#0d2a3d] mb-1">Antes de começar</h2>
+                <p className="text-sm text-muted-foreground">
+                  Dois dados demográficos para enriquecer a análise coletiva — não identificam você.
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#0d2a3d]">Gênero</label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger className="h-12"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-[#0d2a3d]">Faixa etária</label>
+                  <Select value={ageRange} onValueChange={setAgeRange}>
+                    <SelectTrigger className="h-12"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {AGE_RANGES.map((a) => <SelectItem key={a} value={a}>{a} anos</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => setStep('welcome')}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-[#0d2a3d] transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <NextButton onClick={() => { if (gender && ageRange) { setStep('questions'); window.scrollTo({ top: 0 }); } }} disabled={!gender || !ageRange} />
+              </div>
+            </div>
+          )}
+
+          {/* ── QUESTIONS ──────────────────────────────────────────────── */}
+          {(step === 'questions' || step === 'submitting') && (
+            <div className="fade-up space-y-8">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{answered} de {QUESTIONS.length} respondidas</span>
+                <span>{page + 1} / {TOTAL_PAGES}</span>
+              </div>
+
+              <div className="space-y-0 divide-y divide-gray-100">
+                {currentQs.map((q) => {
+                  const invalid = invalidIds.has(q.id);
                   return (
-                    <div
-                      key={q.id}
-                      className={[
-                        'space-y-3 py-5 transition-colors',
-                        idx < currentQuestions.length - 1 ? 'border-b-2 border-gray-100' : '',
-                        isInvalid ? 'border-l-4 border-l-destructive pl-4 -ml-4' : '',
-                      ].join(' ')}
-                    >
-                      <p className="text-sm font-medium leading-relaxed">
-                        <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-2 shrink-0 ${
-                            isInvalid
-                              ? 'bg-destructive/10 text-destructive'
-                              : 'bg-primary/10 text-primary'
-                          }`}
-                        >
-                          {q.id}
-                        </span>
+                    <div key={q.id} className={`py-7 ${invalid ? 'pl-3 border-l-2 border-l-red-400 -ml-3' : ''}`}>
+                      <p className="text-[#0d2a3d] text-sm font-medium leading-relaxed mb-4">
+                        <span className="text-muted-foreground/50 text-xs mr-2">#{q.id}</span>
                         {q.text}
-                        {isInvalid && (
-                          <span className="ml-2 text-xs font-normal text-destructive"> — obrigatório</span>
-                        )}
+                        {invalid && <span className="ml-2 text-xs text-red-500 font-normal">obrigatório</span>}
                       </p>
                       <RadioGroup
                         value={responses[`q${q.id}`]?.toString() ?? ''}
                         onValueChange={(v) => {
                           setResponses((prev) => ({ ...prev, [`q${q.id}`]: parseInt(v) }));
-                          setInvalidIds((prev) => {
-                            if (!prev.has(q.id)) return prev;
-                            const next = new Set(prev);
-                            next.delete(q.id);
-                            return next;
-                          });
+                          setInvalidIds((prev) => { const n = new Set(prev); n.delete(q.id); return n; });
                         }}
-                        className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2"
+                        className="grid grid-cols-2 sm:grid-cols-5 gap-2"
                       >
-                        {LIKERT_SCALE.map((option) => (
-                          <div key={option.value} className="flex items-center">
-                            <RadioGroupItem
-                              value={option.value.toString()}
-                              id={`q${q.id}-${option.value}`}
-                              className="peer sr-only"
-                            />
+                        {LIKERT_SCALE.map((opt) => (
+                          <div key={opt.value} className="flex items-center">
+                            <RadioGroupItem value={opt.value.toString()} id={`q${q.id}-${opt.value}`} className="peer sr-only" />
                             <Label
-                              htmlFor={`q${q.id}-${option.value}`}
+                              htmlFor={`q${q.id}-${opt.value}`}
                               className={[
-                                'w-full cursor-pointer rounded-md border-2 px-3 py-2 text-xs text-center',
-                                'peer-data-[state=checked]:bg-[#144660] peer-data-[state=checked]:text-white peer-data-[state=checked]:border-[#144660]',
-                                'hover:bg-muted hover:border-gray-400 transition-colors select-none',
-                                isInvalid ? 'border-destructive/40' : 'border-gray-200',
+                                'w-full cursor-pointer rounded-lg border-2 px-2 py-2.5 text-xs text-center transition-all select-none',
+                                'peer-data-[state=checked]:border-[#144660] peer-data-[state=checked]:bg-[#144660] peer-data-[state=checked]:text-white',
+                                'hover:border-[#144660]/40 hover:bg-[#144660]/5',
+                                invalid ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white',
                               ].join(' ')}
                             >
-                              {option.label}
+                              {opt.label}
                             </Label>
                           </div>
                         ))}
@@ -312,38 +256,40 @@ export default function TrialSurveyPage() {
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Navigation */}
-            <div className="flex gap-3">
-              {currentPage > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => { setCurrentPage((p) => p - 1); window.scrollTo({ top: 0 }); }}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" />Anterior
-                </Button>
-              )}
-              <div className="flex-1" />
-              <Button
-                onClick={advancePage}
-                disabled={step === 'submitting'}
-                style={{ background: '#144660' }}
-                className="gap-2"
-              >
-                {step === 'submitting' ? (
-                  'Processando...'
-                ) : currentPage < TOTAL_PAGES - 1 ? (
-                  <>Próximo <ArrowRight className="h-4 w-4" /></>
-                ) : (
-                  <>Ver Meu Resultado <CheckCircle2 className="h-4 w-4" /></>
-                )}
-              </Button>
+              <div className="flex items-center justify-between pt-2">
+                {page > 0 ? (
+                  <button
+                    onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0 }); }}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-[#0d2a3d] transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                ) : <span />}
+                <NextButton onClick={advance} disabled={step === 'submitting'} />
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function NextButton({ onClick, disabled = false }: { onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        'w-12 h-12 rounded-full flex items-center justify-center transition-all',
+        disabled
+          ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+          : 'bg-[#144660] text-white hover:bg-[#1a5a80] hover:scale-105 active:scale-95 shadow-md shadow-[#144660]/25',
+      ].join(' ')}
+    >
+      <ArrowRight className="h-5 w-5" />
+    </button>
   );
 }

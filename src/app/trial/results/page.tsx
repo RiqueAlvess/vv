@@ -5,90 +5,83 @@ import Link from 'next/link';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip,
 } from 'recharts';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  ArrowRight, Lock, Shield, BarChart3, FileText, TrendingUp, AlertTriangle,
-  CheckCircle2, Users, Sparkles,
-} from 'lucide-react';
-import { calculateHSEITScores, type HSEITScoreResult } from '@/lib/scoring';
+import { ArrowRight, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
+import { calculateHSEITScores, type HSEITScoreResult, type DimensionScore } from '@/lib/scoring';
 
-const RISK_BG: Record<string, string> = {
-  aceitavel:  'bg-green-50 border-green-200 text-green-800',
-  moderado:   'bg-yellow-50 border-yellow-200 text-yellow-800',
-  importante: 'bg-orange-50 border-orange-200 text-orange-800',
-  critico:    'bg-red-50 border-red-200 text-red-800',
+const SHORT: Record<string, string> = {
+  demandas: 'Demandas',
+  controle: 'Controle',
+  apoio_chefia: 'Ap. Chefia',
+  apoio_colegas: 'Ap. Colegas',
+  relacionamentos: 'Relacion.',
+  cargo: 'Cargo',
+  comunicacao_mudancas: 'Com./Mud.',
 };
 
-const RISK_DOT: Record<string, string> = {
-  aceitavel:  '#009B00',
-  moderado:   '#F7B511',
-  importante: '#F75900',
-  critico:    '#F60000',
+const LEVEL_LABEL: Record<string, string> = {
+  aceitavel: 'Aceitável',
+  moderado: 'Moderado',
+  importante: 'Importante',
+  critico: 'Crítico',
 };
 
-const DIM_SHORT: Record<string, string> = {
-  demandas:             'Demandas',
-  controle:             'Controle',
-  apoio_chefia:         'Ap. Chefia',
-  apoio_colegas:        'Ap. Colegas',
-  relacionamentos:      'Relacionamentos',
-  cargo:                'Cargo',
-  comunicacao_mudancas: 'Com./Mudanças',
+const INSIGHT: Record<string, string> = {
+  demandas: 'A carga de trabalho está pesando — prazos irreais e volume excessivo aparecem como padrão consistente.',
+  controle: 'Falta espaço para decidir como o trabalho é feito. Autonomia baixa tende a aumentar o desgaste ao longo do tempo.',
+  apoio_chefia: 'O suporte das lideranças não está chegando onde precisa. Isso costuma ser o gatilho principal de afastamentos.',
+  apoio_colegas: 'O time não está se apoiando como deveria — e isso isola as pessoas quando as coisas ficam difíceis.',
+  relacionamentos: 'Há tensões no ambiente que precisam de atenção. Conflitos não resolvidos corroem o clima mais rápido do que qualquer outra coisa.',
+  cargo: 'As pessoas não têm clareza sobre o que se espera delas. Role ambiguity é silenciosa e muito custosa.',
+  comunicacao_mudancas: 'Mudanças acontecem sem comunicação adequada. A insegurança gerada aqui aparece em quase todas as outras dimensões.',
 };
 
-const INSIGHT_MAP: Record<string, string> = {
-  demandas:             'sobrecarga e pressão excessiva de trabalho',
-  controle:             'baixa autonomia e falta de controle sobre o próprio trabalho',
-  apoio_chefia:         'ausência de suporte gerencial e liderança',
-  apoio_colegas:        'falta de suporte social e isolamento entre pares',
-  relacionamentos:      'conflitos interpessoais e ambiente hostil',
-  cargo:                'ambiguidade de papel e falta de clareza de função',
-  comunicacao_mudancas: 'comunicação deficiente e gestão de mudanças inadequada',
-};
-
-function TooltipContent({ active, payload }: { active?: boolean; payload?: { payload: { fullName: string; NR: number; color: string; label: string; score: number } }[] }) {
+function Tooltip2({ active, payload }: { active?: boolean; payload?: { payload: { name: string; NR: number; color: string; label: string } }[] }) {
   if (!active || !payload?.length) return null;
-  const { fullName, NR, color, label, score } = payload[0].payload;
+  const d = payload[0].payload;
   return (
-    <div className="bg-white border rounded-lg shadow-lg p-3 text-xs max-w-[180px]">
-      <p className="font-semibold mb-1 text-[#0d2a3d]">{fullName}</p>
-      <div className="flex items-center gap-1.5 mb-0.5">
-        <span className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-        <span>{label}</span>
-      </div>
-      <p className="text-muted-foreground">NR: <strong className="text-foreground">{NR}</strong>/16</p>
-      <p className="text-muted-foreground">Score: <strong className="text-foreground">{score.toFixed(2)}</strong>/4</p>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs">
+      <p className="font-semibold text-[#0d2a3d] mb-1">{d.name}</p>
+      <p style={{ color: d.color }} className="font-medium">{d.label}</p>
+      <p className="text-muted-foreground">NR {d.NR}/16</p>
     </div>
   );
 }
 
-function LockedSection({ title, description, icon: Icon }: { title: string; description: string; icon: React.ElementType }) {
+function RiskBar({ dim }: { dim: DimensionScore }) {
+  const pct = (dim.nrValue / 16) * 100;
   return (
-    <div className="relative rounded-2xl border-2 border-dashed border-muted overflow-hidden">
-      {/* blurred fake content */}
-      <div className="p-6 select-none" style={{ filter: 'blur(6px)', pointerEvents: 'none' }}>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-[#0d2a3d] font-medium">{dim.name}</span>
+        <span className="font-semibold" style={{ color: dim.color }}>{LEVEL_LABEL[dim.riskLevel]}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${pct}%`, background: dim.color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LockedBlock({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="relative rounded-2xl border border-dashed border-gray-200 overflow-hidden bg-gray-50/50">
+      <div className="p-6 select-none" style={{ filter: 'blur(5px)', pointerEvents: 'none' }}>
         <div className="space-y-3">
-          <div className="h-5 bg-muted rounded w-2/3" />
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-muted/60 rounded-lg" />
-            ))}
+          <div className="h-4 bg-gray-200 rounded w-1/2" />
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-200/70 rounded-lg" />)}
           </div>
-          <div className="h-32 bg-muted/40 rounded-xl" />
+          <div className="h-24 bg-gray-200/50 rounded-xl" />
         </div>
       </div>
-      {/* overlay */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm p-6 text-center">
-        <div className="rounded-full p-3 mb-3" style={{ background: 'rgba(20,70,96,0.08)' }}>
-          <Icon className="h-6 w-6" style={{ color: '#144660' }} />
-        </div>
-        <div className="flex items-center gap-1.5 mb-1">
-          <Lock className="h-4 w-4 text-muted-foreground" />
-          <p className="font-bold text-[#0d2a3d]">{title}</p>
-        </div>
-        <p className="text-sm text-muted-foreground max-w-xs">{description}</p>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white/70 backdrop-blur-[2px]">
+        <Lock className="h-5 w-5 text-gray-400 mb-2" />
+        <p className="font-semibold text-[#0d2a3d] text-sm">{title}</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">{desc}</p>
       </div>
     </div>
   );
@@ -96,27 +89,22 @@ function LockedSection({ title, description, icon: Icon }: { title: string; desc
 
 export default function TrialResultsPage() {
   const [result, setResult] = useState<HSEITScoreResult | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem('trial_responses') ?? sessionStorage.getItem('trial_responses');
-      if (raw) {
-        const answers = JSON.parse(raw) as Record<string, number>;
-        setResult(calculateHSEITScores(answers));
-      }
-    } catch {
-      // ignore
-    }
-    setLoaded(true);
+      if (raw) setResult(calculateHSEITScores(JSON.parse(raw) as Record<string, number>));
+    } catch { /* noop */ }
+    setReady(true);
   }, []);
 
-  if (!loaded) {
+  if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafb]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-[#144660] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground text-sm">Calculando seu perfil de risco...</p>
+          <div className="w-8 h-8 border-2 border-[#144660] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Calculando...</p>
         </div>
       </div>
     );
@@ -124,253 +112,139 @@ export default function TrialResultsPage() {
 
   if (!result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafb] px-4">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="py-12 space-y-4">
-            <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto" />
-            <h2 className="text-xl font-bold">Nenhum resultado encontrado</h2>
-            <p className="text-muted-foreground text-sm">
-              Parece que você ainda não respondeu o mapeamento.
-            </p>
-            <Link href="/trial/survey">
-              <Button style={{ background: '#144660' }}>
-                Responder Agora →
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-white px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <AlertTriangle className="h-10 w-10 text-muted-foreground mx-auto" />
+          <p className="font-semibold text-[#0d2a3d]">Resultado não encontrado</p>
+          <p className="text-sm text-muted-foreground">Parece que o mapeamento não foi concluído.</p>
+          <Link href="/trial/survey" className="inline-flex items-center gap-2 text-sm text-[#144660] font-medium hover:underline">
+            Responder agora <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
     );
   }
 
   const { dimensions, igrp, igrpInterpretation, igrpColor } = result;
-  const worstDim = [...dimensions].sort((a, b) => b.nrValue - a.nrValue)[0];
-  const criticalCount = dimensions.filter((d) => d.riskLevel === 'critico').length;
-  const importantCount = dimensions.filter((d) => d.riskLevel === 'importante').length;
+  const worst = [...dimensions].sort((a, b) => b.nrValue - a.nrValue)[0];
+  const criticals = dimensions.filter((d) => d.riskLevel === 'critico' || d.riskLevel === 'importante');
 
   const radarData = dimensions.map((d) => ({
-    subject: DIM_SHORT[d.key] ?? d.name,
+    subject: SHORT[d.key] ?? d.name,
+    name: d.name,
     NR: d.nrValue,
     color: d.color,
-    fullName: d.name,
-    score: d.rawScore,
-    label: d.interpretation,
+    label: LEVEL_LABEL[d.riskLevel],
   }));
 
   return (
-    <div className="min-h-screen bg-[#f8fafb]">
+    <div className="min-h-screen bg-white">
 
-      {/* ── Nav ──────────────────────────────────────────────────────────── */}
-      <header className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="rounded px-3 py-1.5 text-white text-sm font-bold" style={{ background: '#144660' }}>
-            VIVAMENTE360
-          </div>
-          <Badge variant="secondary" className="text-xs flex items-center gap-1">
-            <Shield className="h-3 w-3" style={{ color: '#1AA278' }} />
-            Demo · Dados locais
-          </Badge>
-        </div>
-      </header>
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <Link href="/trial"><Logo size={28} variant="dark" /></Link>
+        <Link href="/trial/survey" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#0d2a3d] transition-colors">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Refazer
+        </Link>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 py-10 sm:py-16 space-y-10">
 
-        {/* ── IGRP Hero ──────────────────────────────────────────────────── */}
-        <div
-          className="rounded-2xl p-6 sm:p-8 text-white"
-          style={{ background: 'linear-gradient(135deg, #0d2a3d 0%, #144660 100%)' }}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1">
-              <p className="text-white/60 text-sm mb-1 flex items-center gap-2">
-                <Sparkles className="h-4 w-4" style={{ color: '#1ff28d' }} />
-                Seu Perfil de Risco Psicossocial (IGRP)
-              </p>
-              <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
-                Índice Geral:{' '}
-                <span style={{ color: igrpColor }}>{igrp.toFixed(1)}</span>
-                <span className="text-white/40 text-xl"> /16</span>
-              </h1>
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-flex px-3 py-1 rounded-full text-sm font-bold"
-                  style={{ background: igrpColor, color: '#fff' }}
-                >
-                  {igrpInterpretation}
-                </span>
-                <span className="text-white/60 text-sm">Risco Psicossocial</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:text-right">
-              {criticalCount > 0 && (
-                <div className="bg-white/10 rounded-xl p-3">
-                  <p className="text-2xl font-extrabold" style={{ color: '#F60000' }}>{criticalCount}</p>
-                  <p className="text-xs text-white/60">Dimensões Críticas</p>
-                </div>
-              )}
-              {importantCount > 0 && (
-                <div className="bg-white/10 rounded-xl p-3">
-                  <p className="text-2xl font-extrabold" style={{ color: '#F75900' }}>{importantCount}</p>
-                  <p className="text-xs text-white/60">Importantes</p>
-                </div>
-              )}
-              <div className="bg-white/10 rounded-xl p-3">
-                <p className="text-2xl font-extrabold" style={{ color: '#1ff28d' }}>7</p>
-                <p className="text-xs text-white/60">Dimensões avaliadas</p>
-              </div>
-              <div className="bg-white/10 rounded-xl p-3">
-                <p className="text-2xl font-extrabold" style={{ color: '#1ff28d' }}>35</p>
-                <p className="text-xs text-white/60">Questões HSE-IT</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Insight personalizado ──────────────────────────────────────── */}
-        {(worstDim.riskLevel === 'critico' || worstDim.riskLevel === 'importante') && (
-          <div
-            className={`rounded-2xl border p-4 flex items-start gap-3 ${RISK_BG[worstDim.riskLevel]}`}
-          >
-            <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" style={{ color: RISK_DOT[worstDim.riskLevel] }} />
+        {/* ── Score header ─────────────────────────────────────────────── */}
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Seu resultado</p>
+          <div className="flex items-end gap-4 flex-wrap">
             <div>
-              <p className="font-semibold text-sm">
-                Alerta: {worstDim.interpretation} em <span className="underline">{worstDim.name}</span>
-              </p>
-              <p className="text-sm mt-0.5 opacity-80">
-                Seus resultados indicam {INSIGHT_MAP[worstDim.key] ?? 'risco elevado'} — uma das principais causas de
-                afastamentos e baixa produtividade. Em uma campanha real com toda sua equipe, você teria o mapa completo
-                por setor e cargo para agir exatamente onde é necessário.
-              </p>
+              <span className="text-7xl font-black" style={{ color: igrpColor }}>
+                {igrp.toFixed(1)}
+              </span>
+              <span className="text-2xl text-gray-300 ml-1">/16</span>
             </div>
+            <div className="mb-3">
+              <p className="text-2xl font-extrabold text-[#0d2a3d]">{igrpInterpretation}</p>
+              <p className="text-sm text-muted-foreground">Índice Geral de Risco Psicossocial</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Insight personalizado ────────────────────────────────────── */}
+        {criticals.length > 0 && (
+          <div className="rounded-2xl p-5 border-l-4" style={{ borderColor: worst.color, background: `${worst.color}08` }}>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: worst.color }}>
+              Ponto de atenção — {worst.name}
+            </p>
+            <p className="text-[#0d2a3d] text-sm leading-relaxed">
+              {INSIGHT[worst.key] ?? `${worst.name} apresentou risco ${LEVEL_LABEL[worst.riskLevel].toLowerCase()}.`}
+            </p>
+            <p className="text-xs text-muted-foreground mt-3">
+              Em uma campanha real com toda a equipe, você teria esse mapa detalhado por setor e função — sabendo exatamente onde agir.
+            </p>
           </div>
         )}
 
-        {/* ── Radar + Dimensões ─────────────────────────────────────────── */}
-        <div className="grid sm:grid-cols-5 gap-6">
+        {/* ── Radar + barras ───────────────────────────────────────────── */}
+        <div className="grid sm:grid-cols-2 gap-8">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Radar das dimensões</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                <PolarGrid stroke="#f0f0f0" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9.5, fill: '#9ca3af' }} />
+                <PolarRadiusAxis angle={90} domain={[0, 16]} tick={false} axisLine={false} />
+                <Radar dataKey="NR" stroke="#144660" fill="#144660" fillOpacity={0.15} strokeWidth={2} />
+                <Tooltip content={<Tooltip2 />} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
 
-          {/* Radar */}
-          <Card className="sm:col-span-3">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Radar das 7 Dimensões HSE-IT</CardTitle>
-              <CardDescription>NR por dimensão — escala 1 a 16</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
-                  <PolarGrid stroke="#E5E7EB" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#6B7280' }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 16]} tick={{ fontSize: 9 }} tickCount={5} />
-                  <Radar name="NR" dataKey="NR" stroke="#144660" fill="#144660" fillOpacity={0.2} strokeWidth={2} />
-                  <Tooltip content={<TooltipContent />} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Dimension list */}
-          <Card className="sm:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Resultado por Dimensão</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {dimensions.map((d) => (
-                <div
-                  key={d.key}
-                  className="flex items-center justify-between p-2.5 rounded-lg border text-sm"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ background: d.color }}
-                    />
-                    <span className="truncate text-muted-foreground text-xs">{d.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <Badge
-                      className="text-white text-[10px] px-1.5"
-                      style={{ background: d.color }}
-                    >
-                      NR {d.nrValue}
-                    </Badge>
-                    <span className="text-xs font-medium" style={{ color: d.color }}>
-                      {d.interpretation}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Por dimensão</p>
+            <div className="space-y-4">
+              {dimensions.map((d) => <RiskBar key={d.key} dim={d} />)}
+            </div>
+          </div>
         </div>
 
-        {/* ── Seções bloqueadas (FOMO) ───────────────────────────────────── */}
+        {/* ── Bloqueados ───────────────────────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Lock className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Disponível na versão completa
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            <LockedSection
-              title="Análise por Setor e Cargo"
-              description="Veja qual setor tem maior risco e quais funções estão mais expostas."
-              icon={BarChart3}
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+            Na versão completa
+          </p>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <LockedBlock
+              title="Análise por Setor"
+              desc="Qual área da empresa concentra mais risco?"
             />
-            <LockedSection
+            <LockedBlock
               title="Relatório PGR em PDF"
-              description="Documento completo para auditorias NR-1, com metodologia e plano de ação."
-              icon={FileText}
+              desc="Pronto para auditorias NR-1 com 1 clique."
             />
-            <LockedSection
-              title="Histórico e Comparativo"
-              description="Acompanhe a evolução das dimensões ao longo das campanhas."
-              icon={TrendingUp}
+            <LockedBlock
+              title="Evolução ao longo do tempo"
+              desc="Compare campanhas e acompanhe a melhora."
             />
           </div>
         </div>
 
-        {/* ── CTA de conversão ──────────────────────────────────────────── */}
-        <div
-          className="rounded-2xl p-6 sm:p-8 text-center"
-          style={{ background: 'linear-gradient(135deg, #144660 0%, #1a5a80 100%)' }}
-        >
-          <div className="inline-flex rounded-full p-2 mb-4" style={{ background: 'rgba(31,242,141,0.15)' }}>
-            <Sparkles className="h-5 w-5" style={{ color: '#1ff28d' }} />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-2">
-            Agora imagine isso para toda a sua equipe
-          </h2>
-          <p className="text-white/70 mb-1 max-w-xl mx-auto text-sm sm:text-base">
-            Com o VIVAMENTE360, você mapeia todos os colaboradores, obtém análise por setor, gera o
-            relatório PGR em 1 clique — e garante conformidade NR-1 com anonimato comprovado.
+        {/* ── CTA ──────────────────────────────────────────────────────── */}
+        <div className="border-t border-gray-100 pt-10 text-center space-y-5">
+          <p className="text-2xl sm:text-3xl font-extrabold text-[#0d2a3d] leading-tight max-w-md mx-auto">
+            Sua equipe merece ver esse resultado completo.
           </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 my-6 text-sm text-white/60">
-            {[
-              { icon: Users, text: '47.000+ colaboradores mapeados' },
-              { icon: Shield, text: 'LGPD compliant' },
-              { icon: CheckCircle2, text: 'NR-1 auditável' },
-            ].map(({ icon: Icon, text }) => (
-              <span key={text} className="flex items-center gap-1.5">
-                <Icon className="h-4 w-4" style={{ color: '#1ff28d' }} />
-                {text}
-              </span>
-            ))}
-          </div>
-
+          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+            Proposta personalizada em até 24h. Sem enrolação.
+          </p>
           <Link href="/trial/quote">
-            <Button
-              size="lg"
-              className="gap-2 font-bold text-base px-8 py-5"
-              style={{ background: '#1ff28d', color: '#0d2a3d' }}
+            <button
+              className="inline-flex items-center gap-3 rounded-2xl px-10 py-4 font-bold text-white transition-all hover:scale-105 active:scale-95"
+              style={{ background: '#144660', boxShadow: '0 8px 24px rgba(20,70,96,0.3)' }}
             >
-              Quero Implementar na Minha Empresa
-              <ArrowRight className="h-5 w-5" />
-            </Button>
+              Quero uma proposta
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </Link>
-          <p className="mt-3 text-white/40 text-xs">
-            Proposta personalizada em até 24h · Sem compromisso
-          </p>
+          <p className="text-xs text-muted-foreground/50">Sem compromisso</p>
         </div>
       </div>
     </div>
