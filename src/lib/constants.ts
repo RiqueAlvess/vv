@@ -78,12 +78,38 @@ export const RISK_THRESHOLDS_POSITIVE: { max: number; level: RiskLevel }[] = [
 // NR Matrix (Risk Assessment)
 // ============================================================
 
+// Probability reflects exposure likelihood derived from the risk level (same for all dimensions).
+export const NR_PROBABILITY: Record<RiskLevel, number> = {
+  aceitavel:  1,
+  moderado:   2,
+  importante: 3,
+  critico:    4,
+};
+
+// Severity is intrinsic to each dimension — how serious the health impact is
+// IF that psychosocial risk materialises, regardless of frequency.
+//   1 = Leve (desconforto, impacto mínimo)
+//   2 = Moderado (sofrimento psicológico moderado)
+//   3 = Significativo (início de adoecimento)
+//   4 = Grave (burnout, depressão, CAT)
+export const DIMENSION_SEVERITY: Record<string, number> = {
+  demandas:              4, // sobrecarga → burnout, IAM, afastamento
+  relacionamentos:       4, // assédio/violência → trauma, adoecimento grave
+  apoio_chefia:          3, // falta de suporte → sofrimento progressivo
+  controle:              3, // ausência de autonomia → adoecimento crônico
+  apoio_colegas:         2, // isolamento social → impacto moderado
+  cargo:                 2, // ambiguidade de função → impacto moderado
+  comunicacao_mudancas:  2, // gestão de mudança → impacto leve-moderado
+};
+
+// Keep for backwards compat with any consumer that references NR_MATRIX directly.
+// Probability === severity here only as a neutral default; prefer DIMENSION_SEVERITY above.
 export const NR_MATRIX: Record<RiskLevel, { probability: number; severity: number }> & { default_severity: number } = {
-  critico:    { probability: 4, severity: 4 },  // ALTO RISCO → P=4, S=4 → NR=16
-  importante: { probability: 3, severity: 3 },  // Risco Moderado → P=3, S=3 → NR=9
-  moderado:   { probability: 2, severity: 2 },  // Risco Médio → P=2, S=2 → NR=4
-  aceitavel:  { probability: 1, severity: 1 },  // Baixo Risco → P=1, S=1 → NR=1
-  default_severity: 3, // conservative default (Significativo) for dashboard use
+  critico:    { probability: 4, severity: 4 },
+  importante: { probability: 3, severity: 3 },
+  moderado:   { probability: 2, severity: 2 },
+  aceitavel:  { probability: 1, severity: 1 },
+  default_severity: 3,
 };
 
 export const NR_INTERPRETATION: { maxNR: number; label: string; color: string }[] = [

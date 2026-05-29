@@ -29,6 +29,7 @@ const navItems = {
   RH: [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
+    { title: 'Planos de Ação', url: '/action-plans', icon: ListChecks },
     { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],

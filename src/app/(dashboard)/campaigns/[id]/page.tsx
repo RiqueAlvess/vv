@@ -30,7 +30,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { CampaignChecklist } from '@/components/checklist/campaign-checklist';
-import { ActionPlanPanel } from '@/components/action-plan/action-plan-panel';
 import type { Campaign } from '@/types';
 
 const statusLabels: Record<string, string> = {
@@ -549,24 +548,28 @@ export default function CampaignDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="qrcode" onValueChange={(v) => v === 'hierarchy' && fetchHierarchy()}>
-        <TabsList>
-          <TabsTrigger value="qrcode">
-            <QrCode className="h-4 w-4 mr-2" />
-            QR Code
-          </TabsTrigger>
-          <TabsTrigger value="hierarchy">
-            <Users className="h-4 w-4 mr-2" />
-            Respondentes
-          </TabsTrigger>
-          <TabsTrigger value="checklist">
-            <ClipboardCheck className="h-4 w-4 mr-2" />
-            Checklist NR-1
-          </TabsTrigger>
-          <TabsTrigger value="action-plan">
-            <ListChecks className="h-4 w-4 mr-2" />
-            Plano de Ação
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center gap-2">
+          <TabsList>
+            <TabsTrigger value="qrcode">
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Code
+            </TabsTrigger>
+            <TabsTrigger value="hierarchy">
+              <Users className="h-4 w-4 mr-2" />
+              Respondentes
+            </TabsTrigger>
+            <TabsTrigger value="checklist">
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Checklist NR-1
+            </TabsTrigger>
+          </TabsList>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/action-plans/${campaignId}`}>
+              <ListChecks className="h-4 w-4 mr-2" />
+              Plano de Ação
+            </Link>
+          </Button>
+        </div>
 
         {/* ── QR Code tab ───────────────────────────────────────────────── */}
         <TabsContent value="qrcode">
@@ -930,14 +933,6 @@ export default function CampaignDetailPage() {
           <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
         </TabsContent>
 
-        {/* ── Action Plan tab ────────────────────────────────────────────── */}
-        <TabsContent value="action-plan">
-          <ActionPlanPanel
-            campaignId={campaignId}
-            campaignStatus={campaign.status}
-            canEdit={canManage}
-          />
-        </TabsContent>
       </Tabs>
 
       {/* Modals */}

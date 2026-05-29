@@ -31,7 +31,7 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
     }
     const avgScore = count > 0 ? Math.round((total / count) * 100) / 100 : 0;
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
-    const nr = ScoreService.calculateNR(riskLevel);
+    const nr = ScoreService.calculateNR(riskLevel, dim.key);
     const { label } = ScoreService.interpretNR(nr);
     return { dimensao: dim.name, tipo: dim.type, score_medio: avgScore, nivel_risco: riskLevel, nr, nivel_final: label };
   });

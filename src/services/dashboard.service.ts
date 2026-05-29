@@ -38,7 +38,7 @@ export class DashboardService {
       values.push(score);
       // Color based on risk interpretation considering dimension type
       const risk = ScoreService.getRiskLevel(score, dim.type);
-      const nr = ScoreService.calculateNR(risk);
+      const nr = ScoreService.calculateNR(risk, dim.key);
       colors.push(ScoreService.interpretNR(nr).color);
     }
     return { labels, values, colors };
@@ -111,12 +111,12 @@ export class DashboardService {
       const sumA = a.scores.reduce((acc, s, i) => {
         const dim = HSE_DIMENSIONS[i];
         const risk = ScoreService.getRiskLevel(s, dim.type);
-        return acc + ScoreService.calculateNR(risk);
+        return acc + ScoreService.calculateNR(risk, dim.key);
       }, 0);
       const sumB = b.scores.reduce((acc, s, i) => {
         const dim = HSE_DIMENSIONS[i];
         const risk = ScoreService.getRiskLevel(s, dim.type);
-        return acc + ScoreService.calculateNR(risk);
+        return acc + ScoreService.calculateNR(risk, dim.key);
       }, 0);
       return sumB - sumA; // highest risk first
     });
@@ -140,7 +140,7 @@ export class DashboardService {
         const scores = ScoreService.calculateAllDimensionScores(resp.responses);
         for (const dim of HSE_DIMENSIONS) {
           const risk = ScoreService.getRiskLevel(scores[dim.key as DimensionType], dim.type);
-          const nr = ScoreService.calculateNR(risk);
+          const nr = ScoreService.calculateNR(risk, dim.key);
           if (nr >= 13) criticalCount++;
           totalCount++;
         }
@@ -210,7 +210,7 @@ export class DashboardService {
           const scores = ScoreService.calculateAllDimensionScores(resp.responses);
           for (const dim of HSE_DIMENSIONS) {
             const risk = ScoreService.getRiskLevel(scores[dim.key as DimensionType], dim.type);
-            const nr = ScoreService.calculateNR(risk);
+            const nr = ScoreService.calculateNR(risk, dim.key);
             if (nr >= 13) criticalCount++;
             totalCount++;
           }

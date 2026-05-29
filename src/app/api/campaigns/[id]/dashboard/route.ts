@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
+import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import { enqueueJob } from '@/lib/jobs';
@@ -47,7 +47,7 @@ function toParsedResponse(resp: {
 function getResponseDimensionRisk(response: ParsedResponse, dimension: typeof HSE_DIMENSIONS[number]) {
   const score = ScoreService.calculateDimensionScore(response.responses, dimension.key as DimensionType);
   const riskLevel = ScoreService.getRiskLevel(score, dimension.type);
-  const nr = ScoreService.calculateNR(riskLevel);
+  const nr = ScoreService.calculateNR(riskLevel, dimension.key);
   return { score, riskLevel, nr };
 }
 
@@ -67,7 +67,7 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
 
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
-    const nr = ScoreService.calculateNR(riskLevel);
+    const nr = ScoreService.calculateNR(riskLevel, dim.key);
     const interp = ScoreService.interpretNR(nr);
 
     return {
@@ -76,8 +76,8 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
       type: dim.type,
       avg_score: avgScore,
       risk_level: riskLevel,
-      probability: RISK_LEVEL_WEIGHT[riskLevel],
-      severity: RISK_LEVEL_WEIGHT[riskLevel],
+      probability: NR_PROBABILITY[riskLevel],
+      severity: DIMENSION_SEVERITY[dim.key] ?? 2,
       nr,
       nr_label: interp.label,
       nr_color: interp.color,
@@ -466,7 +466,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           HSE_DIMENSIONS.map((dim) => {
             const avgScore = unitResponses.reduce((sum, resp) => sum + ScoreService.calculateDimensionScore(resp.responses, dim.key as DimensionType), 0) / unitResponses.length;
             const risk = ScoreService.getRiskLevel(avgScore, dim.type);
-            const nr = ScoreService.calculateNR(risk);
+            const nr = ScoreService.calculateNR(risk, dim.key);
             const { label, color } = ScoreService.interpretNR(nr);
             return [dim.key, { nr, color, label }];
           }),

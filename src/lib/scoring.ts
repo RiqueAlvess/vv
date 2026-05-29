@@ -83,6 +83,12 @@ interface DimensionSpec {
   polarity: 'negative' | 'positive';
   /** 1-based question numbers belonging to this dimension */
   questionNumbers: number[];
+  /**
+   * Intrinsic health-impact severity for this dimension (1–4, fixed).
+   * Independent of the probability derived from the respondent's score.
+   * High severity means the harm is serious even at moderate exposure frequency.
+   */
+  severity: number;
 }
 
 const DIMENSIONS: readonly DimensionSpec[] = [
@@ -91,42 +97,49 @@ const DIMENSIONS: readonly DimensionSpec[] = [
     name: 'Demandas',
     polarity: 'negative',            // high score = overloaded = high risk
     questionNumbers: [3, 6, 9, 12, 16, 18, 20, 22],
+    severity: 4,                     // sobrecarga → burnout / IAM / afastamento
   },
   {
     key: 'controle',
     name: 'Controle',
     polarity: 'positive',            // low score = no autonomy = high risk
     questionNumbers: [2, 10, 15, 19, 25, 30],
+    severity: 3,                     // ausência de autonomia → adoecimento crônico
   },
   {
     key: 'apoio_chefia',
     name: 'Apoio da Chefia',
     polarity: 'positive',            // low score = no managerial support = high risk
     questionNumbers: [8, 23, 29, 33, 35],
+    severity: 3,                     // falta de suporte → sofrimento progressivo
   },
   {
     key: 'apoio_colegas',
     name: 'Apoio dos Colegas',
     polarity: 'positive',            // low score = social isolation = high risk
     questionNumbers: [7, 24, 27, 31],
+    severity: 2,                     // isolamento social → impacto moderado
   },
   {
     key: 'relacionamentos',
     name: 'Relacionamentos',
     polarity: 'negative',            // high score = conflict / bullying present = high risk
     questionNumbers: [5, 14, 21, 34],
+    severity: 4,                     // assédio / violência → trauma / adoecimento grave
   },
   {
     key: 'cargo',
     name: 'Cargo/Função',
     polarity: 'positive',            // low score = role ambiguity = high risk
     questionNumbers: [1, 4, 11, 13, 17],
+    severity: 2,                     // ambiguidade de função → impacto moderado
   },
   {
     key: 'comunicacao_mudancas',
     name: 'Comunicação e Mudanças',
     polarity: 'positive',            // low score = change blindness = high risk
     questionNumbers: [26, 28, 32],
+    severity: 2,                     // gestão de mudança → impacto leve-moderado
   },
 ] as const;
 
@@ -176,23 +189,16 @@ const PROBABILITY: Record<RiskLevel, number> = {
 };
 
 /**
- * Severity factors — variable per risk level (1–4).
- * Reflects the progressive health impact as risk increases:
- *   1 = Leve (discomfort, minimal impact)
- *   2 = Moderado (moderate psychological suffering)
- *   3 = Significativo (initial illness onset)
- *   4 = Grave (burnout, depression, CAT)
+ * nrValue = probability × severity  →  range 1–16
+ *
+ * Probability (1–4) is derived from the respondent's riskLevel.
+ * Severity (1–4) is the intrinsic health-impact weight of the dimension,
+ * passed in from DimensionSpec so each dimension carries its own severity.
+ * The two factors are independent — this is the cross-risk (risco cruzado)
+ * that NR-1 matrices require.
  */
-const SEVERITY_MAP: Record<RiskLevel, number> = {
-  aceitavel:  1,
-  moderado:   2,
-  importante: 3,
-  critico:    4,
-};
-
-/** nrValue = probability × severity  →  range 1–16 */
-function riskToNR(riskLevel: RiskLevel): number {
-  return PROBABILITY[riskLevel] * SEVERITY_MAP[riskLevel];
+function riskToNR(riskLevel: RiskLevel, dimensionSeverity: number): number {
+  return PROBABILITY[riskLevel] * dimensionSeverity;
 }
 
 // ─── Presentation layer ────────────────────────────────────────────────────
@@ -254,7 +260,7 @@ export function calculateHSEITScores(answers: Record<string, number>): HSEITScor
 
     // ── Step 2: derive NR-1 components ───────────────────────────────────
     const probability = PROBABILITY[riskLevel];
-    const nrValue = riskToNR(riskLevel);
+    const nrValue = riskToNR(riskLevel, spec.severity);
 
     const { interpretation, color } = RISK_DISPLAY[riskLevel];
 
@@ -265,7 +271,7 @@ export function calculateHSEITScores(answers: Record<string, number>): HSEITScor
       rawScore,
       riskLevel,
       probability,
-      severity: SEVERITY_MAP[riskLevel],
+      severity: spec.severity,
       nrValue,
       interpretation,
       color,

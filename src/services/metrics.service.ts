@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { ScoreService } from './score.service';
-import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS } from '@/lib/constants';
+import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY } from '@/lib/constants';
 import { DASHBOARD_CACHE_VERSION } from '@/lib/dashboard-cache';
 import type { DimensionType, RiskLevel } from '@/types';
 
@@ -36,7 +36,7 @@ function getResponseDimensionRisk(
     dimension.key as DimensionType,
   );
   const riskLevel = ScoreService.getRiskLevel(score, dimension.type);
-  const nr = ScoreService.calculateNR(riskLevel);
+  const nr = ScoreService.calculateNR(riskLevel, dimension.key);
   return { score, riskLevel, nr };
 }
 
@@ -62,7 +62,7 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
     const avgScore = scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(2)) : 0;
     // Classify by average score (consistent with heatmap and dashboard/route.ts)
     const riskLevel = ScoreService.getRiskLevel(avgScore, dim.type);
-    const nr = ScoreService.calculateNR(riskLevel);
+    const nr = ScoreService.calculateNR(riskLevel, dim.key);
     const interp = ScoreService.interpretNR(nr);
 
     return {
@@ -71,8 +71,8 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
       type: dim.type,
       avg_score: avgScore,
       risk_level: riskLevel,
-      probability: RISK_LEVEL_WEIGHT[riskLevel],
-      severity: RISK_LEVEL_WEIGHT[riskLevel],
+      probability: NR_PROBABILITY[riskLevel],
+      severity: DIMENSION_SEVERITY[dim.key] ?? 2,
       nr,
       nr_label: interp.label,
       nr_color: interp.color,
@@ -235,7 +235,7 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
               0,
             ) / unitResponses.length;
           const risk = ScoreService.getRiskLevel(avgScore, dim.type);
-          const nr = ScoreService.calculateNR(risk);
+          const nr = ScoreService.calculateNR(risk, dim.key);
           const { label, color } = ScoreService.interpretNR(nr);
           return [dim.key, { nr, color, label }];
         }),
