@@ -12,15 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell, ArrowLeftRight, Loader2, ClipboardList, Shield, ListChecks } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell, ArrowLeftRight, Loader2, ClipboardList, ListChecks } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { LogoImage } from '@/components/ui/logo-image';
 
 const navItems = {
-  LIDERANCA: [
-    { title: 'Meu Setor', url: '/lideranca', icon: Shield },
-    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
-  ],
   ADM: [
     { title: 'Dashboard', url: '/adm/dashboard', icon: LayoutDashboard },
     { title: 'Empresas', url: '/companies', icon: Building2 },

@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     // Get user data for new access token
     const user = await prisma.user.findFirst({
       where: { id: payload.user_id, active: true },
-      select: { id: true, email: true, role: true, company_id: true, sector_id: true },
+      select: { id: true, email: true, role: true, company_id: true },
     });
 
     if (!user) {
@@ -89,9 +89,8 @@ export async function POST(request: Request) {
     const newToken = await signToken({
       user_id: user.id,
       email: user.email,
-      role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
+      role: user.role as 'ADM' | 'RH',
       company_id: activeCompanyId,
-      ...(user.sector_id ? { sector_id: user.sector_id } : {}),
     });
 
     const newRefreshToken = await signRefreshToken(user.id, activeCompanyId);

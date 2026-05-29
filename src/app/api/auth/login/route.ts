@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findFirst({
       where: { email, active: true },
-      select: { id: true, name: true, email: true, password_hash: true, role: true, company_id: true, sector_id: true },
+      select: { id: true, name: true, email: true, password_hash: true, role: true, company_id: true },
     });
 
     if (!user) {
@@ -86,9 +86,8 @@ export async function POST(request: Request) {
     const token = await signToken({
       user_id: user.id,
       email: user.email,
-      role: user.role as 'ADM' | 'RH' | 'LIDERANCA',
+      role: user.role as 'ADM' | 'RH',
       company_id: activeCompanyId,
-      ...(user.sector_id ? { sector_id: user.sector_id } : {}),
     });
 
     const refreshToken = await signRefreshToken(user.id, activeCompanyId);
