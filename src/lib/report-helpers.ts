@@ -5,7 +5,8 @@
 import {
   HSE_DIMENSIONS,
   RISK_THRESHOLDS_NEGATIVE,
-  NR_MATRIX,
+  NR_PROBABILITY,
+  DIMENSION_SEVERITY,
 } from '@/lib/constants';
 import type { RiskLevel } from '@/types';
 
@@ -17,9 +18,8 @@ export function getRiskLevel(score: number, type: 'positive' | 'negative'): Risk
   return 'aceitavel';
 }
 
-export function calculateNR(riskLevel: RiskLevel): number {
-  // NR = P × S, both variable 1–4 per risk level → range 1, 4, 9, 16
-  return NR_MATRIX[riskLevel].probability * NR_MATRIX[riskLevel].severity;
+export function calculateNR(riskLevel: RiskLevel, dimensionKey: string): number {
+  return NR_PROBABILITY[riskLevel] * (DIMENSION_SEVERITY[dimensionKey] ?? 2);
 }
 
 /**
@@ -53,7 +53,7 @@ export function computeDimensions(
     const avg = count > 0 ? totalScore / count : 0;
     const roundedAvg = Math.round(avg * 100) / 100;
     const risk = getRiskLevel(roundedAvg, dim.type);
-    const nr = calculateNR(risk);
+    const nr = calculateNR(risk, dim.key);
 
     result[dim.key] = { score: roundedAvg, risk, nr };
   }

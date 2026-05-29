@@ -99,7 +99,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
     const avg_score = count > 0 ? Number((scoreSum / count).toFixed(2)) : 0;
     const risk_level = ScoreService.getRiskLevel(avg_score, dim.type);
-    const nr = ScoreService.calculateNR(risk_level);
+    const nr = ScoreService.calculateNR(risk_level, dim.key);
     const { label } = ScoreService.interpretNR(nr);
 
     return { key: dim.key, name: dim.name, type: dim.type, avg_score, risk_level, nr, nr_label: label };

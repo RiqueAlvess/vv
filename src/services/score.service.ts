@@ -1,4 +1,4 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_MATRIX, RISK_COLORS } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_PROBABILITY, DIMENSION_SEVERITY, RISK_COLORS } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
@@ -57,10 +57,12 @@ export class ScoreService {
     }
   }
 
-  // Calculate NR value: probability × severity (both variable 1–4, NR range 1–16)
-  static calculateNR(riskLevel: RiskLevel): number {
-    return NR_MATRIX[riskLevel].probability * NR_MATRIX[riskLevel].severity;
-    // aceitavel: 1×1=1, moderado: 2×2=4, importante: 3×3=9, critico: 4×4=16
+  // Calculate NR value: probability × dimension severity (range 1–16)
+  // Probability is derived from riskLevel; severity is intrinsic to the dimension.
+  static calculateNR(riskLevel: RiskLevel, dimensionKey: string): number {
+    const probability = NR_PROBABILITY[riskLevel];
+    const severity = DIMENSION_SEVERITY[dimensionKey] ?? 2;
+    return probability * severity;
   }
 
   // Interpret NR value (scale 1–16)
@@ -78,7 +80,7 @@ export class ScoreService {
     for (const dim of HSE_DIMENSIONS) {
       const score = dimensionScores[dim.key as DimensionType] ?? 0;
       const risk = this.getRiskLevel(score, dim.type);
-      const nr = this.calculateNR(risk);
+      const nr = this.calculateNR(risk, dim.key);
       totalNR += nr;
       count++;
     }
