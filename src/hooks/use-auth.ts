@@ -12,10 +12,11 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'ADM' | 'RH';
+  role: 'ADM' | 'RH' | 'LIDERANCA';
   company_id: string;
   company_name?: string;
   company_logo_url?: string | null;
+  sector_id?: string;
   companies: CompanyRef[];
 }
 
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           company_id: data.company_id,
           company_name: data.company?.name,
           company_logo_url: data.company?.logo_url ?? null,
+          sector_id: data.sector_id ?? undefined,
           companies: data.companies ?? [],
         });
       } else {
@@ -127,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Try to refresh auth in-memory (best effort) and then hard reload to avoid stale UI state.
     await refreshAuth();
 
-    const target = user?.role === 'ADM' ? '/companies' : '/dashboard';
+    const target = user?.role === 'ADM' ? '/companies' : user?.role === 'LIDERANCA' ? '/lideranca' : '/dashboard';
     window.location.href = target;
   };
 
