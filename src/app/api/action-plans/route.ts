@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   });
 
   const result = plans.map((plan) => {
-    const problems = plan.problems as ActionPlanProblem[];
+    const problems = plan.problems as unknown as ActionPlanProblem[];
     const totalActions = problems.reduce((sum, p) => sum + (p.actions?.length ?? 0), 0);
     const doneActions = problems.reduce(
       (sum, p) => sum + (p.actions?.filter((a) => a.status === 'concluida').length ?? 0),
