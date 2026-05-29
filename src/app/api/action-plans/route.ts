@@ -8,7 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (user.role === 'LIDERANCA') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // LIDERANCA cannot access action plans (no write permissions and no company-wide view)
+  if (user.role !== 'ADM' && user.role !== 'RH') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const where = user.role === 'ADM'
     ? {}
@@ -33,9 +36,9 @@ export async function GET(request: Request) {
 
   const result = plans.map((plan) => {
     const problems = plan.problems as ActionPlanProblem[];
-    const totalActions = problems.reduce((sum, p) => sum + (p.planned_actions?.length ?? 0), 0);
+    const totalActions = problems.reduce((sum, p) => sum + (p.actions?.length ?? 0), 0);
     const doneActions = problems.reduce(
-      (sum, p) => sum + (p.planned_actions?.filter((a) => a.status === 'done').length ?? 0),
+      (sum, p) => sum + (p.actions?.filter((a) => a.status === 'concluida').length ?? 0),
       0,
     );
     const criticalProblems = problems.filter((p) => p.risk_level === 'critico').length;
