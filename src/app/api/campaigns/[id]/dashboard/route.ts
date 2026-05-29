@@ -112,8 +112,22 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const { searchParams } = new URL(request.url);
     const unitId = searchParams.get('unit_id');
-    const sectorId = searchParams.get('sector_id');
-    const isUnfiltered = !unitId && !sectorId;
+    let sectorId = searchParams.get('sector_id');
+
+    // LIDERANÇA: enforce sector scope — they can only see their own sector
+    if (user.role === 'LIDERANCA') {
+      const leaderSectorId = user.sector_id ?? (await prisma.user.findUnique({
+        where: { id: user.user_id },
+        select: { sector_id: true },
+      }))?.sector_id ?? null;
+
+      if (!leaderSectorId) {
+        return NextResponse.json({ error: 'Usuário sem setor atribuído' }, { status: 403 });
+      }
+      // Override any incoming sector_id with the leader's own sector
+      sectorId = leaderSectorId;
+    }
+    const isUnfiltered = !unitId && !sectorId && user.role !== 'LIDERANCA';
 
     if (isUnfiltered) {
       const cached = await getCampaignMetricsWithCache(id, campaign.status);
