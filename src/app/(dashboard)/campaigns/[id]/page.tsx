@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { CampaignChecklist } from '@/components/checklist/campaign-checklist';
+import { DemographicTable } from '@/components/dashboard/demographic-table';
 import type { Campaign } from '@/types';
 
 const statusLabels: Record<string, string> = {
@@ -120,6 +121,11 @@ export default function CampaignDetailPage() {
   const [qrViewModalOpen, setQrViewModalOpen] = useState(false);
   const [selectedQRId, setSelectedQRId] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [demographicData, setDemographicData] = useState<{
+    dimension_analysis: { key: string; name: string; nr: number }[];
+    gender_risk: { gender: string; dimensions: Record<string, number>; total_responses: number }[];
+    age_risk: { age_range: string; dimensions: Record<string, number>; total_responses: number }[];
+  } | null>(null);
 
   // Respondents filter state
   const [selectedUnit, setSelectedUnit] = useState('');
@@ -547,7 +553,26 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="qrcode" onValueChange={(v) => v === 'hierarchy' && fetchHierarchy()}>
+      <Tabs
+        defaultValue="qrcode"
+        onValueChange={(v) => {
+          if (v === 'hierarchy') fetchHierarchy();
+          if (v === 'demografico' && campaign?.status === 'closed' && !demographicData) {
+            get(`/api/campaigns/${campaignId}/dashboard`)
+              .then(r => r.ok ? r.json() : null)
+              .then(data => {
+                if (data && !data.error) {
+                  setDemographicData({
+                    dimension_analysis: Array.isArray(data.dimension_analysis) ? data.dimension_analysis : [],
+                    gender_risk: Array.isArray(data.gender_risk) ? data.gender_risk : [],
+                    age_risk: Array.isArray(data.age_risk) ? data.age_risk : [],
+                  });
+                }
+              })
+              .catch(() => {});
+          }
+        }}
+      >
         <div className="flex items-center gap-2">
           <TabsList>
             <TabsTrigger value="qrcode">
@@ -562,6 +587,12 @@ export default function CampaignDetailPage() {
               <ClipboardCheck className="h-4 w-4 mr-2" />
               Checklist NR-1
             </TabsTrigger>
+            {campaign?.status === 'closed' && (
+              <TabsTrigger value="demografico">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Comparativo Demográfico
+              </TabsTrigger>
+            )}
           </TabsList>
           <Button variant="outline" size="sm" asChild>
             <Link href={`/action-plans/${campaignId}`}>
@@ -932,6 +963,33 @@ export default function CampaignDetailPage() {
         <TabsContent value="checklist">
           <CampaignChecklist campaignId={campaignId} canEdit={canManage} />
         </TabsContent>
+
+        {/* ── Demographic comparison tab ────────────────────────────────── */}
+        {campaign?.status === 'closed' && (
+          <TabsContent value="demografico">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Comparativo Demográfico</CardTitle>
+                <CardDescription>NR por dimensão segmentado por gênero e faixa etária</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!demographicData ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (
+                  <DemographicTable
+                    dimensionAnalysis={demographicData.dimension_analysis}
+                    genderRisk={demographicData.gender_risk}
+                    ageRisk={demographicData.age_risk}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
       </Tabs>
 

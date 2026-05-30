@@ -69,6 +69,8 @@ export default function CampaignsPage() {
     start_date: '',
     end_date: '',
     company_id: '',
+    campaign_type: 'full',
+    cadence: '',
   });
 
   const fetchCampaigns = useCallback(async () => {
@@ -113,6 +115,8 @@ export default function CampaignsPage() {
       start_date: today,
       end_date: nextMonth,
       company_id: user?.role === 'RH' ? user.company_id : (companies[0]?.id || ''),
+      campaign_type: 'full',
+      cadence: '',
     });
     setModalOpen(true);
   };
@@ -120,7 +124,11 @@ export default function CampaignsPage() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      const res = await post('/api/campaigns', form);
+      const res = await post('/api/campaigns', {
+        ...form,
+        campaign_type: form.campaign_type,
+        cadence: form.cadence || undefined,
+      });
       if (!res.ok) {
         const data = await res.json();
         notifyError(data.error || 'Erro ao criar campanha');
@@ -196,7 +204,14 @@ export default function CampaignsPage() {
                 <TableBody>
                   {campaigns.map((campaign) => (
                     <TableRow key={campaign.id} className="group">
-                      <TableCell className="pl-6 font-medium">{campaign.name}</TableCell>
+                      <TableCell className="pl-6 font-medium">
+                        <div className="flex items-center gap-2">
+                          {campaign.name}
+                          {campaign.campaign_type === 'pulse' && (
+                            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border-purple-200">Pulse</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(campaign.start_date), 'dd/MM/yyyy')}
                       </TableCell>
@@ -258,6 +273,34 @@ export default function CampaignsPage() {
                   <SelectContent>
                     {companies.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Tipo de Campanha</Label>
+              <div className="flex gap-2">
+                {[{ v: 'full', label: 'Completa (35q)' }, { v: 'pulse', label: 'Pulse (7q)' }].map(({ v, label }) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, campaign_type: v, cadence: '' }))}
+                    className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${form.campaign_type === v ? 'border-primary bg-primary/10 font-medium' : 'border-border hover:bg-muted'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.campaign_type === 'pulse' && (
+              <div className="space-y-2">
+                <Label>Cadência</Label>
+                <Select value={form.cadence} onValueChange={(v) => setForm(f => ({ ...f, cadence: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a cadência" /></SelectTrigger>
+                  <SelectContent>
+                    {[{ value: 'mensal', label: 'Mensal' }, { value: 'trimestral', label: 'Trimestral' }, { value: 'semestral', label: 'Semestral' }].map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
