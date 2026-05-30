@@ -169,6 +169,23 @@ export const GENDER_LABELS: Record<string, string> = Object.fromEntries(
 // HSE-IT Question Texts (35 questions)
 // ============================================================
 
+// Pulse survey: 1 representative question per dimension (highest factor loading)
+export const PULSE_QUESTIONS: { id: number; text: string; dimension: DimensionType }[] = [
+  { id: 9,  text: 'Devo trabalhar muito intensamente',                                     dimension: 'demandas' },
+  { id: 19, text: 'Tenho uma palavra a dizer sobre o ritmo em que trabalho',                dimension: 'controle' },
+  { id: 35, text: 'Meu chefe me incentiva no trabalho',                                     dimension: 'apoio_chefia' },
+  { id: 7,  text: 'Quando o trabalho se torna difícil, posso contar com ajuda dos colegas', dimension: 'apoio_colegas' },
+  { id: 5,  text: 'Falam ou se comportam comigo de forma dura',                             dimension: 'relacionamentos' },
+  { id: 1,  text: 'Tenho clareza sobre o que se espera do meu trabalho',                    dimension: 'cargo' },
+  { id: 28, text: 'As pessoas são sempre consultadas sobre as mudanças no trabalho',         dimension: 'comunicacao_mudancas' },
+];
+
+export const PULSE_CADENCES: { value: string; label: string }[] = [
+  { value: 'mensal',     label: 'Mensal' },
+  { value: 'trimestral', label: 'Trimestral' },
+  { value: 'semestral',  label: 'Semestral' },
+];
+
 export const HSE_QUESTIONS: Record<number, string> = {
   1:  'Eu sei exatamente o que é esperado de mim no trabalho',
   2:  'Posso decidir quando fazer uma pausa',

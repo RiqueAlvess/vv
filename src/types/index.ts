@@ -37,6 +37,8 @@ export interface Campaign {
   created_by: string;
   created_at: string;
   updated_at: string;
+  campaign_type?: string;
+  cadence?: string | null;
 }
 
 export interface CampaignUnit {
