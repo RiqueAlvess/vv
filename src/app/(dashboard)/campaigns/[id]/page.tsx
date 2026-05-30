@@ -443,6 +443,19 @@ export default function CampaignDetailPage() {
                 <FileText className="h-4 w-4 mr-2" />
                 Exportar PDF
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = `/api/campaigns/${campaignId}/report/xlsx`;
+                  a.download = '';
+                  a.click();
+                }}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Exportar PGR Excel
+              </Button>
               {user?.role === 'ADM' && (
                 <Button
                   size="sm"
@@ -454,8 +467,8 @@ export default function CampaignDetailPage() {
                     a.click();
                   }}
                 >
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Exportar Planilha
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Planilha Completa
                 </Button>
               )}
             </>
