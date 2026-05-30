@@ -204,20 +204,20 @@ function riskToNR(riskLevel: RiskLevel, dimensionSeverity: number): number {
 // ─── Presentation layer ────────────────────────────────────────────────────
 
 const RISK_DISPLAY: Record<RiskLevel, { interpretation: string; color: string }> = {
-  aceitavel:  { interpretation: 'Aceitável',  color: '#009B00' },
-  moderado:   { interpretation: 'Moderado',   color: '#F7B511' },
-  importante: { interpretation: 'Importante', color: '#F75900' },
-  critico:    { interpretation: 'Crítico',    color: '#F60000' },
+  aceitavel:  { interpretation: 'Risco Baixo',    color: '#009B00' },
+  moderado:   { interpretation: 'Risco Médio',    color: '#F7B511' },
+  importante: { interpretation: 'Risco Moderado', color: '#F75900' },
+  critico:    { interpretation: 'Risco Alto',      color: '#F60000' },
 };
 
 // ─── IGRP interpretation ───────────────────────────────────────────────────
 
 /** Maps an IGRP (mean nrValue across dimensions) to a risk tier. */
 function igrpToRiskLevel(igrp: number): RiskLevel {
-  // IGRP range 1–16: mirrors NR_INTERPRETATION thresholds
-  if (igrp > 12) return 'critico';
-  if (igrp > 8)  return 'importante';
-  if (igrp > 4)  return 'moderado';
+  // IGRP thresholds: Risco Alto > 6, Risco Moderado > 4, Risco Médio > 2, Risco Baixo ≤ 2
+  if (igrp > 6) return 'critico';
+  if (igrp > 4) return 'importante';
+  if (igrp > 2) return 'moderado';
   return 'aceitavel';
 }
 
@@ -243,7 +243,7 @@ function igrpToRiskLevel(igrp: number): RiskLevel {
  * result.dimensions[0].riskLevel    // 'critico'
  * result.dimensions[0].nrValue      // 16  (= prob 4 × severity 4)
  * result.igrp                       // e.g. 5.71
- * result.igrpInterpretation         // 'Importante'
+ * result.igrpInterpretation         // 'Risco Moderado'
  */
 export function calculateHSEITScores(answers: Record<string, number>): HSEITScoreResult {
   const dimensions: DimensionScore[] = DIMENSIONS.map((spec) => {

@@ -113,10 +113,10 @@ export const NR_MATRIX: Record<RiskLevel, { probability: number; severity: numbe
 };
 
 export const NR_INTERPRETATION: { maxNR: number; label: string; color: string }[] = [
-  { maxNR: 4,  label: 'Baixo Risco',     color: '#009B00' },  // green
+  { maxNR: 4,  label: 'Risco Baixo',     color: '#009B00' },  // green
   { maxNR: 8,  label: 'Risco Médio',     color: '#F7B511' },  // yellow
   { maxNR: 12, label: 'Risco Moderado',  color: '#F75900' },  // orange
-  { maxNR: 16, label: 'Alto Risco',      color: '#F60000' },  // red
+  { maxNR: 16, label: 'Risco Alto',      color: '#F60000' },  // red
 ];
 
 // ============================================================

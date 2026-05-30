@@ -50,7 +50,7 @@ const RISK_CONFIG: Record<string, {
   badgeClass: string;
 }> = {
   critico: {
-    label: 'Crítico',
+    label: 'Risco Alto',
     bg: 'bg-violet-50',
     border: 'border-violet-300',
     text: 'text-violet-800',
@@ -58,7 +58,7 @@ const RISK_CONFIG: Record<string, {
     badgeClass: 'bg-violet-700 text-white hover:bg-violet-700',
   },
   importante: {
-    label: 'Importante',
+    label: 'Risco Moderado',
     bg: 'bg-red-50',
     border: 'border-red-200',
     text: 'text-red-800',
@@ -66,7 +66,7 @@ const RISK_CONFIG: Record<string, {
     badgeClass: 'bg-red-500 text-white hover:bg-red-500',
   },
   moderado: {
-    label: 'Moderado',
+    label: 'Risco Médio',
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     text: 'text-amber-800',
@@ -74,7 +74,7 @@ const RISK_CONFIG: Record<string, {
     badgeClass: 'bg-amber-500 text-white hover:bg-amber-500',
   },
   aceitavel: {
-    label: 'Aceitável',
+    label: 'Risco Baixo',
     bg: 'bg-teal-50',
     border: 'border-teal-200',
     text: 'text-teal-800',
@@ -471,10 +471,10 @@ function ProblemCard({
 const DIMENSION_OPTIONS = HSE_DIMENSIONS.map(d => ({ value: d.key, label: d.name }));
 
 const RISK_LEVEL_OPTIONS: { value: string; label: string }[] = [
-  { value: 'critico',    label: 'Crítico' },
-  { value: 'importante', label: 'Importante' },
-  { value: 'moderado',   label: 'Moderado' },
-  { value: 'aceitavel',  label: 'Aceitável' },
+  { value: 'critico',    label: 'Risco Alto' },
+  { value: 'importante', label: 'Risco Moderado' },
+  { value: 'moderado',   label: 'Risco Médio' },
+  { value: 'aceitavel',  label: 'Risco Baixo' },
 ];
 
 const EMPTY_NEW_PROBLEM = {
@@ -698,16 +698,16 @@ export function ActionPlanPanel({ campaignId, campaignStatus, canEdit }: ActionP
               </div>
               <div className="flex items-center gap-2">
                 {criticalCount > 0 && (
-                  <Badge className="text-xs bg-violet-700 text-white">{criticalCount} Crítico</Badge>
+                  <Badge className="text-xs bg-violet-700 text-white">{criticalCount} Risco Alto</Badge>
                 )}
                 {importantCount > 0 && (
-                  <Badge className="text-xs bg-red-500 text-white">{importantCount} Importante</Badge>
+                  <Badge className="text-xs bg-red-500 text-white">{importantCount} Risco Moderado</Badge>
                 )}
                 {moderateCount > 0 && (
-                  <Badge className="text-xs bg-amber-500 text-white">{moderateCount} Moderado</Badge>
+                  <Badge className="text-xs bg-amber-500 text-white">{moderateCount} Risco Médio</Badge>
                 )}
                 {acceptableCount > 0 && (
-                  <Badge className="text-xs bg-teal-600 text-white">{acceptableCount} Aceitável</Badge>
+                  <Badge className="text-xs bg-teal-600 text-white">{acceptableCount} Risco Baixo</Badge>
                 )}
               </div>
             </div>

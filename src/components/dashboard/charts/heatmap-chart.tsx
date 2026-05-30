@@ -66,8 +66,8 @@ export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
                         <div className="h-9 rounded bg-muted flex items-center justify-center text-muted-foreground">—</div>
                       </td>
                     );
-                    // Moderado (#F7B511) is light yellow → dark text; others need white text
-                    const textColor = cell.label === 'Moderado' ? '#1e293b' : '#ffffff';
+                    // Risco Médio (#F7B511) is light yellow → dark text; others need white text
+                    const textColor = cell.label === 'Risco Médio' ? '#1e293b' : '#ffffff';
                     return (
                       <td key={row.unit} className="p-1">
                         <div
@@ -88,10 +88,10 @@ export function HeatmapChart({ heatmap }: { heatmap: unknown[] }) {
         <div className="flex items-center gap-3 mt-3 pt-3 border-t text-xs text-muted-foreground flex-wrap">
           <span className="font-medium">NR:</span>
           {[
-            { label: '1–4 Aceitável',   color: '#009B00' },
-            { label: '5–8 Moderado',    color: '#F7B511' },
-            { label: '9–12 Importante', color: '#F75900' },
-            { label: '13–16 Crítico',   color: '#F60000' },
+            { label: '2 Risco Baixo',    color: '#009B00' },
+            { label: '4 Risco Médio',    color: '#F7B511' },
+            { label: '6 Risco Moderado', color: '#F75900' },
+            { label: '16 Risco Alto',    color: '#F60000' },
           ].map(item => (
             <span key={item.label} className="flex items-center gap-1">
               <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: item.color }} />

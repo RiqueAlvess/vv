@@ -88,7 +88,7 @@ export class ScoreService {
     return Number((totalNR / count).toFixed(2));
   }
 
-  // Returns true if NR >= 6 (Risco Moderado or Alto Risco)
+  // Returns true if NR >= 6 (Risco Moderado or Risco Alto)
   static isHighRisk(nr: number): boolean {
     return nr >= 6;
   }
