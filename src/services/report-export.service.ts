@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -464,5 +464,204 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     filename: `PGR_${campaign.name.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.html`,
     contentType: 'text/html; charset=utf-8',
     base64: Buffer.from(html, 'utf-8').toString('base64'),
+  };
+}
+
+export async function buildPgrXlsxArtifact(campaignId: string) {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { company: { select: { name: true, cnpj: true } } },
+  });
+  if (!campaign) throw new Error('Campanha não encontrada');
+  if (campaign.status !== 'closed') throw new Error('Relatório disponível apenas para campanhas encerradas');
+
+  const allResponses = await prisma.surveyResponse.findMany({
+    where: { campaign_id: campaignId },
+    select: { responses: true, position_id: true, gender: true, age_range: true },
+  });
+  if (allResponses.length === 0) throw new Error('Nenhuma resposta encontrada para esta campanha');
+
+  const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
+  const totalResponded = allResponses.length;
+
+  const responsesData = allResponses.map(r => ({
+    position_id: r.position_id,
+    gender: r.gender,
+    age_range: r.age_range,
+    answers: (r.responses ?? {}) as Record<string, number>,
+  }));
+
+  const calcDims = (answersList: Array<Record<string, number>>) =>
+    HSE_DIMENSIONS.map(dim => {
+      let scoreSum = 0, scoreCount = 0;
+      const riskCount = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 } satisfies Record<RiskLevel, number>;
+      for (const answers of answersList) {
+        const score = ScoreService.calculateDimensionScore(answers, dim.key);
+        const riskLevel = ScoreService.getRiskLevel(score, dim.type) as RiskLevel;
+        scoreSum += score;
+        scoreCount++;
+        riskCount[riskLevel]++;
+      }
+      const score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 100) / 100 : 0;
+      const riskLevel = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
+      const probability = probabilityMap[riskLevel];
+      const severity = DIMENSION_SEVERITY[dim.key] ?? 2;
+      const nr = probability * severity;
+      const { label: nrLabel } = ScoreService.interpretNR(nr);
+      return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel };
+    });
+
+  const campaignDims = calcDims(responsesData.map(r => r.answers));
+  const igrp = Math.round(campaignDims.reduce((s, d) => s + d.nr, 0) / campaignDims.length * 100) / 100;
+  const now = new Date();
+
+  // Sheet 1: Identificação
+  const sheetId = [
+    ['RELATÓRIO PGR — RISCOS PSICOSSOCIAIS NR-1'],
+    [],
+    ['Empresa', campaign.company.name],
+    ['CNPJ', campaign.company.cnpj],
+    ['Campanha', campaign.name],
+    ['Status', 'Encerrada'],
+    ['Período', `${new Date(campaign.start_date).toLocaleDateString('pt-BR')} a ${new Date(campaign.end_date).toLocaleDateString('pt-BR')}`],
+    ['Total de Respondentes', totalResponded],
+    ['IGRP (Índice Geral de Risco Psicossocial)', igrp],
+    ['Instrumento', 'HSE-IT (35 questões, 7 dimensões)'],
+    ['Gerado em', now.toLocaleString('pt-BR')],
+  ];
+
+  // Sheet 2: Síntese dos Riscos
+  const sheetRiscos = [
+    ['Dimensão', 'Tipo', 'Score Médio', 'Classificação', 'Probabilidade (P)', 'Severidade (S)', 'NR = P×S', 'Nível Final'],
+    ...campaignDims.map(d => [
+      d.name,
+      d.key === 'demandas' || d.key === 'relacionamentos' ? 'Negativa' : 'Positiva',
+      d.score,
+      d.riskLevel,
+      d.probability,
+      d.severity,
+      d.nr,
+      d.nrLabel,
+    ]),
+    [],
+    ['IGRP', '', '', '', '', '', igrp, ScoreService.interpretNR(igrp).label],
+  ];
+
+  // Sheet 3: Análise por Setor (sector-level dimension NRs)
+  const units = await prisma.campaignUnit.findMany({
+    where: { campaign_id: campaignId },
+    include: { sectors: { include: { positions: true }, orderBy: { name: 'asc' } } },
+    orderBy: { name: 'asc' },
+  });
+
+  const dimNames = HSE_DIMENSIONS.map(d => d.name);
+  const sheetSetor: unknown[][] = [
+    ['Unidade', 'Setor', 'Cargo', 'N Respondentes', ...dimNames, 'IGRP Estimado'],
+  ];
+
+  for (const unit of units) {
+    for (const sector of unit.sectors) {
+      for (const position of sector.positions) {
+        const posAnswers = responsesData.filter(r => r.position_id === position.id).map(r => r.answers);
+        if (posAnswers.length === 0) {
+          sheetSetor.push([unit.name, sector.name, position.name, 0, ...HSE_DIMENSIONS.map(() => '-'), '-']);
+          continue;
+        }
+        const posDims = calcDims(posAnswers);
+        const posIgrp = Math.round(posDims.reduce((s, d) => s + d.nr, 0) / posDims.length * 100) / 100;
+        sheetSetor.push([
+          unit.name, sector.name, position.name, posAnswers.length,
+          ...posDims.map(d => d.nr),
+          posIgrp,
+        ]);
+      }
+    }
+  }
+
+  // Sheet 4: Análise Demográfica — gender
+  const genderDimHeader = ['Gênero', 'N', ...dimNames, 'IGRP Estimado'];
+  const genderGroups: Record<string, Array<Record<string, number>>> = {};
+  for (const r of responsesData) {
+    const g = GENDER_LABELS[r.gender ?? 'N'] ?? 'Não informado';
+    if (!genderGroups[g]) genderGroups[g] = [];
+    genderGroups[g].push(r.answers);
+  }
+  const sheetDemo: unknown[][] = [
+    ['ANÁLISE DEMOGRÁFICA — GÊNERO'],
+    genderDimHeader,
+    ...Object.entries(genderGroups).map(([g, answers]) => {
+      if (answers.length < 5) return [g, answers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5'];
+      const dims = calcDims(answers);
+      const ig = Math.round(dims.reduce((s, d) => s + d.nr, 0) / dims.length * 100) / 100;
+      return [g, answers.length, ...dims.map(d => d.nr), ig];
+    }),
+    [],
+    ['ANÁLISE DEMOGRÁFICA — FAIXA ETÁRIA'],
+    ['Faixa Etária', 'N', ...dimNames, 'IGRP Estimado'],
+  ];
+  const AGE_ORDER = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+  const ageGroups: Record<string, Array<Record<string, number>>> = {};
+  for (const r of responsesData) {
+    const a = r.age_range ?? 'Não informado';
+    if (!ageGroups[a]) ageGroups[a] = [];
+    ageGroups[a].push(r.answers);
+  }
+  const ageEntries = Object.entries(ageGroups).sort(([a], [b]) => {
+    const ai = AGE_ORDER.indexOf(a), bi = AGE_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  for (const [age, answers] of ageEntries) {
+    if (answers.length < 5) { sheetDemo.push([age, answers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5']); continue; }
+    const dims = calcDims(answers);
+    const ig = Math.round(dims.reduce((s, d) => s + d.nr, 0) / dims.length * 100) / 100;
+    sheetDemo.push([age, answers.length, ...dims.map(d => d.nr), ig]);
+  }
+
+  // Sheet 5: Plano de Ação (if exists)
+  const actionPlan = await prisma.actionPlan.findUnique({ where: { campaign_id: campaignId } });
+
+  type ActionItem = { description: string; responsible?: string; deadline?: string; status: string };
+  type Problem = { title: string; dimension?: string; severity: string; actions?: ActionItem[] };
+
+  let sheetPlano: unknown[][] = [['Nenhum plano de ação gerado para esta campanha.']];
+  const problems = Array.isArray(actionPlan?.problems) ? (actionPlan.problems as unknown as Problem[]) : [];
+  if (problems.length > 0) {
+    sheetPlano = [
+      ['Problema', 'Dimensão', 'Severidade', 'Ação', 'Responsável', 'Prazo', 'Status'],
+    ];
+    for (const prob of problems) {
+      const actions = prob.actions ?? [];
+      if (actions.length === 0) {
+        sheetPlano.push([prob.title, prob.dimension ?? '', prob.severity, '', '', '', '']);
+      } else {
+        for (const [i, action] of actions.entries()) {
+          sheetPlano.push([
+            i === 0 ? prob.title : '',
+            i === 0 ? (prob.dimension ?? '') : '',
+            i === 0 ? prob.severity : '',
+            action.description,
+            action.responsible ?? '',
+            action.deadline ?? '',
+            action.status,
+          ]);
+        }
+      }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetId), 'Identificação');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetRiscos), 'Síntese dos Riscos');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetSetor), 'Análise por Cargo');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetDemo), 'Análise Demográfica');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetPlano), 'Plano de Ação');
+
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const filename = `PGR_${campaign.name.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.xlsx`;
+
+  return {
+    filename,
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    base64: Buffer.from(buffer).toString('base64'),
   };
 }
