@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -137,7 +137,7 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
 }
 
 function riskLabel(riskLevel: string): string {
-  if (riskLevel === 'critico') return 'ALTO RISCO';
+  if (riskLevel === 'critico') return 'Alto Risco';
   if (riskLevel === 'importante') return 'Risco Moderado';
   if (riskLevel === 'moderado') return 'Risco Médio';
   return 'Baixo Risco';
@@ -242,27 +242,29 @@ function buildPGRHtml(params: {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; background: white; }
 
-  .header { background: #1e3a5f; color: white; padding: 24px 32px; margin-bottom: 20px; }
-  .header h1 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-  .header p { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+  .header { background: #144660; color: white; padding: 20px 32px; margin-bottom: 20px; display: flex; align-items: center; gap: 24px; }
+  .header-logo { height: 48px; width: auto; filter: brightness(0) invert(1); flex-shrink: 0; }
+  .header-text h1 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .header-text p { font-size: 10px; opacity: 0.85; margin-top: 2px; }
 
   .section { padding: 0 32px; margin-bottom: 20px; }
-  .section-title { font-size: 13px; font-weight: 700; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 4px; margin-bottom: 12px; }
+  .section-title { font-size: 13px; font-weight: 700; color: #144660; border-bottom: 2px solid #144660; padding-bottom: 4px; margin-bottom: 12px; }
 
   .matrix-table, .dim-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; }
-  .matrix-table th, .dim-table th { background: #1e3a5f; color: white; padding: 6px 8px; text-align: left; font-weight: 600; }
+  .matrix-table th, .dim-table th { background: #144660; color: white; padding: 6px 8px; text-align: left; font-weight: 600; }
   .matrix-table td, .dim-table td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
   .matrix-table tr:nth-child(even), .dim-table tr:nth-child(even) { background: #f8fafc; }
 
   .unit { margin-bottom: 16px; }
-  .unit-header { background: #1e3a5f; color: white; padding: 8px 14px; font-size: 12px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; }
+  .unit-header { background: #144660; color: white; padding: 8px 14px; font-size: 12px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; }
   .sector { margin-left: 16px; margin-bottom: 10px; }
-  .sector-header { background: #dbeafe; color: #1e40af; padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: 3px; margin-bottom: 6px; }
+  .sector-header { background: #e0eef7; color: #144660; padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: 3px; margin-bottom: 6px; }
   .position { margin-left: 24px; margin-bottom: 10px; }
   .position-header { font-size: 10px; font-weight: 600; color: #475569; padding: 3px 0; margin-bottom: 4px; }
   .suppressed { font-size: 10px; color: #94a3b8; font-style: italic; padding: 4px 0; }
 
-  .footer { margin-top: 32px; padding: 12px 32px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; }
+  .footer { margin-top: 32px; padding: 12px 32px; border-top: 2px solid #144660; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
+  .footer-logo { height: 20px; width: auto; opacity: 0.6; }
 
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -275,63 +277,64 @@ function buildPGRHtml(params: {
 
 <!-- HEADER -->
 <div class="header">
-  <h1>Relatório PGR — Riscos Psicossociais NR-1</h1>
-  <p><strong>${params.companyName}</strong> — CNPJ: ${params.cnpj}</p>
-  <p>Campanha: ${params.campaignName} &nbsp;|&nbsp; Período: ${params.startDate} a ${params.endDate}</p>
-  <p>Gerado em: ${params.generatedAt} &nbsp;|&nbsp; Instrumento: HSE-IT (35 questões, 7 dimensões)</p>
-  <p>Respondentes: ${params.totalResponded}</p>
+  <img class="header-logo" src="/logo.png" alt="Vivamente360" />
+  <div class="header-text">
+    <h1>Relatório PGR — Riscos Psicossociais NR-1</h1>
+    <p><strong>${params.companyName}</strong> — CNPJ: ${params.cnpj}</p>
+    <p>Campanha: ${params.campaignName} &nbsp;|&nbsp; Período: ${params.startDate} a ${params.endDate}</p>
+    <p>Gerado em: ${params.generatedAt} &nbsp;|&nbsp; Instrumento: HSE-IT (35 questões, 7 dimensões) &nbsp;|&nbsp; Respondentes: ${params.totalResponded}</p>
+  </div>
 </div>
 
 <!-- SCORING MATRIX -->
 <div class="section">
-  <div class="section-title">Matriz de Cálculo — Análise por Unidade/Setor/Cargo × Categorias</div>
+  <div class="section-title">Matriz de Risco — Metodologia NR-1</div>
   <table class="matrix-table">
     <thead>
       <tr>
         <th>Score HSE-IT</th>
         <th>Classificação</th>
         <th>Probabilidade (P)</th>
-        <th>Severidade (S)*</th>
+        <th>Severidade (S)</th>
         <th>NR = P × S</th>
         <th>Nível Final</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>3,1–4,0 (negativos) / 0–1 (positivos)</td>
-        <td style="font-weight:700">ALTO RISCO</td>
+        <td>3,1–4,0 (negativos) / 0–1,0 (positivos)</td>
+        <td style="font-weight:700; color:#F60000">Alto Risco</td>
         <td style="text-align:center">4</td>
         <td style="text-align:center">4</td>
         <td style="text-align:center; font-weight:700">16</td>
-        <td style="color:#cc0000; font-weight:700">Crítico</td>
+        <td style="color:#F60000; font-weight:700">Alto Risco</td>
       </tr>
       <tr style="background:#f8fafc">
-        <td>2,1–3,0 (negativos) / 1,1–2 (positivos)</td>
-        <td>Risco Moderado</td>
+        <td>2,1–3,0 (negativos) / 1,1–2,0 (positivos)</td>
+        <td style="font-weight:700; color:#F75900">Risco Moderado</td>
         <td style="text-align:center">3</td>
         <td style="text-align:center">2</td>
         <td style="text-align:center; font-weight:700">6</td>
-        <td style="color:#cc7722; font-weight:700">Importante</td>
+        <td style="color:#F75900; font-weight:700">Risco Moderado</td>
       </tr>
       <tr>
-        <td>1,1–2,0 (negativos) / 2,1–3 (positivos)</td>
-        <td>Risco Médio</td>
+        <td>1,1–2,0 (negativos) / 2,1–3,0 (positivos)</td>
+        <td style="font-weight:700; color:#F7B511">Risco Médio</td>
         <td style="text-align:center">2</td>
         <td style="text-align:center">2</td>
         <td style="text-align:center; font-weight:700">4</td>
-        <td style="color:#d4b000; font-weight:700">Moderado</td>
+        <td style="color:#F7B511; font-weight:700">Risco Médio</td>
       </tr>
       <tr style="background:#f8fafc">
-        <td>0–1,0 (negativos) / 3,1–4 (positivos)</td>
-        <td>Baixo Risco</td>
+        <td>0–1,0 (negativos) / 3,1–4,0 (positivos)</td>
+        <td style="font-weight:700; color:#009B00">Baixo Risco</td>
         <td style="text-align:center">1</td>
         <td style="text-align:center">2</td>
         <td style="text-align:center; font-weight:700">2</td>
-        <td style="color:#8ba800; font-weight:700">Baixo</td>
+        <td style="color:#009B00; font-weight:700">Baixo Risco</td>
       </tr>
     </tbody>
   </table>
-  <p style="font-size:9px;color:#64748b">*S = Severidade fixa em 2 (impacto moderado na saúde psicossocial)</p>
 </div>
 
 <!-- CAMPAIGN SUMMARY BY DIMENSION -->
@@ -361,8 +364,9 @@ function buildPGRHtml(params: {
 
 <!-- FOOTER -->
 <div class="footer">
-  <span>Vivamente360 — Plataforma de Riscos Psicossociais NR-1 | Confidencial</span>
-  <span>${params.companyName} — ${params.campaignName} — ${params.generatedAt}</span>
+  <img class="footer-logo" src="/logo.png" alt="Vivamente360" />
+  <span>${params.companyName} — ${params.campaignName} — Confidencial</span>
+  <span>${params.generatedAt}</span>
 </div>
 
 </body>
@@ -505,7 +509,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
       const score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 100) / 100 : 0;
       const riskLevel = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
       const probability = probabilityMap[riskLevel];
-      const severity = DIMENSION_SEVERITY[dim.key] ?? 2;
+      const severity = riskLevel === 'critico' ? 4 : 2;
       const nr = probability * severity;
       const { label: nrLabel } = ScoreService.interpretNR(nr);
       return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel };

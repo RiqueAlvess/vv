@@ -6,7 +6,6 @@ import {
   HSE_DIMENSIONS,
   RISK_THRESHOLDS_NEGATIVE,
   NR_PROBABILITY,
-  DIMENSION_SEVERITY,
 } from '@/lib/constants';
 import type { RiskLevel } from '@/types';
 
@@ -18,8 +17,9 @@ export function getRiskLevel(score: number, type: 'positive' | 'negative'): Risk
   return 'aceitavel';
 }
 
-export function calculateNR(riskLevel: RiskLevel, dimensionKey: string): number {
-  return NR_PROBABILITY[riskLevel] * (DIMENSION_SEVERITY[dimensionKey] ?? 2);
+export function calculateNR(riskLevel: RiskLevel, _dimensionKey?: string): number {
+  const severity = riskLevel === 'critico' ? 4 : 2;
+  return NR_PROBABILITY[riskLevel] * severity;
 }
 
 /**
