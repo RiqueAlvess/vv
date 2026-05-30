@@ -19,10 +19,10 @@ const SHORT: Record<string, string> = {
 };
 
 const LEVEL_LABEL: Record<string, string> = {
-  aceitavel: 'Aceitável',
-  moderado: 'Moderado',
-  importante: 'Importante',
-  critico: 'Crítico',
+  aceitavel: 'Risco Baixo',
+  moderado: 'Risco Médio',
+  importante: 'Risco Moderado',
+  critico: 'Risco Alto',
 };
 
 const INSIGHT: Record<string, string> = {

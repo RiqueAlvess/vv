@@ -26,17 +26,17 @@ function igrpFromDimensions(dimensions: Record<string, number>): number {
 }
 
 function igrpColor(igrp: number): string {
-  if (igrp > 12) return '#F60000';
-  if (igrp > 8)  return '#F75900';
-  if (igrp > 4)  return '#F7B511';
+  if (igrp > 6) return '#F60000';
+  if (igrp > 4) return '#F75900';
+  if (igrp > 2) return '#F7B511';
   return '#009B00';
 }
 
 function igrpLabel(igrp: number): string {
-  if (igrp > 12) return 'Crítico';
-  if (igrp > 8)  return 'Importante';
-  if (igrp > 4)  return 'Moderado';
-  return 'Aceitável';
+  if (igrp > 6) return 'Risco Alto';
+  if (igrp > 4) return 'Risco Moderado';
+  if (igrp > 2) return 'Risco Médio';
+  return 'Risco Baixo';
 }
 
 interface TooltipPayload {
@@ -111,12 +111,12 @@ export function AgeRiskChart({ data }: { data: unknown[] | null | undefined }) {
             />
             <YAxis
               domain={[0, 16]}
-              ticks={[0, 4, 8, 12, 16]}
+              ticks={[0, 2, 4, 6, 16]}
               tick={{ fontSize: 10, fill: '#6B7280' }}
             />
-            <ReferenceLine y={4}  stroke="#009B00" strokeDasharray="4 3" label={{ value: 'Aceitável', position: 'insideRight', fontSize: 9, fill: '#009B00' }} />
-            <ReferenceLine y={8}  stroke="#F7B511" strokeDasharray="4 3" label={{ value: 'Moderado',  position: 'insideRight', fontSize: 9, fill: '#F7B511' }} />
-            <ReferenceLine y={12} stroke="#F75900" strokeDasharray="4 3" label={{ value: 'Importante', position: 'insideRight', fontSize: 9, fill: '#F75900' }} />
+            <ReferenceLine y={2}  stroke="#009B00" strokeDasharray="4 3" label={{ value: 'Risco Baixo',    position: 'insideRight', fontSize: 9, fill: '#009B00' }} />
+            <ReferenceLine y={4}  stroke="#F7B511" strokeDasharray="4 3" label={{ value: 'Risco Médio',    position: 'insideRight', fontSize: 9, fill: '#F7B511' }} />
+            <ReferenceLine y={6}  stroke="#F75900" strokeDasharray="4 3" label={{ value: 'Risco Moderado', position: 'insideRight', fontSize: 9, fill: '#F75900' }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="display_pct" radius={[6, 6, 0, 0]} maxBarSize={60}>
               <LabelList

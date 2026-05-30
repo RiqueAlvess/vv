@@ -77,7 +77,7 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
   ];
 
   const sheetDistribuicao = [
-    ['Dimensão', 'Aceitável (%)', 'Moderado (%)', 'Importante (%)', 'Crítico (%)'],
+    ['Dimensão', 'Risco Baixo (%)', 'Risco Médio (%)', 'Risco Moderado (%)', 'Risco Alto (%)'],
     ...HSE_DIMENSIONS.map(dim => {
       const counts = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 };
       for (const resp of responses) {
@@ -137,10 +137,10 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
 }
 
 function riskLabel(riskLevel: string): string {
-  if (riskLevel === 'critico') return 'Alto Risco';
+  if (riskLevel === 'critico') return 'Risco Alto';
   if (riskLevel === 'importante') return 'Risco Moderado';
   if (riskLevel === 'moderado') return 'Risco Médio';
-  return 'Baixo Risco';
+  return 'Risco Baixo';
 }
 
 function buildPGRHtml(params: {
@@ -303,11 +303,11 @@ function buildPGRHtml(params: {
     <tbody>
       <tr>
         <td>3,1–4,0 (negativos) / 0–1,0 (positivos)</td>
-        <td style="font-weight:700; color:#F60000">Alto Risco</td>
+        <td style="font-weight:700; color:#F60000">Risco Alto</td>
         <td style="text-align:center">4</td>
         <td style="text-align:center">4</td>
         <td style="text-align:center; font-weight:700">16</td>
-        <td style="color:#F60000; font-weight:700">Alto Risco</td>
+        <td style="color:#F60000; font-weight:700">Risco Alto</td>
       </tr>
       <tr style="background:#f8fafc">
         <td>2,1–3,0 (negativos) / 1,1–2,0 (positivos)</td>
@@ -327,11 +327,11 @@ function buildPGRHtml(params: {
       </tr>
       <tr style="background:#f8fafc">
         <td>0–1,0 (negativos) / 3,1–4,0 (positivos)</td>
-        <td style="font-weight:700; color:#009B00">Baixo Risco</td>
+        <td style="font-weight:700; color:#009B00">Risco Baixo</td>
         <td style="text-align:center">1</td>
         <td style="text-align:center">2</td>
         <td style="text-align:center; font-weight:700">2</td>
-        <td style="color:#009B00; font-weight:700">Baixo Risco</td>
+        <td style="color:#009B00; font-weight:700">Risco Baixo</td>
       </tr>
     </tbody>
   </table>

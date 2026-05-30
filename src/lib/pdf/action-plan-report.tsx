@@ -34,10 +34,10 @@ const BRAND = {
 };
 
 const RISK_LABELS: Record<string, string> = {
-  aceitavel:  'Aceitável',
-  moderado:   'Moderado',
-  importante: 'Importante',
-  critico:    'Crítico',
+  aceitavel:  'Risco Baixo',
+  moderado:   'Risco Médio',
+  importante: 'Risco Moderado',
+  critico:    'Risco Alto',
 };
 
 const s = StyleSheet.create({
@@ -206,11 +206,11 @@ export function ActionPlanPDFDocument({
             </View>
             <View style={s.kpiBox}>
               <Text style={s.kpiValue}>{problems.filter(p => p.risk_level === 'critico').length}</Text>
-              <Text style={s.kpiLabel}>Dimensões Críticas</Text>
+              <Text style={s.kpiLabel}>Dimensões Risco Alto</Text>
             </View>
             <View style={s.kpiBox}>
               <Text style={s.kpiValue}>{problems.filter(p => p.risk_level === 'importante').length}</Text>
-              <Text style={s.kpiLabel}>Dimensões Importantes</Text>
+              <Text style={s.kpiLabel}>Dimensões Risco Moderado</Text>
             </View>
             <View style={s.kpiBox}>
               <Text style={[s.kpiValue, { fontSize: 14 }]}>{totalResponded ?? 0}</Text>

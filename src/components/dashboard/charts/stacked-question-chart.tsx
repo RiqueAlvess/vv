@@ -7,10 +7,10 @@ interface ChartRow {
   name: string;
   dim: string;
   question_number: number;
-  'Aceitável': number;
-  'Moderado': number;
-  'Importante': number;
-  'Crítico': number;
+  'Risco Baixo': number;
+  'Risco Médio': number;
+  'Risco Moderado': number;
+  'Risco Alto': number;
 }
 
 interface TooltipPayload {
@@ -64,10 +64,10 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
     name: `Q${d.question_number}`,
     dim: d.dimension,
     question_number: d.question_number,
-    'Aceitável': d.aceitavel_pct,
-    'Moderado': d.moderado_pct,
-    'Importante': d.importante_pct,
-    'Crítico': d.critico_pct,
+    'Risco Baixo': d.aceitavel_pct,
+    'Risco Médio': d.moderado_pct,
+    'Risco Moderado': d.importante_pct,
+    'Risco Alto': d.critico_pct,
   }));
 
   return (
@@ -93,19 +93,19 @@ export function StackedQuestionChart({ data }: { data: unknown[] }) {
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#6B7280' }} unit="%" domain={[0, 100]} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="Aceitável"  stackId="a" fill="#009B00" />
-                <Bar dataKey="Moderado"   stackId="a" fill="#F7B511" />
-                <Bar dataKey="Importante" stackId="a" fill="#F75900" />
-                <Bar dataKey="Crítico"    stackId="a" fill="#F60000" />
+                <Bar dataKey="Risco Baixo"    stackId="a" fill="#009B00" />
+                <Bar dataKey="Risco Médio"    stackId="a" fill="#F7B511" />
+                <Bar dataKey="Risco Moderado" stackId="a" fill="#F75900" />
+                <Bar dataKey="Risco Alto"     stackId="a" fill="#F60000" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         <div className="flex gap-4 justify-center mt-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#009B00] inline-block"/> Aceitável</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F7B511] inline-block"/> Moderado</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F75900] inline-block"/> Importante</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F60000] inline-block"/> Crítico</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#009B00] inline-block"/> Risco Baixo</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F7B511] inline-block"/> Risco Médio</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F75900] inline-block"/> Risco Moderado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#F60000] inline-block"/> Risco Alto</span>
         </div>
       </CardContent>
     </Card>

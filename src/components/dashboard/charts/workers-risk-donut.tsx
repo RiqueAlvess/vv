@@ -38,9 +38,9 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
   const lowPct = Math.max(0, 100 - highRiskPct);
 
   const data: SliceEntry[] = [
-    { name: 'Aceitável/Moderado', value: lowPct, color: '#009B00' },
-    { name: 'Importante (NR 9–12)', value: importantPct, color: '#F75900' },
-    { name: 'Crítico (NR 13–16)', value: criticalPct, color: '#F60000' },
+    { name: 'Risco Baixo/Médio', value: lowPct, color: '#009B00' },
+    { name: 'Risco Moderado (NR 6)', value: importantPct, color: '#F75900' },
+    { name: 'Risco Alto (NR 16)', value: criticalPct, color: '#F60000' },
   ].filter(d => d.value > 0);
 
   return (
@@ -48,7 +48,7 @@ export function WorkersRiskDonut({ highRiskPct, criticalPct, totalResponded }: {
       <CardHeader>
         <CardTitle className="text-base">% Trabalhadores em Risco</CardTitle>
         <CardDescription>
-          % de respondentes com ao menos uma dimensão em NR ≥ 9 (Importante ou Crítico)
+          % de respondentes com ao menos uma dimensão em NR ≥ 6 (Risco Moderado ou Alto)
         </CardDescription>
       </CardHeader>
       <CardContent>

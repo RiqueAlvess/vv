@@ -44,9 +44,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     : 0;
   const igrpLabels: Record<number, string> = {};
   const igrpLabel =
-    igrp >= 13 ? 'Crítico' :
-    igrp >= 9  ? 'Importante' :
-    igrp >= 5  ? 'Moderado' : 'Aceitável';
+    igrp > 6 ? 'Risco Alto' :
+    igrp > 4 ? 'Risco Moderado' :
+    igrp > 2 ? 'Risco Médio' : 'Risco Baixo';
 
   void igrpLabels;
 

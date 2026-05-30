@@ -70,10 +70,10 @@ const HSE_DIMENSION_NAMES: Record<string, string> = {
 };
 
 const RISK_LABELS: Record<string, string> = {
-  aceitavel:  'Aceitavel',
-  moderado:   'Moderado',
-  importante: 'Importante',
-  critico:    'Critico',
+  aceitavel:  'Risco Baixo',
+  moderado:   'Risco Medio',
+  importante: 'Risco Moderado',
+  critico:    'Risco Alto',
 };
 
 const MIN_RESPONDENTS = 5;

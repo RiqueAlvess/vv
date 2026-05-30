@@ -80,10 +80,10 @@ O HSE-IT avalia 7 dimensões de riscos psicossociais no trabalho:
 - **Comunicação e Mudanças** (positiva): informação sobre mudanças organizacionais. Score baixo = alto risco.
 
 ## Níveis de risco e IGRP
-- **Crítico**: NR = 16 → ação imediata obrigatória
-- **Importante**: NR = 9 → ação planejada urgente
-- **Moderado**: NR = 4 → ação preventiva e contingência
-- **Aceitável**: NR = 1 → monitoramento e ações paliativas
+- **Risco Alto** (crítico): NR = 16 → ação imediata obrigatória
+- **Risco Moderado** (importante): NR = 6 → ação planejada urgente
+- **Risco Médio** (moderado): NR = 4 → ação preventiva e contingência
+- **Risco Baixo** (aceitável): NR = 2 → monitoramento e ações paliativas
 
 IGRP (Índice Geral de Risco Psicossocial) = média dos NR das 7 dimensões (escala 1–16).
 
@@ -123,9 +123,9 @@ O JSON deve ter exatamente este formato:
 }
 
 ## Regras para as ações
-- Dimensões **críticas/importantes**: mínimo 3 ações, maioria do tipo "corretiva"
-- Dimensões **moderadas**: 2 ações, tipos "preventiva" e "contingencia"
-- Dimensões **aceitáveis**: 1-2 ações do tipo "paliativa" (manutenção)
+- Dimensões **Risco Alto/Risco Moderado** (críticas/importantes): mínimo 3 ações, maioria do tipo "corretiva"
+- Dimensões **Risco Médio** (moderadas): 2 ações, tipos "preventiva" e "contingencia"
+- Dimensões **Risco Baixo** (aceitáveis): 1-2 ações do tipo "paliativa" (manutenção)
 - "responsible", "deadline" e "resources" ficam VAZIOS (serão preenchidos pela empresa)
 - Ações devem ser específicas, mensuráveis e relacionadas à dimensão
 - legal_reference deve citar NR-1 item 1.5, item 1.6 ou NR específica conforme o risco
@@ -356,9 +356,9 @@ function mapPythonToGeneratedPlan(response: PythonAnalysisResponse, input: Agent
   // Fallback: no problems returned but actions exist
   if (problems.length === 0 && response.action_plan.length > 0) {
     const igrpRisk: RiskLevelKey =
-      input.igrp >= 13 ? 'critico' :
-      input.igrp >= 9  ? 'importante' :
-      input.igrp >= 5  ? 'moderado' : 'aceitavel';
+      input.igrp > 6 ? 'critico' :
+      input.igrp > 4 ? 'importante' :
+      input.igrp > 2 ? 'moderado' : 'aceitavel';
 
     problems.push({
       id: 'prob_geral_1',

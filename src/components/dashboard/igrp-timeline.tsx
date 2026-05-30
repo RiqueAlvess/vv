@@ -108,8 +108,8 @@ export function IgrpTimeline({ points, onCampaignClick }: IgrpTimelineProps) {
                 );
               }}
             />
-            <ReferenceLine y={8}  stroke="#F7B511" strokeDasharray="4 4" label={{ value: 'Médio',    fontSize: 9, fill: '#F7B511' }} />
-            <ReferenceLine y={12} stroke="#F75900" strokeDasharray="4 4" label={{ value: 'Moderado', fontSize: 9, fill: '#F75900' }} />
+            <ReferenceLine y={4}  stroke="#F7B511" strokeDasharray="4 4" label={{ value: 'Risco Médio',    fontSize: 9, fill: '#F7B511' }} />
+            <ReferenceLine y={6}  stroke="#F75900" strokeDasharray="4 4" label={{ value: 'Risco Moderado', fontSize: 9, fill: '#F75900' }} />
             <Line
               type="monotone" dataKey="full" name="Completa"
               stroke="#3B82F6" connectNulls={false}
