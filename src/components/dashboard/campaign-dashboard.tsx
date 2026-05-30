@@ -5,8 +5,9 @@ import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock, Info, FileSpreadsheet } from 'lucide-react';
+import { AlertTriangle, Lock, Info, FileSpreadsheet, ShieldAlert } from 'lucide-react';
 import { LockedState } from './locked-state';
+import { DeltaStrip } from './delta-strip';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
@@ -34,6 +35,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   const { get } = useApi();
   const { user } = useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [campaignData, setCampaignData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -67,10 +69,16 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
 
     setLoading(true);
     setData(null);
+    setCampaignData(null);
     setError(null);
 
-    get(`/api/campaigns/${campaignId}/dashboard${qs ? `?${qs}` : ''}`)
-      .then(async res => {
+    const fetchFiltered = get(`/api/campaigns/${campaignId}/dashboard${qs ? `?${qs}` : ''}`);
+    const fetchCampaign = sectorId
+      ? get(`/api/campaigns/${campaignId}/dashboard`)
+      : Promise.resolve(null);
+
+    Promise.all([fetchFiltered, fetchCampaign])
+      .then(async ([res, campRes]) => {
         const d = await res.json();
         if (res.status === 202 || d.status === 'computing') {
           setData({ status: 'computing' });
@@ -79,6 +87,11 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         if (d.error) throw new Error(d.error);
         pollAttemptsRef.current = 0;
         setData(d);
+
+        if (campRes) {
+          const cd = await campRes.json();
+          if (!cd.error) setCampaignData(cd);
+        }
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
@@ -128,7 +141,33 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
     );
   }
 
-  const filterContext = data.filter_context as { note: string | null } | undefined;
+  const filterContext = data.filter_context as { note: string | null; sector_id?: string | null } | undefined;
+  const totalResponded = data.total_responded as number;
+  const PRIVACY_MIN = 5;
+
+  // Privacy gate: sector filter active but too few responses to show individual data
+  if (sectorId && totalResponded < PRIVACY_MIN) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[420px] text-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center">
+          <ShieldAlert className="w-7 h-7 text-amber-500" />
+        </div>
+        <h2 className="text-xl font-semibold">Dados protegidos</h2>
+        <p className="text-muted-foreground max-w-sm text-sm">
+          Este setor possui menos de {PRIVACY_MIN} respondentes. Para garantir o anonimato, os dados só são exibidos a partir de {PRIVACY_MIN} respostas.
+        </p>
+        {campaignData && Array.isArray(campaignData.dimension_analysis) && (
+          <div className="w-full max-w-2xl mt-4">
+            <p className="text-xs text-muted-foreground mb-2">Média geral da campanha (disponível):</p>
+            <DeltaStrip
+              sectorDimensions={[]}
+              campaignDimensions={campaignData.dimension_analysis as { key: string; name: string; nr: number; nr_color: string }[]}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,6 +179,14 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
           <Info className="h-3.5 w-3.5 shrink-0" />
           {filterContext.note}
         </div>
+      )}
+
+      {/* Delta strip — shown only when sector is filtered and campaign-wide data is available */}
+      {sectorId && campaignData && Array.isArray(data.dimension_analysis) && Array.isArray(campaignData.dimension_analysis) && (
+        <DeltaStrip
+          sectorDimensions={data.dimension_analysis as { key: string; name: string; nr: number; nr_color: string }[]}
+          campaignDimensions={campaignData.dimension_analysis as { key: string; name: string; nr: number; nr_color: string }[]}
+        />
       )}
 
       {/* Export Planilha (ADM only) */}
