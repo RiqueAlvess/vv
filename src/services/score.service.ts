@@ -68,10 +68,10 @@ export class ScoreService {
 
   // Interpret NR value — possible values: 2 (baixo), 4 (médio), 6 (moderado), 16 (alto)
   static interpretNR(nr: number): { label: string; color: string } {
-    if (nr <= 2)  return { label: 'Baixo Risco',    color: RISK_COLORS.aceitavel };
+    if (nr <= 2)  return { label: 'Risco Baixo',    color: RISK_COLORS.aceitavel };
     if (nr <= 4)  return { label: 'Risco Médio',    color: RISK_COLORS.moderado };
     if (nr <= 6)  return { label: 'Risco Moderado', color: RISK_COLORS.importante };
-    return           { label: 'Alto Risco',      color: RISK_COLORS.critico };
+    return           { label: 'Risco Alto',      color: RISK_COLORS.critico };
   }
 
   // Calculate IGRP = mean of all 7 dimension NR values (range 1–16)

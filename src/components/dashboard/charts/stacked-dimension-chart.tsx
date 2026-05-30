@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 interface ChartRow {
   name: string;
   fullName: string;
-  'Aceitável': number;
-  'Moderado': number;
-  'Importante': number;
-  'Crítico': number;
+  'Risco Baixo': number;
+  'Risco Médio': number;
+  'Risco Moderado': number;
+  'Risco Alto': number;
 }
 
 interface TooltipPayload {
@@ -55,10 +55,10 @@ export function StackedDimensionChart({ data }: { data: unknown[] }) {
       .replace('Apoio dos Colegas', 'Ap. Colegas')
       .replace('Cargo/Função', 'Cargo'),
     fullName: d.dimension,
-    'Aceitável': d.aceitavel_pct,
-    'Moderado': d.moderado_pct,
-    'Importante': d.importante_pct,
-    'Crítico': d.critico_pct,
+    'Risco Baixo': d.aceitavel_pct,
+    'Risco Médio': d.moderado_pct,
+    'Risco Moderado': d.importante_pct,
+    'Risco Alto': d.critico_pct,
   }));
 
   return (
@@ -78,10 +78,10 @@ export function StackedDimensionChart({ data }: { data: unknown[] }) {
               formatter={(val: unknown) => `${val}%`}
             />
             <Legend iconSize={10} formatter={(v) => <span className="text-xs">{v}</span>} />
-            <Bar dataKey="Aceitável"  stackId="a" fill="#009B00" />
-            <Bar dataKey="Moderado"   stackId="a" fill="#F7B511" />
-            <Bar dataKey="Importante" stackId="a" fill="#F75900" />
-            <Bar dataKey="Crítico"    stackId="a" fill="#F60000" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="Risco Baixo"    stackId="a" fill="#009B00" />
+            <Bar dataKey="Risco Médio"    stackId="a" fill="#F7B511" />
+            <Bar dataKey="Risco Moderado" stackId="a" fill="#F75900" />
+            <Bar dataKey="Risco Alto"     stackId="a" fill="#F60000" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

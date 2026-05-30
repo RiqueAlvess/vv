@@ -12,10 +12,10 @@ interface PositionRow {
 }
 
 const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-  'Aceitável':  { bg: '#8ba800', text: '#ffffff' },
-  'Moderado':   { bg: '#d4b000', text: '#ffffff' },
-  'Importante': { bg: '#cc7722', text: '#ffffff' },
-  'Crítico':    { bg: '#cc0000', text: '#ffffff' },
+  'Risco Baixo':    { bg: '#8ba800', text: '#ffffff' },
+  'Risco Médio':    { bg: '#d4b000', text: '#ffffff' },
+  'Risco Moderado': { bg: '#cc7722', text: '#ffffff' },
+  'Risco Alto':     { bg: '#cc0000', text: '#ffffff' },
 };
 
 export function PositionTable({
