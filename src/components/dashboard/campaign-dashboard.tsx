@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Lock, Info, FileSpreadsheet, ShieldAlert } from 'lucide-react';
 import { LockedState } from './locked-state';
 import { DeltaStrip } from './delta-strip';
+import { BenchmarkCard } from './benchmark-card';
 import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
@@ -246,6 +247,13 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         onExportPGR={handleExportPGR}
         downloading={downloading}
       />
+
+      {/* ROW 8 — Size benchmark */}
+      {Array.isArray(data.dimension_analysis) && data.dimension_analysis.length > 0 && (
+        <BenchmarkCard
+          dimensionAnalysis={data.dimension_analysis as { key: string; name: string; nr: number }[]}
+        />
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
-import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS } from '@/lib/constants';
+import { LIKERT_SCALE, AGE_RANGES, GENDER_OPTIONS, PULSE_QUESTIONS } from '@/lib/constants';
 
 const PLATFORM_LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL || '/logo.png';
 
@@ -95,13 +95,18 @@ export default function SurveyPage() {
     company_name: string;
     company_cnpj: string;
     company_logo_url: string | null;
+    campaign_type: string;
   } | null>(null);
 
+  const activeQuestions = campaignInfo?.campaign_type === 'pulse'
+    ? PULSE_QUESTIONS.map(q => ({ id: q.id, text: q.text }))
+    : QUESTIONS;
+
   const questionsPerPage = 5;
-  const totalPages = Math.ceil(QUESTIONS.length / questionsPerPage);
-  const currentQuestions = QUESTIONS.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
+  const totalPages = Math.ceil(activeQuestions.length / questionsPerPage);
+  const currentQuestions = activeQuestions.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
   const answeredCount = Object.keys(responses).length;
-  const progress = (answeredCount / QUESTIONS.length) * 100;
+  const progress = (answeredCount / activeQuestions.length) * 100;
 
   useEffect(() => {
     const validate = async () => {
@@ -117,6 +122,7 @@ export default function SurveyPage() {
             company_name: data.company_name ?? '',
             company_cnpj: data.company_cnpj ?? '',
             company_logo_url: data.company_logo_url ?? null,
+            campaign_type: data.campaign_type ?? 'full',
           });
           setStep('cpf_verify');
         }
@@ -160,7 +166,7 @@ export default function SurveyPage() {
   }, [cpfInput, token]);
 
   const handleSubmit = useCallback(async () => {
-    if (answeredCount < QUESTIONS.length) {
+    if (answeredCount < activeQuestions.length) {
       setErrorMsg('Por favor, responda todas as questões');
       return;
     }
@@ -197,7 +203,7 @@ export default function SurveyPage() {
       setErrorMsg('Erro de conexão');
       setStep('questions');
     }
-  }, [answeredCount, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, validationToken]);
+  }, [answeredCount, activeQuestions.length, token, responses, gender, ageRange, selectedUnitId, selectedSectorId, selectedPositionId, validationToken]);
 
   if (step === 'loading') {
     return (
@@ -304,7 +310,9 @@ export default function SurveyPage() {
               {campaignInfo.company_name} — {campaignInfo.campaign_name}
             </p>
           )}
-          <p className="text-xs text-muted-foreground">Instrumento HSE-IT · NR-1</p>
+          <p className="text-xs text-muted-foreground">
+            {campaignInfo?.campaign_type === 'pulse' ? 'Instrumento HSE-IT Pulse · NR-1' : 'Instrumento HSE-IT · NR-1'}
+          </p>
         </div>
 
         {/* Step 0: CPF Verification */}
@@ -517,7 +525,7 @@ export default function SurveyPage() {
           <>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>{answeredCount} de {QUESTIONS.length} questões respondidas</span>
+                <span>{answeredCount} de {activeQuestions.length} questões respondidas</span>
                 <span className="text-muted-foreground">Pág. {currentPage + 1}/{totalPages}</span>
               </div>
               <Progress value={progress} />

@@ -19,12 +19,13 @@ datasource db {
 // ============================================================
 
 model Company {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  cnpj       String   @unique @db.VarChar(18)
-  cnae       String?  @db.VarChar(10)
-  logo_url   String?  @db.Text
-  active     Boolean  @default(true)
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  cnpj         String   @unique @db.VarChar(18)
+  cnae         String?  @db.VarChar(10)
+  logo_url     String?  @db.Text
+  company_size String?  @db.VarChar(20)
+  active       Boolean  @default(true)
   created_at DateTime @default(now()) @db.Timestamptz()
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
 
@@ -95,17 +96,19 @@ model RefreshToken {
 // ============================================================
 
 model Campaign {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id    String   @db.Uuid
-  name          String
-  description   String?
-  start_date    DateTime @db.Timestamptz()
-  end_date      DateTime @db.Timestamptz()
-  status        String   @default("draft") @db.VarChar(20)
-  campaign_salt String
-  created_by    String?  @db.Uuid
-  created_at    DateTime @default(now()) @db.Timestamptz()
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id      String   @db.Uuid
+  name            String
+  description     String?
+  start_date      DateTime @db.Timestamptz()
+  end_date        DateTime @db.Timestamptz()
+  status          String   @default("draft") @db.VarChar(20)
+  campaign_salt   String
+  campaign_type   String   @default("full") @db.VarChar(10)
+  cadence         String?  @db.VarChar(20)
+  created_by      String?  @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   company     Company          @relation(fields: [company_id], references: [id], onDelete: Cascade)
   creator     User?            @relation("CampaignCreator", fields: [created_by], references: [id], onDelete: SetNull)
@@ -461,6 +464,18 @@ model CampaignMetrics {
   campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
   @@map("campaign_metrics")
+  @@schema("analytics")
+}
+
+model BenchmarkSnapshot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_size String   @db.VarChar(20)
+  igrp         Decimal  @db.Decimal(5, 2)
+  dim_scores   Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@index([company_size])
+  @@map("benchmark_snapshots")
   @@schema("analytics")
 }
 

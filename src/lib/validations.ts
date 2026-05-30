@@ -40,6 +40,8 @@ export const campaignSchema = z.object({
       return `${val}T23:59:59.000Z`; // end of day
     }),
   company_id: z.string().uuid(),
+  campaign_type: z.enum(['full', 'pulse']).optional().default('full'),
+  cadence: z.string().optional(),
 });
 
 export const surveyResponseSchema = z.object({

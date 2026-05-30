@@ -25,6 +25,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
             id: true,
             status: true,
             name: true,
+            campaign_type: true,
             company: { select: { name: true, cnpj: true, logo_url: true } },
             units: {
               select: {
@@ -74,6 +75,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       valid: true,
       campaign_id: qrCode.campaign.id,
       campaign_name: qrCode.campaign.name,
+      campaign_type: qrCode.campaign.campaign_type,
       company_name: qrCode.campaign.company.name,
       company_cnpj: qrCode.campaign.company.cnpj,
       company_logo_url: qrCode.campaign.company.logo_url ?? null,

@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, description, start_date, end_date, company_id } = parsed.data;
+    const { name, description, start_date, end_date, company_id, campaign_type, cadence } = parsed.data;
 
     // RH can only create campaigns for their own company
     if (user.role === 'RH' && company_id !== user.company_id) {
@@ -90,6 +90,24 @@ export async function POST(request: Request) {
         { error: 'Você só pode criar campanhas para sua própria empresa' },
         { status: 403 }
       );
+    }
+
+    // Pulse uniqueness check: only one open pulse campaign per company
+    if (campaign_type === 'pulse') {
+      const existingPulse = await prisma.campaign.findFirst({
+        where: {
+          company_id,
+          campaign_type: 'pulse',
+          status: { in: ['draft', 'active'] },
+        },
+        select: { id: true },
+      });
+      if (existingPulse) {
+        return NextResponse.json(
+          { error: 'Já existe uma campanha Pulse aberta para esta empresa' },
+          { status: 409 }
+        );
+      }
     }
 
     const campaignSalt = generateSalt();
@@ -103,6 +121,8 @@ export async function POST(request: Request) {
         end_date,
         status: 'draft',
         campaign_salt: campaignSalt,
+        campaign_type: campaign_type ?? 'full',
+        cadence: cadence ?? null,
         created_by: user.user_id,
       },
     });
