@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignDashboard } from '@/components/dashboard/campaign-dashboard';
 import { LockedState } from '@/components/dashboard/locked-state';
-import { IgrpTimeline } from '@/components/dashboard/igrp-timeline';
 import { useApi } from '@/hooks/use-api';
 import { Activity } from 'lucide-react';
 import type { Campaign } from '@/types';
@@ -40,19 +39,6 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<string>('');
   const [selectedUnit, setSelectedUnit] = useState<string>('all');
   const [selectedSector, setSelectedSector] = useState<string>('all');
-
-  // Fetch IGRP timeline data
-  const { data: timelinePoints = [] } = useQuery<{
-    campaign_id: string; campaign_name: string; end_date: string; campaign_type: string; igrp: number;
-  }[]>({
-    queryKey: ['igrp-timeline'],
-    queryFn: async () => {
-      const res = await get('/api/campaigns/igrp-timeline');
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 5 * 60 * 1000,
-  });
 
   // Fetch only closed campaigns for the selector
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery<Campaign[]>({
@@ -190,9 +176,6 @@ export default function DashboardPage() {
           )}
         </div>
       )}
-
-      {/* IGRP Timeline */}
-      <IgrpTimeline points={timelinePoints} onCampaignClick={setSelectedId} />
 
       {/* Dashboard body — guardrail is inside CampaignDashboard */}
       {effectiveSelected ? (
