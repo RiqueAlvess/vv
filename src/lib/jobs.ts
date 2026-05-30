@@ -5,7 +5,8 @@ export type JobType =
   | 'calculate_campaign_metrics'
   | 'send_invitation_email'
   | 'generate_dashboard_xlsx'
-  | 'generate_campaign_pgr_html';
+  | 'generate_campaign_pgr_html'
+  | 'generate_action_plan';
 
 export interface JobPayload {
   calculate_campaign_metrics: { campaign_id: string };
@@ -18,6 +19,7 @@ export interface JobPayload {
   };
   generate_dashboard_xlsx: { campaign_id: string; requester_user_id: string };
   generate_campaign_pgr_html: { campaign_id: string; requester_user_id: string };
+  generate_action_plan: { campaign_id: string };
 }
 
 export async function enqueueJob<T extends JobType>(

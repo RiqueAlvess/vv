@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell, ArrowLeftRight, Loader2, ClipboardList, ListChecks } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileBarChart2, LogOut, ChevronUp, MessageSquare, KeyRound, BookOpen, ScrollText, Bell, ArrowLeftRight, Loader2, ClipboardList, ListChecks, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { LogoImage } from '@/components/ui/logo-image';
 
@@ -30,6 +30,7 @@ const navItems = {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
     { title: 'Planos de Ação', url: '/action-plans', icon: ListChecks },
+    { title: 'Benchmarks & Evolução', url: '/benchmark', icon: TrendingUp },
     { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],

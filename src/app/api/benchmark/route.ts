@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { getCompanySizeBand, COMPANY_SIZE_LABELS } from '@/lib/company-size';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,17 +16,36 @@ export async function GET(request: Request) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const company = await prisma.company.findUnique({
-    where: { id: user.company_id },
-    select: { company_size: true },
+  // Derive company size from the largest campaign's employee count
+  const campaigns = await prisma.campaign.findMany({
+    where: { company_id: user.company_id, status: 'closed' },
+    select: { id: true },
+    orderBy: { end_date: 'desc' },
+    take: 5,
   });
 
-  if (!company?.company_size) {
-    return NextResponse.json({ available: false, reason: 'company_size_not_set' });
+  let companySizeBand: string | null = null;
+  let maxCount = 0;
+
+  for (const c of campaigns) {
+    const count = await prisma.campaignEmployee.count({ where: { campaign_id: c.id } });
+    if (count > maxCount) { maxCount = count; }
+  }
+
+  if (maxCount > 0) {
+    companySizeBand = getCompanySizeBand(maxCount);
+  }
+
+  if (!companySizeBand) {
+    return NextResponse.json({
+      available: false,
+      reason: 'no_employee_data',
+      hint: 'Faça upload de funcionários em pelo menos uma campanha encerrada para ativar o benchmarking.',
+    });
   }
 
   const snapshots = await prisma.benchmarkSnapshot.findMany({
-    where: { company_size: company.company_size },
+    where: { company_size: companySizeBand },
     select: { igrp: true, dim_scores: true },
   });
 
@@ -35,7 +55,8 @@ export async function GET(request: Request) {
       reason: 'insufficient_data',
       count: snapshots.length,
       min_required: SIZE_MIN_COMPANIES,
-      company_size: company.company_size,
+      company_size: companySizeBand,
+      company_size_label: COMPANY_SIZE_LABELS[companySizeBand] ?? companySizeBand,
     });
   }
 
@@ -58,7 +79,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     available: true,
-    company_size: company.company_size,
+    company_size: companySizeBand,
+    company_size_label: COMPANY_SIZE_LABELS[companySizeBand] ?? companySizeBand,
     count: snapshots.length,
     median_igrp: Number(medianIgrp.toFixed(2)),
     dim_medians: dimMedians,

@@ -1,6 +1,7 @@
 import { claimNextJob, completeJob, failJob } from '@/lib/jobs';
 import { calculateAndStoreCampaignMetrics } from '@/services/metrics.service';
 import { buildCampaignPgrHtmlArtifact, buildDashboardXlsxArtifact } from '@/services/report-export.service';
+import { generateAndStoreActionPlan } from '@/services/action-plan.service';
 
 const IDLE_SLEEP_MS = 2000;
 
@@ -40,6 +41,14 @@ async function processOneJob() {
         ...job.payload,
         artifact,
       });
+      return true;
+    }
+
+    if (job.type === 'generate_action_plan') {
+      const campaignId = String(job.payload.campaign_id ?? '');
+      if (!campaignId) throw new Error('Missing campaign_id');
+      await generateAndStoreActionPlan(campaignId);
+      await completeJob(job.id, { ...job.payload, result: 'plan_generated' });
       return true;
     }
 

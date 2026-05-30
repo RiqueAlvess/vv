@@ -2,17 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { generateActionPlan } from '@/lib/hse-agent';
-import { HSE_DIMENSIONS } from '@/lib/constants';
-import { ScoreService } from '@/services/score.service';
-import type { DimensionType } from '@/types';
+import { enqueueJob } from '@/lib/jobs';
 
 export const dynamic = 'force-dynamic';
 
 interface RouteParams { params: Promise<{ id: string }> }
 
 // ---------------------------------------------------------------------------
-// GET — retrieve existing action plan
+// GET — retrieve existing action plan (or generating status)
 // ---------------------------------------------------------------------------
 
 export async function GET(request: Request, { params }: RouteParams) {
@@ -30,13 +27,25 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   const plan = await prisma.actionPlan.findUnique({ where: { campaign_id: id } });
-  if (!plan) return NextResponse.json({ error: 'Plano de ação não gerado ainda' }, { status: 404 });
+  if (plan) return NextResponse.json(plan);
 
-  return NextResponse.json(plan);
+  // Check for a pending/processing job
+  const pending = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM core.jobs
+    WHERE type = 'generate_action_plan'
+      AND status IN ('pending', 'processing')
+      AND payload->>'campaign_id' = ${id}
+    LIMIT 1
+  `;
+  if (pending.length) {
+    return NextResponse.json({ status: 'generating' }, { status: 202 });
+  }
+
+  return NextResponse.json({ error: 'Plano de ação não gerado ainda' }, { status: 404 });
 }
 
 // ---------------------------------------------------------------------------
-// POST — generate action plan via LLM and persist
+// POST — enqueue background action plan generation
 // ---------------------------------------------------------------------------
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -53,7 +62,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const campaign = await prisma.campaign.findUnique({
     where: { id },
-    select: { id: true, company_id: true, name: true, status: true, company: { select: { name: true } } },
+    select: { id: true, company_id: true, status: true },
   });
   if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
   if (user.role !== 'ADM' && campaign.company_id !== user.company_id) {
@@ -66,76 +75,34 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
   }
 
-  // Guard: allow generation only once per campaign
+  // Guard: plan already exists
   const existing = await prisma.actionPlan.findUnique({ where: { campaign_id: id }, select: { id: true } });
   if (existing) {
     return NextResponse.json(
-      { error: 'O plano de ação já foi gerado para esta campanha e não pode ser substituído.' },
+      { error: 'O plano de ação já foi gerado para esta campanha.' },
       { status: 409 },
     );
   }
 
-  // Load dashboard metrics (use cached if available, otherwise compute on demand)
-  const responses = await prisma.surveyResponse.findMany({
-    where: { campaign_id: id },
-    select: { responses: true },
-  });
+  // Guard: job already queued
+  const pending = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM core.jobs
+    WHERE type = 'generate_action_plan'
+      AND status IN ('pending', 'processing')
+      AND payload->>'campaign_id' = ${id}
+    LIMIT 1
+  `;
+  if (pending.length) {
+    return NextResponse.json({ status: 'generating', message: 'Plano já está sendo gerado.' }, { status: 202 });
+  }
 
-  const totalResponded = responses.length;
-  if (totalResponded === 0) {
+  // Validate responses exist
+  const responseCount = await prisma.surveyResponse.count({ where: { campaign_id: id } });
+  if (responseCount === 0) {
     return NextResponse.json({ error: 'Nenhuma resposta encontrada para gerar o plano' }, { status: 400 });
   }
 
-  // Compute dimension averages
-  const dimensions = HSE_DIMENSIONS.map((dim) => {
-    let scoreSum = 0;
-    let count = 0;
-    for (const r of responses) {
-      const score = ScoreService.calculateDimensionScore(
-        (r.responses ?? {}) as Record<string, number>,
-        dim.key as DimensionType,
-      );
-      if (Number.isFinite(score)) { scoreSum += score; count++; }
-    }
-    const avg_score = count > 0 ? Number((scoreSum / count).toFixed(2)) : 0;
-    const risk_level = ScoreService.getRiskLevel(avg_score, dim.type);
-    const nr = ScoreService.calculateNR(risk_level, dim.key);
-    const { label } = ScoreService.interpretNR(nr);
+  await enqueueJob('generate_action_plan', { campaign_id: id });
 
-    return { key: dim.key, name: dim.name, type: dim.type, avg_score, risk_level, nr, nr_label: label };
-  });
-
-  const igrp = Number((dimensions.reduce((s, d) => s + d.nr, 0) / dimensions.length).toFixed(2));
-  const { label: igrp_label } = ScoreService.interpretNR(igrp);
-
-  // Call LLM
-  let generated;
-  try {
-    generated = await generateActionPlan({
-      campaign_name: campaign.name,
-      company_name: campaign.company.name,
-      total_responded: totalResponded,
-      igrp,
-      igrp_label,
-      dimensions,
-    });
-  } catch (err) {
-    console.error('HSE Agent LLM error:', err);
-    return NextResponse.json(
-      { error: 'Falha ao gerar plano com IA. Verifique as configurações do LLM_PROVIDER.' },
-      { status: 502 },
-    );
-  }
-
-  const plan = await prisma.actionPlan.create({
-    data: {
-      campaign_id: id,
-      model_used: generated.model_used,
-      problems: generated.problems as never,
-      generated_at: new Date(),
-      updated_at: new Date(),
-    },
-  });
-
-  return NextResponse.json(plan, { status: 201 });
+  return NextResponse.json({ status: 'queued', message: 'Geração iniciada em segundo plano.' }, { status: 202 });
 }
