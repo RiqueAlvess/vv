@@ -1,4 +1,4 @@
-import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_PROBABILITY, DIMENSION_SEVERITY, RISK_COLORS } from '@/lib/constants';
+import { HSE_DIMENSIONS, RISK_THRESHOLDS_NEGATIVE, RISK_THRESHOLDS_POSITIVE, NR_PROBABILITY, RISK_COLORS } from '@/lib/constants';
 import { DimensionType, RiskLevel } from '@/types';
 
 export class ScoreService {
@@ -57,20 +57,21 @@ export class ScoreService {
     }
   }
 
-  // Calculate NR value: probability × dimension severity (range 1–16)
-  // Probability is derived from riskLevel; severity is intrinsic to the dimension.
-  static calculateNR(riskLevel: RiskLevel, dimensionKey: string): number {
+  // Calculate NR value: probability × severity
+  // Severity depends on risk classification: crítico = 4, others = 2
+  // dimensionKey kept for backward compatibility but no longer used.
+  static calculateNR(riskLevel: RiskLevel, _dimensionKey?: string): number {
     const probability = NR_PROBABILITY[riskLevel];
-    const severity = DIMENSION_SEVERITY[dimensionKey] ?? 2;
+    const severity = riskLevel === 'critico' ? 4 : 2;
     return probability * severity;
   }
 
-  // Interpret NR value (scale 1–16)
+  // Interpret NR value — possible values: 2 (baixo), 4 (médio), 6 (moderado), 16 (alto)
   static interpretNR(nr: number): { label: string; color: string } {
-    if (nr <= 4)  return { label: 'Aceitável',  color: RISK_COLORS.aceitavel };
-    if (nr <= 8)  return { label: 'Moderado',   color: RISK_COLORS.moderado };
-    if (nr <= 12) return { label: 'Importante', color: RISK_COLORS.importante };
-    return           { label: 'Crítico',    color: RISK_COLORS.critico };
+    if (nr <= 2)  return { label: 'Baixo Risco',    color: RISK_COLORS.aceitavel };
+    if (nr <= 4)  return { label: 'Risco Médio',    color: RISK_COLORS.moderado };
+    if (nr <= 6)  return { label: 'Risco Moderado', color: RISK_COLORS.importante };
+    return           { label: 'Alto Risco',      color: RISK_COLORS.critico };
   }
 
   // Calculate IGRP = mean of all 7 dimension NR values (range 1–16)
@@ -87,8 +88,8 @@ export class ScoreService {
     return Number((totalNR / count).toFixed(2));
   }
 
-  // Returns true if NR >= 9 (Importante or Crítico) — "high risk" territory
+  // Returns true if NR >= 6 (Risco Moderado or Alto Risco)
   static isHighRisk(nr: number): boolean {
-    return nr >= 9;
+    return nr >= 6;
   }
 }
