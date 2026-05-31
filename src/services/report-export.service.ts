@@ -551,13 +551,37 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     ['IGRP', '', '', '', '', '', igrp, ScoreService.interpretNR(igrp).label],
   ];
 
-  // Sheet 3: Análise por Setor (sector-level dimension NRs)
-  const units = await prisma.campaignUnit.findMany({
-    where: { campaign_id: campaignId },
-    include: { sectors: { include: { positions: true }, orderBy: { name: 'asc' } } },
-    orderBy: { name: 'asc' },
-  });
+  // Sheet 3: Matriz por Cargo — layout detalhado com P, S, NR por dimensão
+  const sheetMatriz: unknown[][] = [];
+  const DIM_HEADER = ['Dimensão', 'Score', 'Classificação', 'P', 'S', 'NR = P×S', 'Nível Final'];
 
+  for (const unit of units) {
+    for (const sector of unit.sectors) {
+      for (const position of sector.positions) {
+        const posAnswers = responsesData.filter(r => r.position_id === position.id).map(r => r.answers);
+
+        sheetMatriz.push([`UNIDADE: ${unit.name}`]);
+        sheetMatriz.push([`Setor: ${sector.name}`]);
+        sheetMatriz.push([`Cargo: ${position.name}`]);
+        sheetMatriz.push(DIM_HEADER);
+
+        if (posAnswers.length === 0) {
+          HSE_DIMENSIONS.forEach(dim => sheetMatriz.push([dim.name, '-', '-', '-', '-', '-', 'Sem respostas']));
+        } else {
+          const posDims = calcDims(posAnswers);
+          for (const d of posDims) {
+            sheetMatriz.push([d.name, d.score, d.nrLabel, d.probability, d.severity, d.nr, d.nrLabel]);
+          }
+          const posIgrp = Math.round(posDims.reduce((s, d) => s + d.nr, 0) / posDims.length * 100) / 100;
+          sheetMatriz.push(['IGRP', '', '', '', '', posIgrp, ScoreService.interpretNR(posIgrp).label]);
+        }
+
+        sheetMatriz.push([]); // separador
+      }
+    }
+  }
+
+  // Sheet 4: Análise por Setor (sector-level dimension NRs)
   const dimNames = HSE_DIMENSIONS.map(d => d.name);
   const sheetSetor: unknown[][] = [
     ['Unidade', 'Setor', 'Cargo', 'N Respondentes', ...dimNames, 'IGRP Estimado'],
@@ -582,7 +606,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     }
   }
 
-  // Sheet 4: Análise Demográfica — gender
+  // Sheet 5: Análise Demográfica — gender
   const genderDimHeader = ['Gênero', 'N', ...dimNames, 'IGRP Estimado'];
   const genderGroups: Record<string, Array<Record<string, number>>> = {};
   for (const r of responsesData) {
@@ -621,7 +645,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     sheetDemo.push([age, answers.length, ...dims.map(d => d.nr), ig]);
   }
 
-  // Sheet 5: Plano de Ação (if exists)
+  // Sheet 6: Plano de Ação (if exists)
   const actionPlan = await prisma.actionPlan.findUnique({ where: { campaign_id: campaignId } });
 
   type ActionItem = { description: string; responsible?: string; deadline?: string; status: string };
@@ -656,6 +680,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetId), 'Identificação');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetRiscos), 'Síntese dos Riscos');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetMatriz), 'Matriz por Cargo');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetSetor), 'Análise por Cargo');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetDemo), 'Análise Demográfica');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetPlano), 'Plano de Ação');
