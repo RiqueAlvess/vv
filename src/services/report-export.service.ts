@@ -552,6 +552,12 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   ];
 
   // Sheet 3: Matriz por Cargo — layout detalhado com P, S, NR por dimensão
+  const units = await prisma.campaignUnit.findMany({
+    where: { campaign_id: campaignId },
+    include: { sectors: { include: { positions: true }, orderBy: { name: 'asc' } } },
+    orderBy: { name: 'asc' },
+  });
+
   const sheetMatriz: unknown[][] = [];
   const DIM_HEADER = ['Dimensão', 'Score', 'Classificação', 'P', 'S', 'NR = P×S', 'Nível Final'];
 
