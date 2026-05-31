@@ -409,7 +409,7 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     const score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 100) / 100 : 0;
     const riskLevel = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
     const probability = probabilityMap[riskLevel];
-    const severity = probability;
+    const severity = riskLevel === 'critico' ? 4 : 2;
     const nr = probability * severity;
     const { label: nrLabel, color } = ScoreService.interpretNR(nr);
     return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel, color };
