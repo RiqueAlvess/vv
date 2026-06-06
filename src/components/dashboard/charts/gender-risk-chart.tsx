@@ -56,7 +56,6 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
       <p className="font-semibold text-sm">{d.gender}</p>
-      <p className="text-muted-foreground">{d.total_responses} respondentes</p>
       <p style={{ color: igrpColor(d.igrp) }}>
         IGRP {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
       </p>
@@ -151,7 +150,6 @@ export function GenderRiskChart({ data }: { data: unknown[] | null | undefined }
                 />
                 <span className="font-medium truncate">{d.gender}</span>
               </div>
-              <p className="text-muted-foreground">{d.total_responses} respostas</p>
               <Badge
                 className="text-[10px] px-1.5 py-0"
                 style={{ backgroundColor: igrpColor(d.igrp), color: '#ffffff' }}
