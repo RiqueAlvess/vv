@@ -136,12 +136,18 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
   };
 }
 
+const SECTOR_PRIVACY_MIN = 5;
+
 function riskLabel(riskLevel: string): string {
   if (riskLevel === 'critico') return 'Risco Alto';
   if (riskLevel === 'importante') return 'Risco Moderado';
   if (riskLevel === 'moderado') return 'Risco Médio';
   return 'Risco Baixo';
 }
+
+type DimReport = { score: number; riskLevel: string; probability: number; severity: number; nr: number; nrLabel: string; color: string };
+type SectorReport = { name: string; dimensions: Record<string, DimReport> };
+type UnitReport = { name: string; sectors: SectorReport[] };
 
 function buildPGRHtml(params: {
   companyName: string;
@@ -152,19 +158,7 @@ function buildPGRHtml(params: {
   generatedAt: string;
   totalResponded: number;
   totalInvited: number;
-  units: Array<{
-    name: string;
-    sectors: Array<{
-      name: string;
-      positions: Array<{
-        name: string;
-        dimensions: Record<string, {
-          score: number; riskLevel: string; probability: number;
-          severity: number; nr: number; nrLabel: string; color: string;
-        }>;
-      }>;
-    }>;
-  }>;
+  units: UnitReport[];
   campaignDimensions: Array<{
     key: string; name: string; score: number; riskLevel: string;
     probability: number; severity: number; nr: number; nrLabel: string; color: string;
@@ -187,47 +181,33 @@ function buildPGRHtml(params: {
       <div class="unit-header">UNIDADE: ${unit.name.toUpperCase()}</div>
       ${unit.sectors.map(sector => `
         <div class="sector">
-          <div class="sector-header">Setor: ${sector.name}</div>
-          ${sector.positions.map(position => {
-            const hasDims = Object.keys(position.dimensions).length > 0;
-            if (!hasDims) {
-              return `
-                <div class="position">
-                  <div class="position-header">Cargo: ${position.name}</div>
-                  <div class="suppressed">Sem dados de resposta para este cargo</div>
-                </div>`;
-            }
-            return `
-              <div class="position">
-                <div class="position-header">Cargo: ${position.name}</div>
-                <table class="dim-table">
-                  <thead>
-                    <tr>
-                      <th>Dimensão</th>
-                      <th>Score</th>
-                      <th>Classificação</th>
-                      <th>P</th>
-                      <th>S</th>
-                      <th>NR = P×S</th>
-                      <th>Nível Final</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${Object.entries(position.dimensions).map(([key, d]) => `
-                      <tr>
-                        <td>${params.campaignDimensions.find(cd => cd.key === key)?.name ?? key}</td>
-                        <td style="text-align:center">${d.score.toFixed(2)}</td>
-                        <td style="text-align:center">${riskLabel(d.riskLevel)}</td>
-                        <td style="text-align:center">${d.probability}</td>
-                        <td style="text-align:center">${d.severity}</td>
-                        <td style="text-align:center; font-weight:700">${d.nr}</td>
-                        <td style="text-align:center; color:${d.color}; font-weight:700">${d.nrLabel}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>`;
-          }).join('')}
+          <div class="sector-header">GHE / Setor: ${sector.name}</div>
+          <table class="dim-table">
+            <thead>
+              <tr>
+                <th>Dimensão</th>
+                <th>Score</th>
+                <th>Classificação</th>
+                <th>P</th>
+                <th>S</th>
+                <th>NR = P×S</th>
+                <th>Nível Final</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(sector.dimensions).map(([key, d]) => `
+                <tr>
+                  <td>${params.campaignDimensions.find(cd => cd.key === key)?.name ?? key}</td>
+                  <td style="text-align:center">${d.score.toFixed(2)}</td>
+                  <td style="text-align:center">${riskLabel(d.riskLevel)}</td>
+                  <td style="text-align:center">${d.probability}</td>
+                  <td style="text-align:center">${d.severity}</td>
+                  <td style="text-align:center; font-weight:700">${d.nr}</td>
+                  <td style="text-align:center; color:${d.color}; font-weight:700">${d.nrLabel}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
       `).join('')}
     </div>
@@ -358,7 +338,7 @@ function buildPGRHtml(params: {
 
 <!-- HIERARCHY -->
 <div class="section">
-  <div class="section-title">Análise por Unidade / Setor / Cargo</div>
+  <div class="section-title">Análise por GHE (Grupo Homogêneo de Exposição) / Setor</div>
   ${hierarchyHtml}
 </div>
 
@@ -383,21 +363,20 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
 
   const allResponses = await prisma.surveyResponse.findMany({
     where: { campaign_id: campaignId },
-    select: { responses: true, position_id: true },
+    select: { responses: true, sector_id: true },
   });
   if (allResponses.length === 0) throw new Error('Nenhuma resposta encontrada para esta campanha');
 
   const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
   const responsesWithAnswers = allResponses.map((resp) => ({
-    position_id: resp.position_id,
+    sector_id: resp.sector_id,
     answers: (resp.responses ?? {}) as Record<string, number>,
   }));
 
-  const calculateDimensionsForAnswers = (answersList: Array<Record<string, number>>) => HSE_DIMENSIONS.map((dim) => {
+  const calcDimsForAnswers = (answersList: Array<Record<string, number>>) => HSE_DIMENSIONS.map((dim) => {
     let scoreSum = 0;
     let scoreCount = 0;
     const riskCount = { aceitavel: 0, moderado: 0, importante: 0, critico: 0 } satisfies Record<RiskLevel, number>;
-
     for (const answers of answersList) {
       const score = ScoreService.calculateDimensionScore(answers, dim.key);
       const riskLevel = ScoreService.getRiskLevel(score, dim.type) as RiskLevel;
@@ -405,7 +384,6 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
       scoreCount++;
       riskCount[riskLevel] += 1;
     }
-
     const score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 100) / 100 : 0;
     const riskLevel = (Object.entries(riskCount) as Array<[RiskLevel, number]>).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'aceitavel';
     const probability = probabilityMap[riskLevel];
@@ -415,40 +393,33 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     return { key: dim.key, name: dim.name, score, riskLevel, probability, severity, nr, nrLabel, color };
   });
 
-  const campaignDimensions = calculateDimensionsForAnswers(responsesWithAnswers.map((resp) => resp.answers));
+  const campaignDimensions = calcDimsForAnswers(responsesWithAnswers.map((r) => r.answers));
 
   const units = await prisma.campaignUnit.findMany({
     where: { campaign_id: campaignId },
-    include: { sectors: { include: { positions: true }, orderBy: { name: 'asc' } } },
+    include: { sectors: { orderBy: { name: 'asc' } } },
     orderBy: { name: 'asc' },
   });
 
-  const unitReports = units.map(unit => ({
-    name: unit.name,
-    sectors: unit.sectors.map(sector => ({
-      name: sector.name,
-      positions: sector.positions.map(position => {
-        const positionAnswers = responsesWithAnswers.filter((resp) => resp.position_id === position.id).map((resp) => resp.answers);
-        if (positionAnswers.length === 0) {
-          return { name: position.name, dimensions: {} };
-        }
-
-        const positionDimensions = calculateDimensionsForAnswers(positionAnswers);
-        return {
-          name: position.name,
-          dimensions: Object.fromEntries(positionDimensions.map((d) => [d.key, {
-            score: d.score,
-            riskLevel: d.riskLevel,
-            probability: d.probability,
-            severity: d.severity,
-            nr: d.nr,
-            nrLabel: d.nrLabel,
-            color: d.color,
-          }])),
-        };
-      }),
-    })),
-  }));
+  const unitReports: UnitReport[] = units
+    .map(unit => ({
+      name: unit.name,
+      sectors: unit.sectors
+        .map(sector => {
+          const sectorAnswers = responsesWithAnswers.filter(r => r.sector_id === sector.id).map(r => r.answers);
+          if (sectorAnswers.length < SECTOR_PRIVACY_MIN) return null;
+          const sectorDims = calcDimsForAnswers(sectorAnswers);
+          return {
+            name: sector.name,
+            dimensions: Object.fromEntries(sectorDims.map(d => [d.key, {
+              score: d.score, riskLevel: d.riskLevel, probability: d.probability,
+              severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
+            }])),
+          };
+        })
+        .filter((s): s is SectorReport => s !== null),
+    }))
+    .filter(u => u.sectors.length > 0);
 
   const now = new Date();
   const html = buildPGRHtml({
@@ -481,7 +452,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
 
   const allResponses = await prisma.surveyResponse.findMany({
     where: { campaign_id: campaignId },
-    select: { responses: true, position_id: true, gender: true, age_range: true },
+    select: { responses: true, sector_id: true, gender: true, age_range: true },
   });
   if (allResponses.length === 0) throw new Error('Nenhuma resposta encontrada para esta campanha');
 
@@ -489,7 +460,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   const totalResponded = allResponses.length;
 
   const responsesData = allResponses.map(r => ({
-    position_id: r.position_id,
+    sector_id: r.sector_id,
     gender: r.gender,
     age_range: r.age_range,
     answers: (r.responses ?? {}) as Record<string, number>,
@@ -551,64 +522,52 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     ['IGRP', '', '', '', '', '', igrp, ScoreService.interpretNR(igrp).label],
   ];
 
-  // Sheet 3: Matriz por Cargo — layout detalhado com P, S, NR por dimensão
-  const units = await prisma.campaignUnit.findMany({
+  // Sheet 3 + 4: Análise por GHE/Setor — sem cargo
+  const xlsxUnits = await prisma.campaignUnit.findMany({
     where: { campaign_id: campaignId },
-    include: { sectors: { include: { positions: true }, orderBy: { name: 'asc' } } },
+    include: { sectors: { orderBy: { name: 'asc' } } },
     orderBy: { name: 'asc' },
   });
 
-  const sheetMatriz: unknown[][] = [];
+  const dimNames = HSE_DIMENSIONS.map(d => d.name);
   const DIM_HEADER = ['Dimensão', 'Score', 'Classificação', 'P', 'S', 'NR = P×S', 'Nível Final'];
 
-  for (const unit of units) {
+  // Sheet 3: Matriz detalhada por GHE/Setor
+  const sheetMatriz: unknown[][] = [];
+  for (const unit of xlsxUnits) {
     for (const sector of unit.sectors) {
-      for (const position of sector.positions) {
-        const posAnswers = responsesData.filter(r => r.position_id === position.id).map(r => r.answers);
-
-        sheetMatriz.push([`UNIDADE: ${unit.name}`]);
-        sheetMatriz.push([`Setor: ${sector.name}`]);
-        sheetMatriz.push([`Cargo: ${position.name}`]);
-        sheetMatriz.push(DIM_HEADER);
-
-        if (posAnswers.length === 0) {
-          HSE_DIMENSIONS.forEach(dim => sheetMatriz.push([dim.name, '-', '-', '-', '-', '-', 'Sem respostas']));
-        } else {
-          const posDims = calcDims(posAnswers);
-          for (const d of posDims) {
-            sheetMatriz.push([d.name, d.score, d.nrLabel, d.probability, d.severity, d.nr, d.nrLabel]);
-          }
-          const posIgrp = Math.round(posDims.reduce((s, d) => s + d.nr, 0) / posDims.length * 100) / 100;
-          sheetMatriz.push(['IGRP', '', '', '', '', posIgrp, ScoreService.interpretNR(posIgrp).label]);
+      const secAnswers = responsesData.filter(r => r.sector_id === sector.id).map(r => r.answers);
+      sheetMatriz.push([`UNIDADE: ${unit.name}`]);
+      sheetMatriz.push([`GHE / Setor: ${sector.name}`]);
+      sheetMatriz.push(DIM_HEADER);
+      if (secAnswers.length < SECTOR_PRIVACY_MIN) {
+        sheetMatriz.push(['Dados protegidos — menos de 5 respondentes neste setor']);
+      } else {
+        const secDims = calcDims(secAnswers);
+        for (const d of secDims) {
+          sheetMatriz.push([d.name, d.score, d.nrLabel, d.probability, d.severity, d.nr, d.nrLabel]);
         }
-
-        sheetMatriz.push([]); // separador
+        const secIgrp = Math.round(secDims.reduce((s, d) => s + d.nr, 0) / secDims.length * 100) / 100;
+        sheetMatriz.push(['IGRP', '', '', '', '', secIgrp, ScoreService.interpretNR(secIgrp).label]);
       }
+      sheetMatriz.push([]);
     }
   }
 
-  // Sheet 4: Análise por Setor (sector-level dimension NRs)
-  const dimNames = HSE_DIMENSIONS.map(d => d.name);
+  // Sheet 4: Tabela resumo por GHE/Setor
   const sheetSetor: unknown[][] = [
-    ['Unidade', 'Setor', 'Cargo', 'N Respondentes', ...dimNames, 'IGRP Estimado'],
+    ['Unidade', 'GHE / Setor', 'N Respondentes', ...dimNames, 'IGRP Estimado'],
   ];
-
-  for (const unit of units) {
+  for (const unit of xlsxUnits) {
     for (const sector of unit.sectors) {
-      for (const position of sector.positions) {
-        const posAnswers = responsesData.filter(r => r.position_id === position.id).map(r => r.answers);
-        if (posAnswers.length === 0) {
-          sheetSetor.push([unit.name, sector.name, position.name, 0, ...HSE_DIMENSIONS.map(() => '-'), '-']);
-          continue;
-        }
-        const posDims = calcDims(posAnswers);
-        const posIgrp = Math.round(posDims.reduce((s, d) => s + d.nr, 0) / posDims.length * 100) / 100;
-        sheetSetor.push([
-          unit.name, sector.name, position.name, posAnswers.length,
-          ...posDims.map(d => d.nr),
-          posIgrp,
-        ]);
+      const secAnswers = responsesData.filter(r => r.sector_id === sector.id).map(r => r.answers);
+      if (secAnswers.length < SECTOR_PRIVACY_MIN) {
+        sheetSetor.push([unit.name, sector.name, secAnswers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5']);
+        continue;
       }
+      const secDims = calcDims(secAnswers);
+      const secIgrp = Math.round(secDims.reduce((s, d) => s + d.nr, 0) / secDims.length * 100) / 100;
+      sheetSetor.push([unit.name, sector.name, secAnswers.length, ...secDims.map(d => d.nr), secIgrp]);
     }
   }
 
@@ -686,8 +645,8 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetId), 'Identificação');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetRiscos), 'Síntese dos Riscos');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetMatriz), 'Matriz por Cargo');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetSetor), 'Análise por Cargo');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetMatriz), 'Matriz por GHE');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetSetor), 'Análise por GHE');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetDemo), 'Análise Demográfica');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetPlano), 'Plano de Ação');
 

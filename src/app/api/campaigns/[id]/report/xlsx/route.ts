@@ -11,6 +11,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   const campaignId = params.id;
 
+  if (user.role === 'RH') {
+    return NextResponse.json({ error: 'Acesso restrito a MEDICO e ADM' }, { status: 403 });
+  }
+
   if (user.role !== 'ADM') {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
