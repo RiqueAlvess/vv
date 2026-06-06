@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
-import { getCompanySizeBand, COMPANY_SIZE_LABELS } from '@/lib/company-size';
+import { getProportionalBands, COMPANY_SIZE_LABELS } from '@/lib/company-size';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +33,10 @@ export async function GET(request: Request) {
   }
 
   if (maxCount > 0) {
-    companySizeBand = getCompanySizeBand(maxCount);
+    companySizeBand = String(maxCount); // kept as a local label only; bands used for query
   }
 
-  if (!companySizeBand) {
+  if (!maxCount) {
     return NextResponse.json({
       available: false,
       reason: 'no_employee_data',
@@ -44,8 +44,11 @@ export async function GET(request: Request) {
     });
   }
 
+  // Proportional matching: include all size bands within ±30 % of current headcount
+  const bands = getProportionalBands(maxCount);
+
   const snapshots = await prisma.benchmarkSnapshot.findMany({
-    where: { company_size: companySizeBand },
+    where: { company_size: { in: bands } },
     select: { igrp: true, dim_scores: true },
   });
 
@@ -55,10 +58,10 @@ export async function GET(request: Request) {
       reason: 'insufficient_data',
       count: snapshots.length,
       min_required: SIZE_MIN_COMPANIES,
-      company_size: companySizeBand,
-      company_size_label: COMPANY_SIZE_LABELS[companySizeBand] ?? companySizeBand,
     });
   }
+
+  companySizeBand = bands.length === 1 ? bands[0] : bands.join('+');
 
   const igrpValues = snapshots.map((s) => Number(s.igrp)).sort((a, b) => a - b);
   const mid = Math.floor(igrpValues.length / 2);
