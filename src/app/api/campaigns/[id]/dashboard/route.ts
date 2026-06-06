@@ -149,11 +149,27 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ status: 'computing', retry_after: 5 }, { status: 202 });
     }
 
+    // When filtering by sector, also include responses linked via position_id
+    // (respondents who selected a position but not an explicit sector)
+    let sectorPositionIds: string[] = [];
+    if (sectorId) {
+      const secPositions = await prisma.campaignPosition.findMany({
+        where: { sector_id: sectorId },
+        select: { id: true },
+      });
+      sectorPositionIds = secPositions.map(p => p.id);
+    }
+
     const rawResponses = await prisma.surveyResponse.findMany({
       where: {
         campaign_id: id,
         ...(unitId ? { unit_id: unitId } : {}),
-        ...(sectorId ? { sector_id: sectorId } : {}),
+        ...(sectorId ? {
+          OR: [
+            { sector_id: sectorId },
+            { sector_id: null, position_id: { in: sectorPositionIds } },
+          ],
+        } : {}),
       },
       select: {
         id: true,
@@ -178,7 +194,23 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const responses = rawResponses.map(toParsedResponse);
+    // Resolve sector_id from position when sector_id is null
+    const nullSectorPosIds = [...new Set(
+      rawResponses.filter(r => r.sector_id === null && r.position_id !== null).map(r => r.position_id!)
+    )];
+    const posToSector: Record<string, string> = {};
+    if (nullSectorPosIds.length > 0) {
+      const posRows = await prisma.campaignPosition.findMany({
+        where: { id: { in: nullSectorPosIds } },
+        select: { id: true, sector_id: true },
+      });
+      for (const p of posRows) posToSector[p.id] = p.sector_id;
+    }
+
+    const responses = rawResponses.map(r => toParsedResponse({
+      ...r,
+      sector_id: r.sector_id ?? (r.position_id ? posToSector[r.position_id] ?? null : null),
+    }));
 
     const dimensionAnalysis = aggregateDimensionAnalysis(responses);
 
