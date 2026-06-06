@@ -9,6 +9,7 @@ export interface Company {
   cnae: string | null;
   logo_url: string | null;
   active: boolean;
+  benchmark_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

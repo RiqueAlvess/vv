@@ -49,7 +49,7 @@ function CustomDot(props: {
 }
 
 export function IgrpTimeline({ points, onCampaignClick }: IgrpTimelineProps) {
-  if (points.length < 2) {
+  if (points.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -59,9 +59,7 @@ export function IgrpTimeline({ points, onCampaignClick }: IgrpTimelineProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-24 text-sm text-muted-foreground">
-          {points.length === 0
-            ? 'Nenhuma campanha encerrada com métricas calculadas'
-            : 'São necessárias pelo menos 2 campanhas para exibir a linha do tempo'}
+          Nenhuma campanha encerrada com métricas calculadas
         </CardContent>
       </Card>
     );

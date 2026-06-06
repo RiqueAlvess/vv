@@ -23,9 +23,10 @@ model Company {
   name         String
   cnpj         String   @unique @db.VarChar(18)
   cnae         String?  @db.VarChar(10)
-  logo_url     String?  @db.Text
-  company_size String?  @db.VarChar(20)
-  active       Boolean  @default(true)
+  logo_url           String?  @db.Text
+  company_size       String?  @db.VarChar(20)
+  active             Boolean  @default(true)
+  benchmark_enabled  Boolean  @default(true)
   created_at DateTime @default(now()) @db.Timestamptz()
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
 

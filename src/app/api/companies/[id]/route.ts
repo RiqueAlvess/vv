@@ -71,6 +71,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (body.name) updateData.name = body.name;
     if (body.cnpj) updateData.cnpj = body.cnpj;
     if (body.cnae !== undefined) updateData.cnae = body.cnae;
+    if (typeof body.benchmark_enabled === 'boolean') updateData.benchmark_enabled = body.benchmark_enabled;
     updateData.updated_at = new Date();
 
     // Verify company exists and is active before updating

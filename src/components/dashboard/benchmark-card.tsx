@@ -36,21 +36,7 @@ export function BenchmarkCard({ dimensionAnalysis }: BenchmarkCardProps) {
   const myByKey = Object.fromEntries(dimensionAnalysis.map((d) => [d.key, d.nr]));
 
   if (!data.available) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            Empresas do mesmo porte
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs text-muted-foreground">
-          {data.reason === 'company_size_not_set'
-            ? 'Porte da empresa não configurado.'
-            : `Dados insuficientes — ${data.count ?? 0} empresa(s) de ${data.min_required ?? 5} necessárias para exibir benchmark.`}
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
@@ -60,7 +46,7 @@ export function BenchmarkCard({ dimensionAnalysis }: BenchmarkCardProps) {
           <Building2 className="h-4 w-4 text-muted-foreground" />
           Empresas do mesmo porte
           <span className="ml-auto text-xs font-normal text-muted-foreground">
-            {data.company_size} · n={data.count}
+            {data.company_size}
           </span>
         </CardTitle>
       </CardHeader>
@@ -93,6 +79,9 @@ export function BenchmarkCard({ dimensionAnalysis }: BenchmarkCardProps) {
             </div>
           );
         })}
+        <p className="text-[10px] text-muted-foreground/60 pt-2 border-t mt-2">
+          Benchmark baseado nos dados coletados anonimamente pela plataforma Asta.
+        </p>
       </CardContent>
     </Card>
   );

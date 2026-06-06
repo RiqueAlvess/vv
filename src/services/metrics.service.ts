@@ -96,7 +96,7 @@ function aggregateDimensionAnalysis(responses: ParsedResponse[]) {
 export async function calculateAndStoreCampaignMetrics(campaignId: string): Promise<void> {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
-    select: { status: true, name: true },
+    select: { status: true, name: true, company_id: true },
   });
 
   if (!campaign || campaign.status !== 'closed') {
@@ -480,10 +480,15 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     update: metricsData,
   });
 
-  // Save anonymous benchmark snapshot (derived from employee count → size band)
+  // Save anonymous benchmark snapshot only if company opted in
   try {
+    const company = await prisma.company.findUnique({
+      where: { id: campaign.company_id },
+      select: { benchmark_enabled: true },
+    });
+    const benchmarkEnabled = company?.benchmark_enabled !== false;
     const employeeCount = await prisma.campaignEmployee.count({ where: { campaign_id: campaignId } });
-    if (employeeCount > 0) {
+    if (benchmarkEnabled && employeeCount > 0) {
       const sizeBand = getCompanySizeBand(employeeCount);
       const dimScores = Object.fromEntries(dimensionAnalysis.map((d) => [d.key, d.nr]));
       await prisma.benchmarkSnapshot.create({

@@ -15,6 +15,7 @@ import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { useNotifications } from '@/hooks/use-notifications';
 import { Plus, Pencil, Trash2, Building2, Search, ImagePlus, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import type { Company } from '@/types';
 import { useRef } from 'react';
 
@@ -109,7 +110,7 @@ export default function CompaniesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
   const [selected, setSelected] = useState<Company | null>(null);
-  const [form, setForm] = useState({ name: '', cnpj: '', cnae: '' });
+  const [form, setForm] = useState({ name: '', cnpj: '', cnae: '', benchmark_enabled: true });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -141,13 +142,13 @@ export default function CompaniesPage() {
 
   function openCreate() {
     setSelected(null);
-    setForm({ name: '', cnpj: '', cnae: '' });
+    setForm({ name: '', cnpj: '', cnae: '', benchmark_enabled: true });
     setFormOpen(true);
   }
 
   function openEdit(company: Company) {
     setSelected(company);
-    setForm({ name: company.name, cnpj: company.cnpj, cnae: company.cnae ?? '' });
+    setForm({ name: company.name, cnpj: company.cnpj, cnae: company.cnae ?? '', benchmark_enabled: company.benchmark_enabled !== false });
     setFormOpen(true);
   }
 
@@ -218,6 +219,7 @@ export default function CompaniesPage() {
         const res = await put(`/api/companies/${selected.id}`, {
           name: form.name,
           cnae: form.cnae || undefined,
+          benchmark_enabled: form.benchmark_enabled,
         });
         if (!res.ok) {
           const data = await res.json();
@@ -349,6 +351,18 @@ export default function CompaniesPage() {
                 id="cnae"
                 value={form.cnae}
                 onChange={(e) => setForm({ ...form, cnae: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Participar do Benchmark</Label>
+                <p className="text-xs text-muted-foreground">
+                  Inclui os dados anonimizados desta empresa no benchmark da plataforma.
+                </p>
+              </div>
+              <Switch
+                checked={form.benchmark_enabled}
+                onCheckedChange={(v) => setForm({ ...form, benchmark_enabled: v })}
               />
             </div>
           </div>
