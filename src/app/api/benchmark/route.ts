@@ -16,6 +16,15 @@ export async function GET(request: Request) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Companies with benchmark_enabled = false cannot see nor contribute to benchmark
+  const company = await prisma.company.findUnique({
+    where: { id: user.company_id },
+    select: { benchmark_enabled: true },
+  });
+  if (!company?.benchmark_enabled) {
+    return NextResponse.json({ available: false, reason: 'not_enabled' });
+  }
+
   // Derive company size from the largest campaign's employee count
   const campaigns = await prisma.campaign.findMany({
     where: { company_id: user.company_id, status: 'closed' },

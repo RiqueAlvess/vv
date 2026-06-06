@@ -363,13 +363,27 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
 
   const allResponses = await prisma.surveyResponse.findMany({
     where: { campaign_id: campaignId },
-    select: { responses: true, sector_id: true },
+    select: { responses: true, sector_id: true, position_id: true },
   });
   if (allResponses.length === 0) throw new Error('Nenhuma resposta encontrada para esta campanha');
 
   const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
+
+  // Resolve sector_id from position when sector_id is null
+  const nullPosIds = [...new Set(
+    allResponses.filter(r => r.sector_id === null && r.position_id !== null).map(r => r.position_id!)
+  )];
+  const posToSector: Record<string, string> = {};
+  if (nullPosIds.length > 0) {
+    const posRows = await prisma.campaignPosition.findMany({
+      where: { id: { in: nullPosIds } },
+      select: { id: true, sector_id: true },
+    });
+    for (const p of posRows) posToSector[p.id] = p.sector_id;
+  }
+
   const responsesWithAnswers = allResponses.map((resp) => ({
-    sector_id: resp.sector_id,
+    sector_id: resp.sector_id ?? (resp.position_id ? posToSector[resp.position_id] ?? null : null),
     answers: (resp.responses ?? {}) as Record<string, number>,
   }));
 
@@ -450,15 +464,28 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
 
   const allResponses = await prisma.surveyResponse.findMany({
     where: { campaign_id: campaignId },
-    select: { responses: true, sector_id: true, gender: true, age_range: true },
+    select: { responses: true, sector_id: true, position_id: true, gender: true, age_range: true },
   });
   if (allResponses.length === 0) throw new Error('Nenhuma resposta encontrada para esta campanha');
 
   const probabilityMap: Record<RiskLevel, number> = { critico: 4, importante: 3, moderado: 2, aceitavel: 1 };
   const totalResponded = allResponses.length;
 
+  // Resolve sector_id from position when sector_id is null
+  const xlsxNullPosIds = [...new Set(
+    allResponses.filter(r => r.sector_id === null && r.position_id !== null).map(r => r.position_id!)
+  )];
+  const xlsxPosToSector: Record<string, string> = {};
+  if (xlsxNullPosIds.length > 0) {
+    const posRows = await prisma.campaignPosition.findMany({
+      where: { id: { in: xlsxNullPosIds } },
+      select: { id: true, sector_id: true },
+    });
+    for (const p of posRows) xlsxPosToSector[p.id] = p.sector_id;
+  }
+
   const responsesData = allResponses.map(r => ({
-    sector_id: r.sector_id,
+    sector_id: r.sector_id ?? (r.position_id ? xlsxPosToSector[r.position_id] ?? null : null),
     gender: r.gender,
     age_range: r.age_range,
     answers: (r.responses ?? {}) as Record<string, number>,

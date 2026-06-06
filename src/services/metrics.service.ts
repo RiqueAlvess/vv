@@ -121,9 +121,23 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     return;
   }
 
+  // Resolve sector_id via position when the respondent didn't select a sector explicitly
+  const nullSectorPosIds = [...new Set(
+    rawResponses.filter(r => r.sector_id === null && r.position_id !== null).map(r => r.position_id!)
+  )];
+  const posToSector: Record<string, string> = {};
+  if (nullSectorPosIds.length > 0) {
+    const posRows = await prisma.campaignPosition.findMany({
+      where: { id: { in: nullSectorPosIds } },
+      select: { id: true, sector_id: true },
+    });
+    for (const p of posRows) posToSector[p.id] = p.sector_id;
+  }
+
   const responses: ParsedResponse[] = rawResponses.map((r) => ({
     ...r,
     responses: (r.responses ?? {}) as Record<string, number>,
+    sector_id: r.sector_id ?? (r.position_id ? posToSector[r.position_id] ?? null : null),
   }));
 
   const totalInvited = 0; // QR code model — no fixed invited pool
