@@ -5,7 +5,7 @@
 import { prisma } from '@/lib/prisma';
 
 export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-export const DASHBOARD_CACHE_VERSION = 4;
+export const DASHBOARD_CACHE_VERSION = 5;
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
@@ -25,10 +25,12 @@ function hasCompatibleDashboardShape(cached: NonNullable<StoredMetrics>): boolea
   if (!isArray(cached.dimension_scores)) return false;
   if (!isArray(cached.heatmap_data)) return false;
   if (!isArray(cached.top_critical_groups)) return false;
-  // Validate that position rows have the current field shape (avg_hse_score, not legacy score_pct)
+  // Validate that sector (GHE) rows have the current field shape
   if (cached.top_critical_groups.length > 0) {
     const first = cached.top_critical_groups[0];
     if (!isObject(first) || typeof first.avg_hse_score !== 'number') return false;
+    // Must be sector-based (v5+): has 'sector' field, not legacy 'position'
+    if (typeof first.sector !== 'string') return false;
   }
   if (!isArray(cached.scores_by_gender)) return false;
   if (!isArray(cached.scores_by_age)) return false;
@@ -80,7 +82,7 @@ export function buildPayloadFromCache(
     heatmap: cached.heatmap_data ?? [],
     top_sectors_by_nr: tc.top_sectors_by_nr ?? [],
     top_positions_by_nr: tc.top_positions_by_nr ?? [],
-    position_table: cached.top_critical_groups ?? [],
+    sector_table: cached.top_critical_groups ?? [],
     gender_distribution: dd.gender_distribution ?? {},
     age_distribution: dd.age_distribution ?? {},
     gender_risk: cached.scores_by_gender ?? [],

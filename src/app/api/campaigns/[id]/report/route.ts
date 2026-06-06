@@ -10,14 +10,11 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-interface PositionReport {
-  name: string;
-  dimensions: Record<string, { score: number; risk: RiskLevel; nr: number }>;
-}
-
 interface SectorReport {
   name: string;
-  positions: PositionReport[];
+  unit: string;
+  n_responses: number;
+  dimensions: Record<string, { score: number; risk: RiskLevel; nr: number }>;
 }
 
 interface UnitReport {
@@ -33,7 +30,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (user.role !== 'ADM' && user.role !== 'RH') {
+    if (user.role !== 'ADM' && user.role !== 'RH' && user.role !== 'MEDICO') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -52,6 +49,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (user.role === 'RH' && campaign.company_id !== user.company_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (user.role === 'MEDICO' && campaign.company_id !== user.company_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (campaign.status !== 'closed') {
       return NextResponse.json(
@@ -60,7 +60,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Query 1: full hierarchy — units → sectors → positions
+    const SECTOR_PRIVACY_MIN = 5;
+
+    // Query hierarchy: units → sectors (GHE)
     const units = await prisma.campaignUnit.findMany({
       where: { campaign_id: id },
       orderBy: { name: 'asc' },
@@ -68,12 +70,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         sectors: {
           orderBy: { name: 'asc' },
           include: {
-            positions: {
-              orderBy: { name: 'asc' },
-              include: {
-                _count: { select: { responses: true } },
-              },
-            },
+            _count: { select: { responses: true } },
           },
         },
       },
@@ -86,10 +83,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Query 2: all responses in one shot — only the answers JSON is needed
+    // All responses with sector info
     const allResponses = await prisma.surveyResponse.findMany({
       where: { campaign_id: id },
-      select: { responses: true },
+      select: { responses: true, sector_id: true },
     });
 
     if (!allResponses || allResponses.length === 0) {
@@ -99,23 +96,34 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Pre-compute campaign-wide dimension scores once from all responses.
-    // SurveyResponse hierarchy is self-reported — same aggregate applies per position.
+    // Pre-compute campaign-wide dimensions as fallback
     const campaignDimensions = computeDimensions(
       allResponses.map((r) => r.responses as Record<string, number>)
     );
 
-    // Traverse hierarchy in memory — zero additional DB calls
+    // Build sector-level reports grouped by unit
     const unitReports: UnitReport[] = units.map((unit) => ({
       name: unit.name,
-      sectors: unit.sectors.map((sector) => ({
-        name: sector.name,
-        positions: sector.positions.map((position) => ({
-          name: position.name,
-          // Show dimensions only for positions that have at least one response
-          dimensions: position._count.responses > 0 ? campaignDimensions : {},
-        })),
-      })),
+      sectors: unit.sectors
+        .map((sector) => {
+          const sectorResponses = allResponses.filter(
+            (r) => r.sector_id === sector.id
+          );
+          const n = sectorResponses.length;
+          if (n < SECTOR_PRIVACY_MIN) return null;
+
+          const dimensions = computeDimensions(
+            sectorResponses.map((r) => r.responses as Record<string, number>)
+          );
+
+          return {
+            name: sector.name,
+            unit: unit.name,
+            n_responses: n,
+            dimensions: n > 0 ? dimensions : campaignDimensions,
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null),
     }));
 
     return NextResponse.json({ units: unitReports });

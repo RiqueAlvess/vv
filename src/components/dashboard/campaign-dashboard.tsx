@@ -5,10 +5,9 @@ import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Lock, Info, FileSpreadsheet, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Lock, Info, ShieldAlert } from 'lucide-react';
 import { LockedState } from './locked-state';
 import { DeltaStrip } from './delta-strip';
-import { Button } from '@/components/ui/button';
 
 import { KpiRow } from './charts/kpi-row';
 import { IgrpBarChart } from './charts/igrp-bar-chart';
@@ -17,7 +16,7 @@ import { StackedDimensionChart } from './charts/stacked-dimension-chart';
 import { StackedQuestionChart } from './charts/stacked-question-chart';
 import { RadarScoreChart } from './charts/radar-score-chart';
 import { HeatmapChart } from './charts/heatmap-chart';
-import { PositionTable } from './charts/position-table';
+import { GheTable } from './charts/ghe-table';
 import { GenderRiskChart } from './charts/gender-risk-chart';
 import { AgeRiskChart } from './charts/age-risk-chart';
 
@@ -42,6 +41,10 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   const [pollTrigger, setPollTrigger] = useState(0);
   const pollAttemptsRef = useRef(0);
 
+  const isADM = user?.role === 'ADM';
+  const isMEDICO = user?.role === 'MEDICO';
+  const showRespondents = isADM || isMEDICO;
+
   const handleExportPGR = async () => {
     setDownloading(true);
     try {
@@ -57,6 +60,20 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleExportXlsx = () => {
+    const a = document.createElement('a');
+    a.href = `/api/campaigns/${campaignId}/report/xlsx`;
+    a.download = '';
+    a.click();
+  };
+
+  const handleExportDashboard = () => {
+    const a = document.createElement('a');
+    a.href = `/api/campaigns/${campaignId}/dashboard/export`;
+    a.download = '';
+    a.click();
   };
 
   useEffect(() => {
@@ -145,7 +162,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   const totalResponded = data.total_responded as number;
   const PRIVACY_MIN = 5;
 
-  // Privacy gate: sector filter active but too few responses to show individual data
+  // Privacy gate: sector filter active but too few responses
   if (sectorId && totalResponded < PRIVACY_MIN) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[420px] text-center gap-4">
@@ -172,7 +189,7 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
   return (
     <div className="space-y-6">
       {/* ROW 1 — KPIs */}
-      <KpiRow data={data} />
+      <KpiRow data={data} showRespondents={showRespondents} />
 
       {filterContext?.note && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
@@ -187,25 +204,6 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
           sectorDimensions={data.dimension_analysis as { key: string; name: string; nr: number; nr_color: string }[]}
           campaignDimensions={campaignData.dimension_analysis as { key: string; name: string; nr: number; nr_color: string }[]}
         />
-      )}
-
-      {/* Export Planilha (ADM only) */}
-      {user?.role === 'ADM' && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const a = document.createElement('a');
-              a.href = `/api/campaigns/${campaignId}/dashboard/export`;
-              a.download = '';
-              a.click();
-            }}
-            className="gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Exportar Planilha
-          </Button>
-        </div>
       )}
 
       {/* ROW 2 — IGRP by dimension (full width) */}
@@ -240,13 +238,14 @@ export function CampaignDashboard({ campaignId, campaignStatus, campaignName, un
         </div>
       )}
 
-      {/* ROW 7 — Position Table */}
-      <PositionTable
-        positions={data.position_table as unknown[]}
+      {/* ROW 7 — GHE Table (por setor) */}
+      <GheTable
+        sectors={data.sector_table as unknown[] ?? []}
         onExportPGR={handleExportPGR}
+        onExportXlsx={isADM ? handleExportDashboard : isMEDICO ? handleExportXlsx : undefined}
         downloading={downloading}
+        showRespondentCount={showRespondents}
       />
-
     </div>
   );
 }

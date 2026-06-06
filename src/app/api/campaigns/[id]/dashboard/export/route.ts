@@ -12,10 +12,13 @@ export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (user.role !== 'ADM') return NextResponse.json({ error: 'Acesso restrito a administradores' }, { status: 403 });
+  if (user.role !== 'ADM' && user.role !== 'MEDICO') return NextResponse.json({ error: 'Acesso restrito a administradores e médicos' }, { status: 403 });
 
-  const campaign = await prisma.campaign.findUnique({ where: { id }, select: { id: true, status: true } });
+  const campaign = await prisma.campaign.findUnique({ where: { id }, select: { id: true, status: true, company_id: true } });
   if (!campaign) return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+  if (user.role === 'MEDICO' && campaign.company_id !== user.company_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (campaign.status !== 'closed') {
     return NextResponse.json({ error: 'Exportação disponível apenas para campanhas encerradas' }, { status: 400 });
   }

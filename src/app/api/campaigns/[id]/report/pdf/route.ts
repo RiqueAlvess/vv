@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const user = await getAuthUser(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'ADM' && user.role !== 'RH') {
+    if (user.role !== 'ADM' && user.role !== 'RH' && user.role !== 'MEDICO') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (campaign.status !== 'closed') {
       return NextResponse.json({ error: 'Relatório disponível apenas para campanhas encerradas' }, { status: 400 });
     }
-    if (user.role === 'RH' && campaign.company_id !== user.company_id) {
+    if ((user.role === 'RH' || user.role === 'MEDICO') && campaign.company_id !== user.company_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

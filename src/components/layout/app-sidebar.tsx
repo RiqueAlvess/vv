@@ -34,6 +34,14 @@ const navItems = {
     { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
     { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
   ],
+  MEDICO: [
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+    { title: 'Campanhas', url: '/campaigns', icon: FileBarChart2 },
+    { title: 'Planos de Ação', url: '/action-plans', icon: ListChecks },
+    { title: 'Benchmarks & Evolução', url: '/benchmark', icon: TrendingUp },
+    { title: 'Feedback Anônimo', url: '/feedback', icon: MessageSquare },
+    { title: 'Base de Conhecimento', url: '/articles', icon: BookOpen },
+  ],
 };
 
 export function AppSidebar() {
@@ -140,7 +148,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div ref={menuRef} className="relative p-2">
-          <p className="text-[10px] text-white/25 text-center pb-1">v1.0.7</p>
+          <p className="text-[10px] text-white/25 text-center pb-1">v1.1.0</p>
 
           {/* Floating menu — appears above the button */}
           {menuOpen && (
