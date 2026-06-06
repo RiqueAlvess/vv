@@ -5,7 +5,7 @@ import { getCompanySizeBand, COMPANY_SIZE_LABELS } from '@/lib/company-size';
 
 export const dynamic = 'force-dynamic';
 
-const SIZE_MIN_COMPANIES = 5;
+const SIZE_MIN_COMPANIES = 2;
 
 const DIM_KEYS = [
   'demandas', 'controle', 'apoio_chefia', 'apoio_colegas',
