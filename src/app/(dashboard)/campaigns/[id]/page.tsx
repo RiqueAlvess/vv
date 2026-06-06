@@ -571,10 +571,12 @@ export default function CampaignDetailPage() {
               <QrCode className="h-4 w-4 mr-2" />
               QR Code
             </TabsTrigger>
-            <TabsTrigger value="hierarchy">
-              <Users className="h-4 w-4 mr-2" />
-              Respondentes
-            </TabsTrigger>
+            {(user?.role === 'MEDICO' || user?.role === 'ADM') && (
+              <TabsTrigger value="hierarchy">
+                <Users className="h-4 w-4 mr-2" />
+                Respondentes
+              </TabsTrigger>
+            )}
             <TabsTrigger value="checklist">
               <ClipboardCheck className="h-4 w-4 mr-2" />
               Checklist NR-1

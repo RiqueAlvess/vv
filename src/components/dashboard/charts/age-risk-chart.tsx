@@ -49,7 +49,6 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   return (
     <div className="rounded-lg border bg-background px-3 py-2 shadow-md text-xs space-y-1">
       <p className="font-semibold text-sm">{d.age_range}{d.age_range !== 'Não informado' ? ' anos' : ''}</p>
-      <p className="text-muted-foreground">{d.total_responses} respondentes</p>
       <p style={{ color: igrpColor(d.igrp) }}>
         IGRP {d.igrp.toFixed(1)} — {igrpLabel(d.igrp)}
       </p>
@@ -141,7 +140,6 @@ export function AgeRiskChart({ data }: { data: unknown[] | null | undefined }) {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Faixa</th>
-                <th className="text-center px-3 py-2 font-medium text-muted-foreground">Respostas</th>
                 <th className="text-center px-3 py-2 font-medium text-muted-foreground">IGRP</th>
                 <th className="text-left px-3 py-2 font-medium text-muted-foreground">Dimensão Crítica</th>
               </tr>
@@ -151,9 +149,6 @@ export function AgeRiskChart({ data }: { data: unknown[] | null | undefined }) {
                 <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-3 py-2 font-medium">
                     {d.age_range}{d.age_range !== 'Não informado' ? ' anos' : ''}
-                  </td>
-                  <td className="px-3 py-2 text-center text-muted-foreground">
-                    {d.total_responses}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <Badge
