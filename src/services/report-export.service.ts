@@ -404,20 +404,18 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
   const unitReports: UnitReport[] = units
     .map(unit => ({
       name: unit.name,
-      sectors: unit.sectors
-        .map(sector => {
-          const sectorAnswers = responsesWithAnswers.filter(r => r.sector_id === sector.id).map(r => r.answers);
-          if (sectorAnswers.length < SECTOR_PRIVACY_MIN) return null;
-          const sectorDims = calcDimsForAnswers(sectorAnswers);
-          return {
-            name: sector.name,
-            dimensions: Object.fromEntries(sectorDims.map(d => [d.key, {
-              score: d.score, riskLevel: d.riskLevel, probability: d.probability,
-              severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
-            }])),
-          };
-        })
-        .filter((s): s is SectorReport => s !== null),
+      sectors: unit.sectors.flatMap((sector): SectorReport[] => {
+        const sectorAnswers = responsesWithAnswers.filter(r => r.sector_id === sector.id).map(r => r.answers);
+        if (sectorAnswers.length < SECTOR_PRIVACY_MIN) return [];
+        const sectorDims = calcDimsForAnswers(sectorAnswers);
+        return [{
+          name: sector.name,
+          dimensions: Object.fromEntries(sectorDims.map(d => [d.key, {
+            score: d.score, riskLevel: d.riskLevel, probability: d.probability,
+            severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
+          }])),
+        }];
+      }),
     }))
     .filter(u => u.sectors.length > 0);
 
