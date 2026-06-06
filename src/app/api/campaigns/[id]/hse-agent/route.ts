@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (user.role !== 'ADM' && user.role !== 'RH') {
+  if (user.role !== 'ADM' && user.role !== 'RH' && user.role !== 'MEDICO') {
     return NextResponse.json({ error: 'Apenas ADM ou RH podem gerar o plano de ação' }, { status: 403 });
   }
 

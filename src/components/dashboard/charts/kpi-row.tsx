@@ -4,7 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Users, BarChart3, AlertTriangle, UserCheck } from 'lucide-react';
 
-export function KpiRow({ data }: { data: Record<string, unknown> }) {
+export function KpiRow({
+  data,
+  showRespondents = true,
+}: {
+  data: Record<string, unknown>;
+  showRespondents?: boolean;
+}) {
   const igrpLabel = data.igrp_label as string;
   const igrpColor = data.igrp_color as string;
   const totalEmployees = (data.total_employees as number) ?? 0;
@@ -13,8 +19,13 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
     ? Math.round((totalResponded / totalEmployees) * 100)
     : 0;
 
+  const colCount = showRespondents ? 4 : 3;
+  const gridClass = colCount === 4
+    ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'
+    : 'grid gap-4 sm:grid-cols-3';
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={gridClass}>
       {/* Card 1 — Total de Funcionários */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -31,29 +42,50 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
         </CardContent>
       </Card>
 
-      {/* Card 2 — Respondentes + Taxa */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Respondentes
-          </CardTitle>
-          <UserCheck className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            {totalResponded.toLocaleString('pt-BR')}
-          </p>
-          <div className="mt-2">
-            <Progress value={responseRate} className="h-1.5" />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            <span className="font-semibold text-foreground">{responseRate}%</span>{' '}
-            de adesão
-          </p>
-        </CardContent>
-      </Card>
+      {/* Card 2 — Respondentes + Taxa (oculto para RH) */}
+      {showRespondents && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Respondentes
+            </CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">
+              {totalResponded.toLocaleString('pt-BR')}
+            </p>
+            <div className="mt-2">
+              <Progress value={responseRate} className="h-1.5" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="font-semibold text-foreground">{responseRate}%</span>{' '}
+              de adesão
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Card 3 — IGRP */}
+      {/* Card 3 — Taxa de Adesão (mostrado para RH no lugar dos Respondentes) */}
+      {!showRespondents && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Taxa de Adesão
+            </CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{responseRate}%</p>
+            <div className="mt-2">
+              <Progress value={responseRate} className="h-1.5" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">de participação na campanha</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Card 4 — IGRP */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide leading-tight">
@@ -75,7 +107,7 @@ export function KpiRow({ data }: { data: Record<string, unknown> }) {
         </CardContent>
       </Card>
 
-      {/* Card 4 — Em Risco Alto */}
+      {/* Card 5 — Em Risco Alto */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

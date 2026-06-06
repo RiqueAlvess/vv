@@ -512,56 +512,40 @@ export async function GET(request: Request, { params }: RouteParams) {
       .sort((a, b) => b.nr - a.nr)
       .slice(0, 5);
 
-    const positions = await prisma.campaignPosition.findMany({
-      where: {
-        sector: {
-          unit: { campaign_id: id },
-          ...(sectorId ? { id: sectorId } : unitId ? { unit_id: unitId } : {}),
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        sector: { select: { id: true, name: true, unit: { select: { name: true } } } },
-      },
-      orderBy: { name: 'asc' },
-    });
+    const SECTOR_PRIVACY_MIN = 5;
 
-    const positionTable = positions
-      .map((pos) => {
-        const positionResponses = responses.filter((resp) => resp.position_id === pos.id);
-        if (positionResponses.length === 0) {
-          return null;
-        }
+    // GHE table: group by sector, filter sectors with < 5 responses (privacy blind)
+    const sectorTable = sectors
+      .map((sector) => {
+        const sectorResponses = responses.filter((resp) => resp.sector_id === sector.id);
+        if (sectorResponses.length < SECTOR_PRIVACY_MIN) return null;
 
-        const posDimensions = aggregateDimensionAnalysis(positionResponses);
-        const posNR = Number((posDimensions.reduce((sum, d) => sum + d.nr, 0) / posDimensions.length).toFixed(1));
-        const { label } = ScoreService.interpretNR(posNR);
+        const sectorDims = aggregateDimensionAnalysis(sectorResponses);
+        const sectorNR = Number((sectorDims.reduce((sum, d) => sum + d.nr, 0) / sectorDims.length).toFixed(1));
+        const { label } = ScoreService.interpretNR(sectorNR);
         const avgHSEScore = Number(
-          (posDimensions.reduce((sum, d) => sum + d.avg_score, 0) / posDimensions.length).toFixed(2)
+          (sectorDims.reduce((sum, d) => sum + d.avg_score, 0) / sectorDims.length).toFixed(2)
         );
 
         return {
-          position: pos.name,
-          sector: pos.sector.name,
-          unit: pos.sector.unit.name,
+          sector: sector.name,
+          unit: sector.unit.name,
           avg_hse_score: avgHSEScore,
           classification: label,
-          nr: posNR,
-          n_responses: positionResponses.length,
+          nr: sectorNR,
+          n_responses: sectorResponses.length,
         };
       })
       .filter((row): row is NonNullable<typeof row> => row !== null)
       .sort((a, b) => b.nr - a.nr);
 
-    const topPositionsByNR = positionTable
-      .map((pos) => ({
-        position: pos.position,
-        sector: pos.sector,
-        unit: pos.unit,
-        nr: pos.nr,
-        label: pos.classification,
-        color: ScoreService.interpretNR(pos.nr).color,
+    const topPositionsByNR = sectorTable
+      .map((s) => ({
+        sector: s.sector,
+        unit: s.unit,
+        nr: s.nr,
+        label: s.classification,
+        color: ScoreService.interpretNR(s.nr).color,
       }))
       .slice(0, 5);
 
@@ -595,7 +579,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       heatmap: heatmapData,
       top_sectors_by_nr: topSectorsByNR,
       top_positions_by_nr: topPositionsByNR,
-      position_table: positionTable,
+      sector_table: sectorTable,
       gender_distribution: genderCounts,
       age_distribution: ageCounts,
       gender_risk: genderChartData,

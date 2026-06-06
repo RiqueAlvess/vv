@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (user.role !== 'ADM' && user.role !== 'RH') {
+  if (user.role !== 'ADM' && user.role !== 'RH' && user.role !== 'MEDICO') {
     return NextResponse.json({ error: 'Sem permissão para editar o plano de ação' }, { status: 403 });
   }
 

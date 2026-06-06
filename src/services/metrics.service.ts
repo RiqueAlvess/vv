@@ -267,48 +267,38 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     .sort((a, b) => b.nr - a.nr)
     .slice(0, 5);
 
-  // ── Position table ──────────────────────────────────────────────────────────
-  const positions = await prisma.campaignPosition.findMany({
-    where: { sector: { unit: { campaign_id: campaignId } } },
-    select: {
-      id: true,
-      name: true,
-      sector: { select: { id: true, name: true, unit: { select: { name: true } } } },
-    },
-    orderBy: { name: 'asc' },
-  });
+  // ── GHE (sector) table — sectors with < 5 responses are suppressed ──────────
+  const SECTOR_PRIVACY_MIN = 5;
 
-  const positionTable = positions
-    .map((pos) => {
-      const posResponses = responses.filter((r) => r.position_id === pos.id);
-      if (posResponses.length === 0) return null;
-      const posDims = aggregateDimensionAnalysis(posResponses);
-      const posNR = Number((posDims.reduce((sum, d) => sum + d.nr, 0) / posDims.length).toFixed(1));
-      const { label } = ScoreService.interpretNR(posNR);
+  const sectorTable = sectors
+    .map((sector) => {
+      const sectorResponses = responses.filter((r) => r.sector_id === sector.id);
+      if (sectorResponses.length < SECTOR_PRIVACY_MIN) return null;
+      const sectorDims = aggregateDimensionAnalysis(sectorResponses);
+      const sectorNR = Number((sectorDims.reduce((sum, d) => sum + d.nr, 0) / sectorDims.length).toFixed(1));
+      const { label } = ScoreService.interpretNR(sectorNR);
       const avgHSEScore = Number(
-        (posDims.reduce((sum, d) => sum + d.avg_score, 0) / posDims.length).toFixed(2),
+        (sectorDims.reduce((sum, d) => sum + d.avg_score, 0) / sectorDims.length).toFixed(2),
       );
       return {
-        position: pos.name,
-        sector: pos.sector.name,
-        unit: pos.sector.unit.name,
+        sector: sector.name,
+        unit: sector.unit.name,
         avg_hse_score: avgHSEScore,
         classification: label,
-        nr: posNR,
-        n_responses: posResponses.length,
+        nr: sectorNR,
+        n_responses: sectorResponses.length,
       };
     })
     .filter((row): row is NonNullable<typeof row> => row !== null)
     .sort((a, b) => b.nr - a.nr);
 
-  const topPositionsByNR = positionTable
-    .map((pos) => ({
-      position: pos.position,
-      sector: pos.sector,
-      unit: pos.unit,
-      nr: pos.nr,
-      label: pos.classification,
-      color: ScoreService.interpretNR(pos.nr).color,
+  const topPositionsByNR = sectorTable
+    .map((s) => ({
+      sector: s.sector,
+      unit: s.unit,
+      nr: s.nr,
+      label: s.classification,
+      color: ScoreService.interpretNR(s.nr).color,
     }))
     .slice(0, 5);
 
@@ -479,7 +469,7 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     },
     scores_by_gender: genderChartData,
     scores_by_age: ageChartData,
-    top_critical_groups: positionTable,
+    top_critical_groups: sectorTable,
     calculated_at: now,
     updated_at: now,
   };

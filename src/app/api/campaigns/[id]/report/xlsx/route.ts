@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   const campaignId = params.id;
 
-  if (user.role === 'RH') {
+  if (user.role !== 'ADM') {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
       select: { company_id: true },

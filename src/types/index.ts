@@ -20,7 +20,7 @@ export interface User {
   companies?: { id: string; name: string }[];
   name: string;
   email: string;
-  role: 'ADM' | 'RH';
+  role: 'ADM' | 'RH' | 'MEDICO';
   active: boolean;
   created_at: string;
 }
@@ -139,7 +139,7 @@ export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 export interface JWTPayload {
   user_id: string;
   email: string;
-  role: 'ADM' | 'RH';
+  role: 'ADM' | 'RH' | 'MEDICO';
   company_id: string;
 }
 
