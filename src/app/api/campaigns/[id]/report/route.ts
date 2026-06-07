@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const SECTOR_PRIVACY_MIN = 5;
+    const SECTOR_PRIVACY_MIN = 2;
 
     // Query hierarchy: units → sectors (GHE)
     const units = await prisma.campaignUnit.findMany({

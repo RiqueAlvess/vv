@@ -91,7 +91,7 @@ export function GheTable({
               <ShieldAlert className="w-6 h-6 text-amber-500" />
             </div>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Nenhum setor com respostas suficientes (mín. 5) para exibir dados.
+              Nenhum setor com respostas suficientes (mín. 2) para exibir dados.
             </p>
           </div>
         ) : (

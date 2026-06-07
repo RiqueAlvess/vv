@@ -544,9 +544,9 @@ export async function GET(request: Request, { params }: RouteParams) {
       .sort((a, b) => b.nr - a.nr)
       .slice(0, 5);
 
-    const SECTOR_PRIVACY_MIN = 5;
+    const SECTOR_PRIVACY_MIN = 2;
 
-    // GHE table: group by sector, filter sectors with < 5 responses (privacy blind)
+    // GHE table: group by sector, filter sectors with < 2 responses (privacy blind)
     const sectorTable = sectors
       .map((sector) => {
         const sectorResponses = responses.filter((resp) => resp.sector_id === sector.id);

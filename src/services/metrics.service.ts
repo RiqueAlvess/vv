@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma';
 import { ScoreService } from './score.service';
 import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY } from '@/lib/constants';
 import { DASHBOARD_CACHE_VERSION } from '@/lib/dashboard-cache';
-import { getCompanySizeBand } from '@/lib/company-size';
 import type { DimensionType, RiskLevel } from '@/types';
 
 // ─── Local types ──────────────────────────────────────────────────────────────
@@ -281,8 +280,8 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     .sort((a, b) => b.nr - a.nr)
     .slice(0, 5);
 
-  // ── GHE (sector) table — sectors with < 5 responses are suppressed ──────────
-  const SECTOR_PRIVACY_MIN = 5;
+  // ── GHE (sector) table — sectors with < 2 responses are suppressed ──────────
+  const SECTOR_PRIVACY_MIN = 2;
 
   const sectorTable = sectors
     .map((sector) => {
@@ -493,25 +492,6 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     create: { campaign_id: campaignId, ...metricsData },
     update: metricsData,
   });
-
-  // Save anonymous benchmark snapshot only if company opted in
-  try {
-    const company = await prisma.company.findUnique({
-      where: { id: campaign.company_id },
-      select: { benchmark_enabled: true },
-    });
-    const benchmarkEnabled = company?.benchmark_enabled !== false;
-    const employeeCount = await prisma.campaignEmployee.count({ where: { campaign_id: campaignId } });
-    if (benchmarkEnabled && employeeCount > 0) {
-      const sizeBand = getCompanySizeBand(employeeCount);
-      const dimScores = Object.fromEntries(dimensionAnalysis.map((d) => [d.key, d.nr]));
-      await prisma.benchmarkSnapshot.create({
-        data: { company_size: sizeBand, igrp, dim_scores: dimScores },
-      });
-    }
-  } catch (err) {
-    console.error('[Metrics] Failed to save benchmark snapshot:', err);
-  }
 
   console.log(`[Metrics] Stored metrics for campaign ${campaignId} (${totalResponded} responses)`);
 }

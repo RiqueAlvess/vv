@@ -162,9 +162,9 @@ supabase/migrations/
 
 ## Privacy Rules (enforced since v1.1.0)
 
-- **Sector blind (GHE)**: Sectors with fewer than **5 respondents** are never shown in the GHE table. Applies to both cached and live-computed dashboards. Constant: `SECTOR_PRIVACY_MIN = 5` in both `dashboard/route.ts` and `metrics.service.ts`.
+- **Sector blind (GHE)**: Sectors with fewer than **2 respondents** are never shown in the GHE table. Applies to both cached and live-computed dashboards. Constant: `SECTOR_PRIVACY_MIN = 2` in both `dashboard/route.ts` and `metrics.service.ts`.
 - **RH respondent count**: RH role sees only a "Taxa de Adesão" percentage card — never the raw respondent count. ADM and MEDICO see the "Respondentes" card with absolute numbers.
-- **Sector filter gate**: If a user drills into a specific sector with < 5 responses, the dashboard shows a "Dados protegidos" screen.
+- **Sector filter gate**: If a user drills into a specific sector with < 2 responses, the dashboard shows a "Dados protegidos" screen.
 
 ## GHE (Grupos Homogêneos de Exposição)
 
