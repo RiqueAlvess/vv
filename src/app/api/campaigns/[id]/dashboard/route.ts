@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY, SECTOR_PRIVACY_MIN, SECTOR_PRIVACY_MESSAGE } from '@/lib/constants';
+import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY, SECTOR_PRIVACY_MIN, SECTOR_AGGREGATED_MESSAGE } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import { enqueueJob } from '@/lib/jobs';
@@ -544,8 +544,13 @@ export async function GET(request: Request, { params }: RouteParams) {
       .sort((a, b) => b.nr - a.nr)
       .slice(0, 5);
 
-    // GHE table: group by sector. Sectors with < SECTOR_PRIVACY_MIN responses are
-    // never shown with real data — they appear as a suppressed row instead (privacy blind).
+    // Company-wide aggregate, used as the stand-in value for sectors below the privacy floor
+    const companyAvgHSEScore = Number(
+      (dimensionAnalysis.reduce((sum, d) => sum + d.avg_score, 0) / dimensionAnalysis.length).toFixed(2)
+    );
+
+    // GHE table: group by sector. Sectors with < SECTOR_PRIVACY_MIN responses never show
+    // their own score — the company-wide aggregate is shown in its place (privacy blind).
     const sectorTable = sectors
       .map((sector) => {
         const sectorResponses = responses.filter((resp) => resp.sector_id === sector.id);
@@ -555,11 +560,12 @@ export async function GET(request: Request, { params }: RouteParams) {
             sector: sector.name,
             unit: sector.unit.name,
             suppressed: true as const,
-            message: SECTOR_PRIVACY_MESSAGE,
-            avg_hse_score: null,
-            classification: null,
-            nr: null,
-            n_responses: null,
+            aggregated: true as const,
+            message: SECTOR_AGGREGATED_MESSAGE,
+            avg_hse_score: companyAvgHSEScore,
+            classification: igrpInterp.label,
+            nr: igrp,
+            n_responses: sectorResponses.length,
           };
         }
 
@@ -574,6 +580,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           sector: sector.name,
           unit: sector.unit.name,
           suppressed: false as const,
+          aggregated: false as const,
           message: null,
           avg_hse_score: avgHSEScore,
           classification: label,
@@ -581,10 +588,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           n_responses: sectorResponses.length,
         };
       })
-      .sort((a, b) => {
-        if (a.suppressed !== b.suppressed) return a.suppressed ? 1 : -1;
-        return (b.nr ?? 0) - (a.nr ?? 0);
-      });
+      .sort((a, b) => (b.nr ?? 0) - (a.nr ?? 0));
 
     const topPositionsByNR = sectorTable
       .filter((s) => !s.suppressed)
