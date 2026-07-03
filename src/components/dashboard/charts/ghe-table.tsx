@@ -9,10 +9,12 @@ import { Download, Loader2, ShieldAlert } from 'lucide-react';
 interface SectorRow {
   sector: string;
   unit: string;
-  avg_hse_score: number;
-  classification: string;
-  nr: number;
-  n_responses: number;
+  suppressed?: boolean;
+  message?: string | null;
+  avg_hse_score: number | null;
+  classification: string | null;
+  nr: number | null;
+  n_responses: number | null;
 }
 
 const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -91,7 +93,7 @@ export function GheTable({
               <ShieldAlert className="w-6 h-6 text-amber-500" />
             </div>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Nenhum setor com respostas suficientes (mín. 2) para exibir dados.
+              Nenhum setor com respostas suficientes (mín. 5) para exibir dados.
             </p>
           </div>
         ) : (
@@ -108,28 +110,41 @@ export function GheTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pageRows.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{row.sector}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
-                    <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className="text-xs"
-                        style={{
-                          backgroundColor: BADGE_COLORS[row.classification]?.bg ?? '#94a3b8',
-                          color: BADGE_COLORS[row.classification]?.text ?? '#ffffff',
-                        }}
-                      >
-                        {row.classification}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
-                    {showRespondentCount && (
-                      <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                {pageRows.map((row, i) =>
+                  row.suppressed ? (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{row.sector}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
+                      <TableCell colSpan={showRespondentCount ? 4 : 3}>
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                          <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                          <span>{row.message}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{row.sector}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
+                      <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          className="text-xs"
+                          style={{
+                            backgroundColor: BADGE_COLORS[row.classification ?? '']?.bg ?? '#94a3b8',
+                            color: BADGE_COLORS[row.classification ?? '']?.text ?? '#ffffff',
+                          }}
+                        >
+                          {row.classification}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
+                      {showRespondentCount && (
+                        <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
+                      )}
+                    </TableRow>
+                  )
+                )}
               </TableBody>
             </Table>
             {rows.length > 0 && (

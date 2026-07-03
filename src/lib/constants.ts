@@ -186,6 +186,17 @@ export const PULSE_CADENCES: { value: string; label: string }[] = [
   { value: 'semestral',  label: 'Semestral' },
 ];
 
+// ============================================================
+// GHE / Sector Privacy (Blind-Drop anonymity)
+// ============================================================
+
+// Sectors with fewer respondents than this are never shown with real data —
+// dashboard GHE table and PGR PDF/HTML both suppress them to protect anonymity.
+export const SECTOR_PRIVACY_MIN = 5;
+
+export const SECTOR_PRIVACY_MESSAGE =
+  'Dados protegidos por privacidade — este setor tem menos de 5 respondentes e não pode ser exibido individualmente. Consulte o GHE geral da empresa para uma visão consolidada.';
+
 export const HSE_QUESTIONS: Record<number, string> = {
   1:  'Eu sei exatamente o que é esperado de mim no trabalho',
   2:  'Posso decidir quando fazer uma pausa',
