@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS, GENDER_LABELS, SECTOR_PRIVACY_MIN, SECTOR_PRIVACY_MESSAGE } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS, SECTOR_PRIVACY_MIN, SECTOR_AGGREGATED_MESSAGE } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -144,9 +144,9 @@ function riskLabel(riskLevel: string): string {
 }
 
 type DimReport = { score: number; riskLevel: string; probability: number; severity: number; nr: number; nrLabel: string; color: string };
-type SectorReport =
-  | { name: string; suppressed: false; message?: undefined; dimensions: Record<string, DimReport> }
-  | { name: string; suppressed: true; message: string; dimensions?: undefined };
+// `aggregated: true` means these dimensions are the company-wide aggregate, shown in place
+// of the sector's own (too small to disclose) data — `message` explains that substitution.
+type SectorReport = { name: string; aggregated: boolean; message?: string; dimensions: Record<string, DimReport> };
 type UnitReport = { name: string; sectors: SectorReport[] };
 
 function buildPGRHtml(params: {
@@ -179,14 +179,10 @@ function buildPGRHtml(params: {
   const hierarchyHtml = params.units.map(unit => `
     <div class="unit">
       <div class="unit-header">UNIDADE: ${unit.name.toUpperCase()}</div>
-      ${unit.sectors.map(sector => sector.suppressed ? `
+      ${unit.sectors.map(sector => `
         <div class="sector">
           <div class="sector-header">GHE / Setor: ${sector.name}</div>
-          <p class="suppressed">🔒 ${sector.message}</p>
-        </div>
-      ` : `
-        <div class="sector">
-          <div class="sector-header">GHE / Setor: ${sector.name}</div>
+          ${sector.aggregated ? `<p class="suppressed">🛡️ ${sector.message}</p>` : ''}
           <table class="dim-table">
             <thead>
               <tr>
@@ -420,18 +416,28 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     orderBy: { name: 'asc' },
   });
 
+  const companyDimensionsRecord = Object.fromEntries(campaignDimensions.map(d => [d.key, {
+    score: d.score, riskLevel: d.riskLevel, probability: d.probability,
+    severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
+  }]));
+
   const unitReports: UnitReport[] = units
     .map(unit => ({
       name: unit.name,
       sectors: unit.sectors.map((sector): SectorReport => {
         const sectorAnswers = responsesWithAnswers.filter(r => r.sector_id === sector.id).map(r => r.answers);
         if (sectorAnswers.length < SECTOR_PRIVACY_MIN) {
-          return { name: sector.name, suppressed: true, message: SECTOR_PRIVACY_MESSAGE };
+          return {
+            name: sector.name,
+            aggregated: true,
+            message: SECTOR_AGGREGATED_MESSAGE,
+            dimensions: companyDimensionsRecord,
+          };
         }
         const sectorDims = calcDimsForAnswers(sectorAnswers);
         return {
           name: sector.name,
-          suppressed: false,
+          aggregated: false,
           dimensions: Object.fromEntries(sectorDims.map(d => [d.key, {
             score: d.score, riskLevel: d.riskLevel, probability: d.probability,
             severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
@@ -565,7 +571,7 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   const dimNames = HSE_DIMENSIONS.map(d => d.name);
   const DIM_HEADER = ['Dimensão', 'Score', 'Classificação', 'P', 'S', 'NR = P×S', 'Nível Final'];
 
-  // Sheet 3: Matriz detalhada por GHE/Setor
+  // Sheet 3: Matriz detalhada por GHE/Setor — XLSX exposes full per-sector data, unfiltered
   const sheetMatriz: unknown[][] = [];
   for (const unit of xlsxUnits) {
     for (const sector of unit.sectors) {
@@ -573,16 +579,12 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
       sheetMatriz.push([`UNIDADE: ${unit.name}`]);
       sheetMatriz.push([`GHE / Setor: ${sector.name}`]);
       sheetMatriz.push(DIM_HEADER);
-      if (secAnswers.length < SECTOR_PRIVACY_MIN) {
-        sheetMatriz.push(['Dados protegidos — menos de 5 respondentes neste setor']);
-      } else {
-        const secDims = calcDims(secAnswers);
-        for (const d of secDims) {
-          sheetMatriz.push([d.name, d.score, d.nrLabel, d.probability, d.severity, d.nr, d.nrLabel]);
-        }
-        const secIgrp = Math.round(secDims.reduce((s, d) => s + d.nr, 0) / secDims.length * 100) / 100;
-        sheetMatriz.push(['IGRP', '', '', '', '', secIgrp, ScoreService.interpretNR(secIgrp).label]);
+      const secDims = calcDims(secAnswers);
+      for (const d of secDims) {
+        sheetMatriz.push([d.name, d.score, d.nrLabel, d.probability, d.severity, d.nr, d.nrLabel]);
       }
+      const secIgrp = Math.round(secDims.reduce((s, d) => s + d.nr, 0) / secDims.length * 100) / 100;
+      sheetMatriz.push(['IGRP', '', '', '', '', secIgrp, ScoreService.interpretNR(secIgrp).label]);
       sheetMatriz.push([]);
     }
   }
@@ -594,10 +596,6 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
   for (const unit of xlsxUnits) {
     for (const sector of unit.sectors) {
       const secAnswers = responsesData.filter(r => r.sector_id === sector.id).map(r => r.answers);
-      if (secAnswers.length < SECTOR_PRIVACY_MIN) {
-        sheetSetor.push([unit.name, sector.name, secAnswers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5']);
-        continue;
-      }
       const secDims = calcDims(secAnswers);
       const secIgrp = Math.round(secDims.reduce((s, d) => s + d.nr, 0) / secDims.length * 100) / 100;
       sheetSetor.push([unit.name, sector.name, secAnswers.length, ...secDims.map(d => d.nr), secIgrp]);
@@ -616,7 +614,6 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     ['ANÁLISE DEMOGRÁFICA — GÊNERO'],
     genderDimHeader,
     ...Object.entries(genderGroups).map(([g, answers]) => {
-      if (answers.length < 5) return [g, answers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5'];
       const dims = calcDims(answers);
       const ig = Math.round(dims.reduce((s, d) => s + d.nr, 0) / dims.length * 100) / 100;
       return [g, answers.length, ...dims.map(d => d.nr), ig];
@@ -637,7 +634,6 @@ export async function buildPgrXlsxArtifact(campaignId: string) {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
   for (const [age, answers] of ageEntries) {
-    if (answers.length < 5) { sheetDemo.push([age, answers.length, ...HSE_DIMENSIONS.map(() => 'N<5'), 'N<5']); continue; }
     const dims = calcDims(answers);
     const ig = Math.round(dims.reduce((s, d) => s + d.nr, 0) / dims.length * 100) / 100;
     sheetDemo.push([age, answers.length, ...dims.map(d => d.nr), ig]);

@@ -9,7 +9,7 @@ import { Download, Loader2, ShieldAlert } from 'lucide-react';
 interface SectorRow {
   sector: string;
   unit: string;
-  suppressed?: boolean;
+  aggregated?: boolean;
   message?: string | null;
   avg_hse_score: number | null;
   classification: string | null;
@@ -93,7 +93,7 @@ export function GheTable({
               <ShieldAlert className="w-6 h-6 text-amber-500" />
             </div>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Nenhum setor com respostas suficientes (mín. 5) para exibir dados.
+              Nenhum setor cadastrado para esta campanha.
             </p>
           </div>
         ) : (
@@ -110,43 +110,48 @@ export function GheTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pageRows.map((row, i) =>
-                  row.suppressed ? (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{row.sector}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
-                      <TableCell colSpan={showRespondentCount ? 4 : 3}>
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                          <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-                          <span>{row.message}</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{row.sector}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
-                      <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className="text-xs"
-                          style={{
-                            backgroundColor: BADGE_COLORS[row.classification ?? '']?.bg ?? '#94a3b8',
-                            color: BADGE_COLORS[row.classification ?? '']?.text ?? '#ffffff',
-                          }}
-                        >
-                          {row.classification}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
-                      {showRespondentCount && (
-                        <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
-                      )}
-                    </TableRow>
-                  )
-                )}
+                {pageRows.map((row, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span>{row.sector}</span>
+                        {row.aggregated && (
+                          <ShieldAlert
+                            className="w-3.5 h-3.5 shrink-0 text-amber-500"
+                            aria-label={row.message ?? undefined}
+                          >
+                            <title>{row.message}</title>
+                          </ShieldAlert>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{row.unit}</TableCell>
+                    <TableCell className="text-center tabular-nums">{(row.avg_hse_score ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className="text-xs"
+                        style={{
+                          backgroundColor: BADGE_COLORS[row.classification ?? '']?.bg ?? '#94a3b8',
+                          color: BADGE_COLORS[row.classification ?? '']?.text ?? '#ffffff',
+                        }}
+                      >
+                        {row.classification}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums font-mono">{(row.nr ?? 0).toFixed(1)}</TableCell>
+                    {showRespondentCount && (
+                      <TableCell className="text-center tabular-nums text-muted-foreground">{row.n_responses}</TableCell>
+                    )}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
+            {rows.some((r) => r.aggregated) && (
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                Setores marcados com o ícone de escudo têm menos de 5 respondentes: os valores exibidos são o dado agregado geral da empresa, não específicos do setor.
+              </p>
+            )}
             {rows.length > 0 && (
               <div className="mt-4 flex items-center justify-between gap-3 text-sm">
                 <p className="text-muted-foreground">
