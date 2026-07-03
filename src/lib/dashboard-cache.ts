@@ -5,7 +5,7 @@
 import { prisma } from '@/lib/prisma';
 
 export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-export const DASHBOARD_CACHE_VERSION = 5;
+export const DASHBOARD_CACHE_VERSION = 6;
 
 type StoredMetrics = Awaited<ReturnType<typeof prisma.campaignMetrics.findUnique>>;
 
@@ -25,12 +25,13 @@ function hasCompatibleDashboardShape(cached: NonNullable<StoredMetrics>): boolea
   if (!isArray(cached.dimension_scores)) return false;
   if (!isArray(cached.heatmap_data)) return false;
   if (!isArray(cached.top_critical_groups)) return false;
-  // Validate that sector (GHE) rows have the current field shape
+  // Validate that sector (GHE) rows have the current field shape (v6+: suppressed rows allowed)
   if (cached.top_critical_groups.length > 0) {
-    const first = cached.top_critical_groups[0];
-    if (!isObject(first) || typeof first.avg_hse_score !== 'number') return false;
-    // Must be sector-based (v5+): has 'sector' field, not legacy 'position'
-    if (typeof first.sector !== 'string') return false;
+    for (const row of cached.top_critical_groups) {
+      if (!isObject(row) || typeof row.sector !== 'string') return false;
+      if (row.suppressed === true) continue;
+      if (typeof row.avg_hse_score !== 'number') return false;
+    }
   }
   if (!isArray(cached.scores_by_gender)) return false;
   if (!isArray(cached.scores_by_age)) return false;

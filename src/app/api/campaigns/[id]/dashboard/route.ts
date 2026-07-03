@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { apiLimiter } from '@/lib/rate-limit';
-import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY } from '@/lib/constants';
+import { AGE_RANGES, HSE_DIMENSIONS, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY, SECTOR_PRIVACY_MIN, SECTOR_PRIVACY_MESSAGE } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import { getCampaignMetricsWithCache } from '@/lib/dashboard-cache';
 import { enqueueJob } from '@/lib/jobs';
@@ -544,13 +544,24 @@ export async function GET(request: Request, { params }: RouteParams) {
       .sort((a, b) => b.nr - a.nr)
       .slice(0, 5);
 
-    const SECTOR_PRIVACY_MIN = 2;
-
-    // GHE table: group by sector, filter sectors with < 2 responses (privacy blind)
+    // GHE table: group by sector. Sectors with < SECTOR_PRIVACY_MIN responses are
+    // never shown with real data — they appear as a suppressed row instead (privacy blind).
     const sectorTable = sectors
       .map((sector) => {
         const sectorResponses = responses.filter((resp) => resp.sector_id === sector.id);
-        if (sectorResponses.length < SECTOR_PRIVACY_MIN) return null;
+
+        if (sectorResponses.length < SECTOR_PRIVACY_MIN) {
+          return {
+            sector: sector.name,
+            unit: sector.unit.name,
+            suppressed: true as const,
+            message: SECTOR_PRIVACY_MESSAGE,
+            avg_hse_score: null,
+            classification: null,
+            nr: null,
+            n_responses: null,
+          };
+        }
 
         const sectorDims = aggregateDimensionAnalysis(sectorResponses);
         const sectorNR = Number((sectorDims.reduce((sum, d) => sum + d.nr, 0) / sectorDims.length).toFixed(1));
@@ -562,22 +573,27 @@ export async function GET(request: Request, { params }: RouteParams) {
         return {
           sector: sector.name,
           unit: sector.unit.name,
+          suppressed: false as const,
+          message: null,
           avg_hse_score: avgHSEScore,
           classification: label,
           nr: sectorNR,
           n_responses: sectorResponses.length,
         };
       })
-      .filter((row): row is NonNullable<typeof row> => row !== null)
-      .sort((a, b) => b.nr - a.nr);
+      .sort((a, b) => {
+        if (a.suppressed !== b.suppressed) return a.suppressed ? 1 : -1;
+        return (b.nr ?? 0) - (a.nr ?? 0);
+      });
 
     const topPositionsByNR = sectorTable
+      .filter((s) => !s.suppressed)
       .map((s) => ({
         sector: s.sector,
         unit: s.unit,
-        nr: s.nr,
-        label: s.classification,
-        color: ScoreService.interpretNR(s.nr).color,
+        nr: s.nr as number,
+        label: s.classification as string,
+        color: ScoreService.interpretNR(s.nr as number).color,
       }))
       .slice(0, 5);
 

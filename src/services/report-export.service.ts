@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS, GENDER_LABELS } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS, SECTOR_PRIVACY_MIN, SECTOR_PRIVACY_MESSAGE } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -136,8 +136,6 @@ export async function buildDashboardXlsxArtifact(campaignId: string) {
   };
 }
 
-const SECTOR_PRIVACY_MIN = 5;
-
 function riskLabel(riskLevel: string): string {
   if (riskLevel === 'critico') return 'Risco Alto';
   if (riskLevel === 'importante') return 'Risco Moderado';
@@ -146,7 +144,9 @@ function riskLabel(riskLevel: string): string {
 }
 
 type DimReport = { score: number; riskLevel: string; probability: number; severity: number; nr: number; nrLabel: string; color: string };
-type SectorReport = { name: string; dimensions: Record<string, DimReport> };
+type SectorReport =
+  | { name: string; suppressed: false; message?: undefined; dimensions: Record<string, DimReport> }
+  | { name: string; suppressed: true; message: string; dimensions?: undefined };
 type UnitReport = { name: string; sectors: SectorReport[] };
 
 function buildPGRHtml(params: {
@@ -179,7 +179,12 @@ function buildPGRHtml(params: {
   const hierarchyHtml = params.units.map(unit => `
     <div class="unit">
       <div class="unit-header">UNIDADE: ${unit.name.toUpperCase()}</div>
-      ${unit.sectors.map(sector => `
+      ${unit.sectors.map(sector => sector.suppressed ? `
+        <div class="sector">
+          <div class="sector-header">GHE / Setor: ${sector.name}</div>
+          <p class="suppressed">🔒 ${sector.message}</p>
+        </div>
+      ` : `
         <div class="sector">
           <div class="sector-header">GHE / Setor: ${sector.name}</div>
           <table class="dim-table">
@@ -418,17 +423,20 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
   const unitReports: UnitReport[] = units
     .map(unit => ({
       name: unit.name,
-      sectors: unit.sectors.flatMap((sector): SectorReport[] => {
+      sectors: unit.sectors.map((sector): SectorReport => {
         const sectorAnswers = responsesWithAnswers.filter(r => r.sector_id === sector.id).map(r => r.answers);
-        if (sectorAnswers.length < SECTOR_PRIVACY_MIN) return [];
+        if (sectorAnswers.length < SECTOR_PRIVACY_MIN) {
+          return { name: sector.name, suppressed: true, message: SECTOR_PRIVACY_MESSAGE };
+        }
         const sectorDims = calcDimsForAnswers(sectorAnswers);
-        return [{
+        return {
           name: sector.name,
+          suppressed: false,
           dimensions: Object.fromEntries(sectorDims.map(d => [d.key, {
             score: d.score, riskLevel: d.riskLevel, probability: d.probability,
             severity: d.severity, nr: d.nr, nrLabel: d.nrLabel, color: d.color,
           }])),
-        }];
+        };
       }),
     }))
     .filter(u => u.sectors.length > 0);

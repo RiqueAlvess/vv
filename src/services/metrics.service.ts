@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { ScoreService } from './score.service';
-import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY } from '@/lib/constants';
+import { HSE_DIMENSIONS, AGE_RANGES, GENDER_LABELS, DIMENSION_SEVERITY, NR_PROBABILITY, SECTOR_PRIVACY_MIN, SECTOR_PRIVACY_MESSAGE } from '@/lib/constants';
 import { DASHBOARD_CACHE_VERSION } from '@/lib/dashboard-cache';
 import type { DimensionType, RiskLevel } from '@/types';
 
@@ -280,13 +280,25 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
     .sort((a, b) => b.nr - a.nr)
     .slice(0, 5);
 
-  // ── GHE (sector) table — sectors with < 2 responses are suppressed ──────────
-  const SECTOR_PRIVACY_MIN = 2;
-
+  // ── GHE (sector) table — sectors with < SECTOR_PRIVACY_MIN responses are
+  // suppressed and returned as a placeholder row instead of real data ─────────
   const sectorTable = sectors
     .map((sector) => {
       const sectorResponses = responses.filter((r) => r.sector_id === sector.id);
-      if (sectorResponses.length < SECTOR_PRIVACY_MIN) return null;
+
+      if (sectorResponses.length < SECTOR_PRIVACY_MIN) {
+        return {
+          sector: sector.name,
+          unit: sector.unit.name,
+          suppressed: true as const,
+          message: SECTOR_PRIVACY_MESSAGE,
+          avg_hse_score: null,
+          classification: null,
+          nr: null,
+          n_responses: null,
+        };
+      }
+
       const sectorDims = aggregateDimensionAnalysis(sectorResponses);
       const sectorNR = Number((sectorDims.reduce((sum, d) => sum + d.nr, 0) / sectorDims.length).toFixed(1));
       const { label } = ScoreService.interpretNR(sectorNR);
@@ -296,22 +308,27 @@ export async function calculateAndStoreCampaignMetrics(campaignId: string): Prom
       return {
         sector: sector.name,
         unit: sector.unit.name,
+        suppressed: false as const,
+        message: null,
         avg_hse_score: avgHSEScore,
         classification: label,
         nr: sectorNR,
         n_responses: sectorResponses.length,
       };
     })
-    .filter((row): row is NonNullable<typeof row> => row !== null)
-    .sort((a, b) => b.nr - a.nr);
+    .sort((a, b) => {
+      if (a.suppressed !== b.suppressed) return a.suppressed ? 1 : -1;
+      return (b.nr ?? 0) - (a.nr ?? 0);
+    });
 
   const topPositionsByNR = sectorTable
+    .filter((s) => !s.suppressed)
     .map((s) => ({
       sector: s.sector,
       unit: s.unit,
-      nr: s.nr,
-      label: s.classification,
-      color: ScoreService.interpretNR(s.nr).color,
+      nr: s.nr as number,
+      label: s.classification as string,
+      color: ScoreService.interpretNR(s.nr as number).color,
     }))
     .slice(0, 5);
 
