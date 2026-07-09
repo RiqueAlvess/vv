@@ -1,6 +1,6 @@
 # CLAUDE.md — Asta: Plataforma de Riscos Psicossociais NR-1
 
-## Versão Atual: 1.1.2
+## Versão Atual: 1.1.3
 
 ## Project Overview
 - **What it is**: Multi-tenant SaaS for companies to run anonymous psychosocial risk assessments (HSE-IT questionnaire, 35 questions, 7 dimensions) for NR-1 compliance
@@ -160,10 +160,11 @@ supabase/migrations/
 | `RH` | Company-scoped | Manages campaigns for their company. Uploads CSV, manages QR codes, dispatches invitations. Sees dashboard but **NOT** raw respondent counts (only % rate). Exports PGR PDF. GHE table without N Respostas column. |
 | `MEDICO` | Company-scoped | Same view as RH but **CAN** see respondent counts and export XLSX spreadsheet. Read-only: cannot create campaigns, upload CSV, or activate campaigns. |
 
-## Privacy Rules (enforced since v1.1.0, unified threshold in v1.1.1, aggregate fallback in v1.1.2)
+## Privacy Rules (enforced since v1.1.0, unified threshold in v1.1.1, aggregate fallback in v1.1.2, company-summary-only PGR in v1.1.3)
 
 - **Sector blind (GHE)**: Sectors with fewer than **5 respondents** never show their own score — the dashboard GHE table and the PGR PDF/HTML report substitute the **company-wide aggregate** (overall IGRP/dimension values) in that row instead, plus a message clarifying the numbers are aggregated, not sector-specific. Constants: `SECTOR_PRIVACY_MIN = 5` and `SECTOR_AGGREGATED_MESSAGE` in `src/lib/constants.ts` (shared by `dashboard/route.ts`, `metrics.service.ts`, and `report-export.service.ts`'s PGR HTML builder).
 - **Aggregate substitution, not a silent drop or a blank row**: Below-threshold sectors are **not removed from the list**, and (as of v1.1.2) are **not left blank either** — the row shows `aggregated: true`, the company-wide `avg_hse_score`/`classification`/`nr`, and the real `n_responses` for that sector, with `message` explaining the values come from the whole company. There is no per-sector fallback to a "similar sector" — the substitute is always the campaign-wide aggregate.
+- **Company-summary-only PGR (v1.1.3)**: If **no sector** in the campaign reaches `SECTOR_PRIVACY_MIN`, the PGR HTML/PDF omits the per-unit/per-sector GHE breakdown entirely (otherwise every row would repeat the same aggregate) and renders a single "Resultado Geral da Empresa" section instead: `COMPANY_AGGREGATED_MESSAGE` (in `src/lib/constants.ts`) explaining the anonymization + the campaign-wide IGRP with its `interpretNR` label. Detection: `unitReports.every(u => u.sectors.every(s => s.aggregated))` in `buildCampaignPgrHtmlArtifact`. The campaign-wide "Resumo da Campanha — Score por Dimensão" section renders in both modes. Unit test: `src/__tests__/report-export.pgr-privacy.test.ts` (mocks Prisma).
 - **XLSX export is exempt**: `buildPgrXlsxArtifact` (planilha PGR) always reveals real per-sector, per-gender, and per-age-range data — it never suppresses or substitutes, regardless of respondent count. This is intentional (v1.1.2): only the dashboard UI and the PGR HTML/PDF apply the privacy substitution.
 - **RH respondent count**: RH role sees only a "Taxa de Adesão" percentage card — never the raw respondent count. ADM and MEDICO see the "Respondentes" card with absolute numbers.
 - **Sector filter gate**: If a user drills into a specific sector with < 5 responses, the dashboard shows a "Dados protegidos" screen (`PRIVACY_MIN = 5` in `campaign-dashboard.tsx`).
@@ -174,7 +175,7 @@ supabase/migrations/
 Since v1.1.0, the dashboard's detailed analysis is organized by **sector** (GHE), not by job title/cargo.
 
 - **`GheTable` component** (`src/components/dashboard/charts/ghe-table.tsx`): One row per sector. Sectors with < 5 responses show the company-wide aggregate score/classification/NR with a shield icon + tooltip (and a footnote below the table) instead of being hidden or left blank. Shows N Respostas only for ADM and MEDICO.
-- **PGR HTML/PDF** (`buildCampaignPgrHtmlArtifact` in `report-export.service.ts`, served by `POST /api/campaigns/[id]/report/pdf`): Renders every sector under its unit; sectors with < 5 responses render the campaign-wide dimension table with a note above it (`.suppressed` CSS class, despite the name — it's a note, not a block) explaining the values are aggregated.
+- **PGR HTML/PDF** (`buildCampaignPgrHtmlArtifact` in `report-export.service.ts`, served by `POST /api/campaigns/[id]/report/pdf`): Renders every sector under its unit; sectors with < 5 responses render the campaign-wide dimension table with a note above it (`.suppressed` CSS class, despite the name — it's a note, not a block) explaining the values are aggregated. If **no** sector reaches the minimum, the whole GHE section is replaced by the company-summary-only mode (see Privacy Rules).
 - **PGR XLSX** (`buildPgrXlsxArtifact`): No privacy substitution — always shows real sector/demographic data.
 - **Dashboard payload key**: `sector_table` (was `position_table` before v1.1.0)
 - **Cache key**: `top_critical_groups` in `CampaignMetrics` stores the sector array (same DB field, different shape)

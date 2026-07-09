@@ -198,6 +198,12 @@ export const SECTOR_PRIVACY_MIN = 5;
 export const SECTOR_AGGREGATED_MESSAGE =
   'Este setor tem menos de 5 respondentes — por privacidade, os valores exibidos são o dado agregado geral da empresa, não específicos deste setor.';
 
+// Shown when NO sector in the campaign reaches SECTOR_PRIVACY_MIN respondents:
+// the PGR PDF/HTML then omits the per-unit/per-sector breakdown entirely and
+// presents a single company-wide summary instead.
+export const COMPANY_AGGREGATED_MESSAGE =
+  `Este relatório apresenta um resumo geral único da sua empresa porque nenhum setor atingiu o número mínimo de ${SECTOR_PRIVACY_MIN} respondentes. Por uma questão de anonimização, os resultados não são detalhados por unidade, setor ou cargo — o score apresentado é a média geral consolidada de todos os respondentes da empresa.`;
+
 export const HSE_QUESTIONS: Record<number, string> = {
   1:  'Eu sei exatamente o que é esperado de mim no trabalho',
   2:  'Posso decidir quando fazer uma pausa',
