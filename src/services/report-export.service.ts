@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { HSE_DIMENSIONS, GENDER_LABELS, SECTOR_PRIVACY_MIN, SECTOR_AGGREGATED_MESSAGE } from '@/lib/constants';
+import { HSE_DIMENSIONS, GENDER_LABELS, SECTOR_PRIVACY_MIN, SECTOR_AGGREGATED_MESSAGE, COMPANY_AGGREGATED_MESSAGE } from '@/lib/constants';
 import { ScoreService } from '@/services/score.service';
 import * as XLSX from 'xlsx';
 import type { DimensionType, RiskLevel } from '@/types';
@@ -163,6 +163,10 @@ function buildPGRHtml(params: {
     key: string; name: string; score: number; riskLevel: string;
     probability: number; severity: number; nr: number; nrLabel: string; color: string;
   }>;
+  igrp: { value: number; label: string; color: string };
+  // No sector reached SECTOR_PRIVACY_MIN: omit the per-unit/sector breakdown and
+  // render a single company-wide summary instead.
+  companyAggregatedOnly: boolean;
 }): string {
   const dimRows = params.campaignDimensions.map(d => `
     <tr>
@@ -176,7 +180,7 @@ function buildPGRHtml(params: {
     </tr>
   `).join('');
 
-  const hierarchyHtml = params.units.map(unit => `
+  const hierarchyHtml = params.companyAggregatedOnly ? '' : params.units.map(unit => `
     <div class="unit">
       <div class="unit-header">UNIDADE: ${unit.name.toUpperCase()}</div>
       ${unit.sectors.map(sector => `
@@ -214,6 +218,34 @@ function buildPGRHtml(params: {
     </div>
   `).join('');
 
+  const analysisSection = params.companyAggregatedOnly ? `
+<!-- COMPANY-WIDE SUMMARY (anonymization fallback: no sector reached the privacy minimum) -->
+<div class="section">
+  <div class="section-title">Resultado Geral da Empresa</div>
+  <div class="privacy-box">🛡️ ${COMPANY_AGGREGATED_MESSAGE}</div>
+  <table class="dim-table">
+    <thead>
+      <tr>
+        <th>Indicador</th>
+        <th style="text-align:center">Valor</th>
+        <th style="text-align:center">Nível Final</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>IGRP — Índice Geral de Risco Psicossocial (média geral da empresa)</td>
+        <td style="text-align:center; font-weight:700">${params.igrp.value.toFixed(2)}</td>
+        <td style="text-align:center; color:${params.igrp.color}; font-weight:700">${params.igrp.label}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>` : `
+<!-- HIERARCHY -->
+<div class="section">
+  <div class="section-title">Análise por GHE (Grupo Homogêneo de Exposição) / Setor</div>
+  ${hierarchyHtml}
+</div>`;
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -243,6 +275,7 @@ function buildPGRHtml(params: {
   .position { margin-left: 24px; margin-bottom: 10px; }
   .position-header { font-size: 10px; font-weight: 600; color: #475569; padding: 3px 0; margin-bottom: 4px; }
   .suppressed { font-size: 10px; color: #94a3b8; font-style: italic; padding: 4px 0; }
+  .privacy-box { background: #f0f7fc; border: 1px solid #b6d7ec; border-left: 4px solid #144660; color: #144660; padding: 10px 14px; border-radius: 4px; font-size: 10.5px; line-height: 1.5; margin-bottom: 12px; }
 
   .footer { margin-top: 32px; padding: 12px 32px; border-top: 2px solid #144660; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; }
   .footer-logo { height: 20px; width: auto; opacity: 0.6; }
@@ -337,11 +370,7 @@ function buildPGRHtml(params: {
   </table>
 </div>
 
-<!-- HIERARCHY -->
-<div class="section">
-  <div class="section-title">Análise por GHE (Grupo Homogêneo de Exposição) / Setor</div>
-  ${hierarchyHtml}
-</div>
+${analysisSection}
 
 <!-- FOOTER -->
 <div class="footer">
@@ -447,6 +476,13 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     }))
     .filter(u => u.sectors.length > 0);
 
+  // When no sector reaches SECTOR_PRIVACY_MIN, every row would repeat the same
+  // company aggregate — collapse the report into a single company-wide summary.
+  const companyAggregatedOnly = unitReports.every(u => u.sectors.every(s => s.aggregated));
+
+  const igrpValue = Math.round(campaignDimensions.reduce((s, d) => s + d.nr, 0) / campaignDimensions.length * 100) / 100;
+  const igrpInterp = ScoreService.interpretNR(igrpValue);
+
   const now = new Date();
   const html = buildPGRHtml({
     companyName: campaign.company.name,
@@ -459,6 +495,8 @@ export async function buildCampaignPgrHtmlArtifact(campaignId: string) {
     totalInvited: 0,
     units: unitReports,
     campaignDimensions,
+    igrp: { value: igrpValue, label: igrpInterp.label, color: igrpInterp.color },
+    companyAggregatedOnly,
   });
 
   return {
